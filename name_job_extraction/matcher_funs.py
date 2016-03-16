@@ -4,18 +4,28 @@ from sets import Set
 DEBUG = False
 
 def parse_string(x) :
+    '''
+    :param x:
+    :return:
+    '''
     t = type(x)
     if t is unicode :
         return x.encode("utf8")
     elif t is str :
         return x
     else :
-        raise expectation_error("a string", x)
+        raise Exception()
 
 class Matcher:
 
     @staticmethod
     def match_names_and_jobs( text, names, jobs):
+        '''
+        :param text: text
+        :param names: list of names
+        :param jobs: list of jobs
+        :return: name and job matches
+        '''
         names = list([x for x in names if x not in jobs])
         names = list(Set([x for x in names]))
         jobs = list(Set([x for x in jobs]))
