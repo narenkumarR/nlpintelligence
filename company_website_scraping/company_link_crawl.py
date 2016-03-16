@@ -151,11 +151,18 @@ class CompanyPageCrawler(object):
         :return:
         '''
         ph_reg = r'[\w\.-]+@[\w\.-]+'
-        page_text = self.get_pagetext_soupinput(soup)
         emails = []
+        page_text = soup.text
         for match in re.finditer(ph_reg,page_text):
             match_text = page_text[match.start():match.end()]
-            if '.' in match_text[match_text.find('@'):]:
+            if '.' in match_text[match_text.find('@'):] \
+                    and len(match_text[match_text.rfind('.'):])<6:
+                emails.append(match_text)
+        page_text = self.get_pagetext_soupinput(soup)
+        for match in re.finditer(ph_reg,page_text):
+            match_text = page_text[match.start():match.end()]
+            if '.' in match_text[match_text.find('@'):]\
+                    and len(match_text[match_text.rfind('.'):])<6:
                 emails.append(match_text)
         return list(set(emails))
 

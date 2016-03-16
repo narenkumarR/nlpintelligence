@@ -17,9 +17,15 @@ def sent_tokenize_withnewline(text):
 
 class StanfordNERTaggerExtractor(object):
     """docstring for ClassName"""
-    def __init__(self):
-        self.st = StanfordNERTagger('stanford-jars/english.all.3class.distsim.crf.ser.gz' ,
-            'stanford-jars/stanford-ner.jar' )
+    def __init__(self,three_class_jar_loc='stanford-jars/english.all.3class.distsim.crf.ser.gz',\
+                 ner_jar_loc = 'stanford-jars/stanford-ner.jar' ):
+        '''
+        :param three_class_jar_loc: 3 class jar file
+        :param ner_jar_loc: ner jar file
+        :return:
+        '''
+        self.st = StanfordNERTagger(three_class_jar_loc ,
+            ner_jar_loc)
 
     def tag_text_single(self,text):
         '''
