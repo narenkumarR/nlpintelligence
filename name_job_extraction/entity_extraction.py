@@ -10,9 +10,15 @@ from nltk.tag.stanford import StanfordNERTagger
 
 class StanfordNERTaggerExtractor(object):
     """docstring for ClassName"""
-    def __init__(self):
-        self.st = StanfordNERTagger('stanford-jars/english.all.3class.distsim.crf.ser.gz' ,
-            'stanford-jars/stanford-ner.jar' )
+    def __init__(self,three_class_jar_loc='stanford-jars/english.all.3class.distsim.crf.ser.gz',\
+                 ner_jar_loc = 'stanford-jars/stanford-ner.jar' ):
+        '''
+        :param three_class_jar_loc: 3 class jar file
+        :param ner_jar_loc: ner jar file
+        :return:
+        '''
+        self.st = StanfordNERTagger(three_class_jar_loc ,
+            ner_jar_loc)
 
     def tag_text_single(self,text):
         '''
@@ -54,7 +60,6 @@ class StanfordNERTaggerExtractor(object):
         return self.st.tag_sents(tokenized_sents)
 
     def identify_NER_tags_multi(self,text_tag,tag_to_find):
-        ''' '''
         tag_strs = []
         for sent_tag in text_tag:
             for wrd in self.identify_NER_tags_single(sent_tag,tag_to_find):
@@ -79,6 +84,7 @@ class JobsExtractor(object):
         return jobs
 
     def find_jobs(self,text):
+        ''' '''
         jobs = []
         for match in self.reg_jobs.finditer(text):
             jobs.append(text[match.start():match.end()])
