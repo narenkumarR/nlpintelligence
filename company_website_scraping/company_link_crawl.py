@@ -179,18 +179,25 @@ class CompanyLinkCrawler(object):
                 matches.append(match_text)
         return list(set(matches))
 
-class CompanyMainLinkCrawler(object):
+class CompanyLinkCrawlerWrapper(object):
     ''' wrapper fro CompanyLinkCrawler
     '''
     def __init__(self):
         self.company_link_crawler = CompanyLinkCrawler()
 
     def get_contact_details_urlinput(self,url):
-        ''' get all emails and phone nos
+        '''
         :param url:
         :return:
         '''
         soup = self.company_link_crawler.soup_generator.single_wp(url)
+        return self.get_contact_details_soupinput(soup)
+
+    def get_contact_details_soupinput(self,soup):
+        ''' get all emails and phone nos
+        :param url:
+        :return:
+        '''
         emails, phones, urls = [],[],[]
         emails.extend(self.company_link_crawler.get_emails_in_page_soupinput(soup))
         phones.extend(self.company_link_crawler.get_phone_nos_soupinput(soup))
