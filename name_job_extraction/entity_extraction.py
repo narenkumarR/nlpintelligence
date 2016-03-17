@@ -7,7 +7,6 @@ import re
 import nltk
 from nltk.tag.stanford import StanfordNERTagger
 
-
 class StanfordNERTaggerExtractor(object):
     """docstring for ClassName"""
     def __init__(self,three_class_jar_loc='stanford-jars/english.all.3class.distsim.crf.ser.gz',\
@@ -69,8 +68,8 @@ class StanfordNERTaggerExtractor(object):
 
 
 class JobsExtractor(object):
-    def __init__(self):
-        with open('job_designations_all.json','r') as f:
+    def __init__(self,job_json='job_designations_all.json'):
+        with open(job_json,'r') as f:
             jobs_dict = json.load(f)
         self.reg_top_jobs = re.compile('|'.join(jobs_dict['top_jobs']))
         # self.reg_jobs = re.compile('|'.join(jobs_dict['jobs']),re.IGNORECASE)
