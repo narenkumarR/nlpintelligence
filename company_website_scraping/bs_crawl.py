@@ -7,12 +7,15 @@ Author: ideas2it
 from bs4 import BeautifulSoup
 
 from urllib_crawl import UrllibCrawl
+from url_cleaner import UrlCleaner
+url_cleaner = UrlCleaner()
 
 class BeautifulsoupCrawl:
     
     @staticmethod
     def single_wp(baseurl,headers = {'User-Agent': 'Mozilla/5.0 (Macintosh; Intel Mac OS X 10.10; rv:39.0) Gecko/20100101 Firefox/39.0'}):
         # parse the html using BeautifulSoup
+        baseurl = url_cleaner.clean_url(baseurl)
         try:
             response=BeautifulSoup(UrllibCrawl.getResponse(baseurl,headers=headers))
         except:

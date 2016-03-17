@@ -29,13 +29,13 @@ tmp = pd.DataFrame({'Email':emails})
 tmp['Location'] = locations
 urls, res_froms = [], []
 for i in other_details:
-	try:
-		ii = eval(i)
-		urls.append(ii['url'])
-		res_froms.append(ii['res_from'])
-	except :
-		urls.append('')
-		res_froms.append('')
+    try:
+        ii = eval(i)
+        urls.append(ii['url'])
+        res_froms.append(ii['res_from'])
+    except :
+        urls.append('')
+        res_froms.append('')
 
 tmp['URL'] = urls
 tmp['Result From'] = res_froms
