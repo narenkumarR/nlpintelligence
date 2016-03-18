@@ -103,9 +103,9 @@ class CompanyLinkCrawler(object):
         :return:
         '''
         if not url_match_string:
-            url_match_string = 'about|contact|team'
+            url_match_string = 'about|contact|team|story'
         if not url_text_match_string:
-            url_text_match_string = 'about|contact|team'
+            url_text_match_string = 'about|contact|team|story'
         linktexts = self.get_all_links_soupinput(soup,base_url)
         contact_linktexts = self.search_links_textmatch(linktexts,url_match_string,url_text_match_string,which_match=which_match)
         return contact_linktexts

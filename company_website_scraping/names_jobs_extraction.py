@@ -26,7 +26,7 @@ class CompanyNameJobExtractor(object):
         '''
         self.company_link_crawler = company_link_crawl.CompanyLinkCrawler()
         self.se = ee.StanfordNERTaggerExtractor(stanford_3class_loc,stanford_ner_jar_loc)
-        self.matcher = mf.Matcher
+        self.matcher = mf.Matcher()
         self.je = ee.JobsExtractor(jobs_json_loc)
         self.clc = company_link_crawl.CompanyLinkCrawler()
 
@@ -54,6 +54,28 @@ class CompanyNameJobExtractor(object):
         :param url:
         :return:
         '''
-        pdb.set_trace()
+        # pdb.set_trace()
         soup = self.clc.soup_generator.single_wp(url)
         return self.find_jobs_names_soupinput(soup,names_remove)
+
+    def find_jobs_names_baseurlinput(self,base_url):
+        '''
+        :param base_url:
+        :return:
+        '''
+        soup = self.clc.soup_generator.single_wp(base_url)
+        contact_linktexts = self.company_link_crawler.get_all_contactlinks_soupinput(soup,base_url)
+        #extracting only the name part of the url
+        url_tmp = base_url
+        tmp = re.findall(r'(?<=//).+',url_tmp)
+        if tmp:
+            url_tmp = tmp[0]
+        tmp = re.findall(r'(?<=www\.)\w+',url_tmp)
+        if tmp:
+            url_tmp = tmp[0]
+        else:
+            url_tmp = url_tmp[:url_tmp.find('.')]
+        name_jobs = []
+        for dic in contact_linktexts:
+            name_jobs.extend(self.find_jobs_names_urlinput(dic['url'],url_tmp))
+        return name_jobs

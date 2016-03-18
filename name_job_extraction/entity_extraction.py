@@ -71,9 +71,14 @@ class JobsExtractor(object):
     def __init__(self,job_json='job_designations_all.json'):
         with open(job_json,'r') as f:
             jobs_dict = json.load(f)
-        self.reg_top_jobs = re.compile('|'.join(jobs_dict['top_jobs']))
+        top_jobs_regex = r'\b|\b'.join(jobs_dict['top_jobs'])
+        top_jobs_regex = r'\b'+top_jobs_regex+r'\b'
+        self.reg_top_jobs = re.compile(top_jobs_regex,re.IGNORECASE)
         # self.reg_jobs = re.compile('|'.join(jobs_dict['jobs']),re.IGNORECASE)
-        self.reg_jobs = re.compile('|'.join(jobs_dict['jobs']))
+        naukri_jobs = jobs_dict['jobs']
+        jobs_regex = r'\b|\b'.join(naukri_jobs)
+        jobs_regex = r'\b'+jobs_regex+r'\b'
+        self.reg_jobs = re.compile(jobs_regex)
 
     def find_top_jobs(self,text):
         ''' '''
