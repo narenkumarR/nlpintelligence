@@ -109,8 +109,8 @@ class Matcher(object):
         n = len(sorted_name_indexes)
         if DEBUG:
             print "*" * 100
-        while (min_distance <= 4*first_min_distance or min_distance <= first_min_distance+12) \
-              and min_distance <= 50 \
+        while (min_distance <= 4*first_min_distance or min_distance <= first_min_distance+20) \
+              and min_distance <= min(100,max(50,first_min_distance+20)) \
                 and min_distance <= max_distance:
             ind = distances.index(min_distance)
             j = ind % n #j indicate name position in the sorted_name_indexes list
