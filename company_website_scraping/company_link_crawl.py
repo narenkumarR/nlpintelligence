@@ -191,9 +191,9 @@ class CompanyLinkCrawlerWrapper(object):
         :return:
         '''
         soup = self.company_link_crawler.soup_generator.single_wp(url)
-        return self.get_contact_details_soupinput(soup)
+        return self.get_contact_details_soupinput(soup,url)
 
-    def get_contact_details_soupinput(self,soup):
+    def get_contact_details_soupinput(self,soup,url):
         ''' get all emails and phone nos
         :param url:
         :return:

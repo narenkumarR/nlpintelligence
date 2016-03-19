@@ -36,6 +36,7 @@ class CompanyNameJobExtractor(object):
         :return:
         '''
         text = self.clc.get_pagetext_soupinput(soup)
+        # text = re.sub('\n+','\n',text)
         text = re.sub('\n','. ',text)
         text_tagged = self.se.tag_text_multi(text)
         names = self.se.identify_NER_tags_multi(text_tagged,'PERSON')
@@ -45,8 +46,15 @@ class CompanyNameJobExtractor(object):
                     if utils.match_chars_hard(name,name_remove):
                         names.remove(name)
                         break
+        #todo: clean names (sometimes only first names and first name+last name will come. Eg: vinod gupta, ceo ..
+        # the ceo of this company.etc.. here keep only vinod gupta and remove vinod)
         jobs = self.je.find_all_jobs(text)
         names_jobs = self.matcher.match_names_and_jobs(text,names,jobs)
+        if names_jobs:
+            found_names = [name for job,name in names_jobs]
+            rest_names = list(set(names)-set(found_names))
+            new_names_jobs = self.matcher.match_names_and_jobs(text,rest_names,jobs)
+            names_jobs = list(set(names_jobs+new_names_jobs))
         return names_jobs
 
     def find_jobs_names_urlinput(self,url,names_remove=[]):
@@ -76,6 +84,8 @@ class CompanyNameJobExtractor(object):
         else:
             url_tmp = url_tmp[:url_tmp.find('.')]
         name_jobs = []
-        for dic in contact_linktexts:
-            name_jobs.extend(self.find_jobs_names_urlinput(dic['url'],url_tmp))
+        inp_links = list(set([dic['url'] for dic in contact_linktexts]))
+        # inp_links = list(set(inp_links.append(base_url)))
+        for link in inp_links:
+            name_jobs.extend(self.find_jobs_names_urlinput(link,[url_tmp]))
         return name_jobs
