@@ -6,7 +6,9 @@ from urlparse import urljoin
 
 from bs_crawl import BeautifulsoupCrawl
 import url_cleaner
-
+management_contact_keywords = ["about", "team", "management", "leadership", "leaders",
+              "company", "people", "face", "executive", "staff", "contact" ]
+social_link_keywords = ['facebook','twitter','linkedin','crunchbase','angel.co','plus.google']
 class CompanyLinkCrawler(object):
     def __init__(self):
         self.url_cleaner = url_cleaner.UrlCleaner()
@@ -103,9 +105,9 @@ class CompanyLinkCrawler(object):
         :return:
         '''
         if not url_match_string:
-            url_match_string = 'about|contact|team|story'
+            url_match_string = '|'.join(management_contact_keywords)
         if not url_text_match_string:
-            url_text_match_string = 'about|contact|team|story'
+            url_text_match_string = '|'.join(management_contact_keywords)
         linktexts = self.get_all_links_soupinput(soup,base_url)
         contact_linktexts = self.search_links_textmatch(linktexts,url_match_string,url_text_match_string,which_match=which_match)
         return contact_linktexts
@@ -128,7 +130,7 @@ class CompanyLinkCrawler(object):
         '''
         # pdb.set_trace()
         if not match_list:
-            match_list = ['facebook','twitter','linkedin','crunchbase','angel.co','plus.google']
+            match_list = social_link_keywords
         match_string = '('+')|('.join(match_list)+')'
         linktexts = self.get_all_links_soupinput(soup,base_url)
         return self.search_links_textmatch(linktexts,match_string,'fdajsfsgadhhsdkeaw',which_match=0)
