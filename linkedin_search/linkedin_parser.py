@@ -99,22 +99,23 @@ class LinkedInParserUrllib2(object):
 class LinkedinParserSelenium(object):
     '''
     '''
-    def __init__(self):
+    def __init__(self,username,password):
         '''
         :return:
         '''
-        self.login()
+        self.login(username,password)
 
     def login(self,username,password):
         '''
         :return:
         '''
-        self.browser = webdriver.PhantomJS()
+        # self.browser = webdriver.PhantomJS()
+        self.browser = webdriver.Firefox()
         self.browser.get('https://www.linkedin.com/')
-        username = self.browser.find_element_by_id("login-email")
-        password = self.browser.find_element_by_id("login-password")
-        username.send_keys(username)
-        password.send_keys(password)
+        username_field = self.browser.find_element_by_id("login-email")
+        password_field = self.browser.find_element_by_id("login-password")
+        username_field.send_keys(username)
+        password_field.send_keys(password)
         self.browser.find_element_by_name("submit").click()
 
     def logout(self):
@@ -130,7 +131,7 @@ class LinkedinParserSelenium(object):
         '''
         self.browser.get(url)
         html = self.browser.page_source
-        html = str(html.decode('utf-8'))
+        html = str(html.encode('utf-8'))
         return html
 
     def get_soup(self,url):

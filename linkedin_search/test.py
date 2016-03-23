@@ -17,4 +17,9 @@
 # print response.read()
 
 
-https://www.linkedin.com/vsearch/p?title=ceo%20OR%20coo&company=zendrive%20OR%20hackerrank%20OR%20hackerearth
+# https://www.linkedin.com/vsearch/p?title=ceo%20OR%20coo&company=zendrive%20OR%20hackerrank%20OR%20hackerearth
+import search_linkedin
+results_df = search_linkedin.LinkedinSearcher().get_all_results({'title':['ceo','coo'],'company':['zendrive','hackerrank','headout','razorpay','mustseeindia','springboard']})
+
+# https://www.linkedin.com/vsearch/p?title=ceo%20OR%20coo&company=zendrive%20OR%20hackerrank%20OR%20hackerearth%20OR%20ideas2it&openAdvancedForm=true&titleScope=CP&companyScope=CP&locationType=Y&rsid=3443631031458731807410&orig=ADVS
+# https://www.linkedin.com/vsearch/p?title=ceo%20OR%20coo&company=zendrive%20OR%20hackerrank%20OR%20hackerearth%20OR%20ideas2it&openAdvancedForm=true&titleScope=C&companyScope=C&locationType=Y&rsid=3443631031458731869694&orig=MDYS
