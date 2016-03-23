@@ -3,12 +3,15 @@ import os
 import urllib
 import urllib2
 import re
+import os
 import string
-from BeautifulSoup import BeautifulSoup
-
+from bs4 import BeautifulSoup
+from selenium import webdriver
 cookie_filename = "parser.cookies.txt"
 
-class LinkedInParser(object):
+class LinkedInParserUrllib2(object):
+    ''' Not working properly due to javascript problem
+    '''
     def __init__(self, login, password):
         """ Start up... """
         self.login = login
@@ -25,8 +28,9 @@ class LinkedInParser(object):
             urllib2.HTTPCookieProcessor(self.cj)
         )
         self.opener.addheaders = [
-            ('User-agent', ('Mozilla/4.0 (compatible; MSIE 6.0; '
-                           'Windows NT 5.2; .NET CLR 1.1.4322)'))
+            ('User-agent', ('Mozilla/5.0 (Windows NT 6.1) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/41.0.2228.0 Safari/537.36'))
+            # ('User-agent', ('Mozilla/4.0 (compatible; MSIE 6.0; '
+            #                'Windows NT 5.2; .NET CLR 1.1.4322)'))
         ]
 
         # Login
@@ -56,6 +60,14 @@ class LinkedInParser(object):
             # However, this could infinite loop if there's an actual problem
             return self.loadPage(url, data)
 
+    def loadSoup(self, url, data=None):
+        """
+        Combine loading of URL, HTML, and parsing with BeautifulSoup
+        """
+        html = self.loadPage(url, data)
+        soup = BeautifulSoup(html, "html5lib")
+        return soup
+
     def loginPage(self):
         """
         Handle login. This should populate our cookie jar.
@@ -78,3 +90,54 @@ class LinkedInParser(object):
         soup = BeautifulSoup(html)
         return soup.find("title")
 
+    def logout(self):
+        '''
+        :return:
+        '''
+        os.remove(cookie_filename)
+
+class LinkedinParserSelenium(object):
+    '''
+    '''
+    def __init__(self):
+        '''
+        :return:
+        '''
+        self.login()
+
+    def login(self,username,password):
+        '''
+        :return:
+        '''
+        self.browser = webdriver.PhantomJS()
+        self.browser.get('https://www.linkedin.com/')
+        username = self.browser.find_element_by_id("login-email")
+        password = self.browser.find_element_by_id("login-password")
+        username.send_keys(username)
+        password.send_keys(password)
+        self.browser.find_element_by_name("submit").click()
+
+    def logout(self):
+        '''
+        :return:
+        '''
+        self.browser.close()
+
+    def get_url(self,url):
+        '''
+        :param url:
+        :return:
+        '''
+        self.browser.get(url)
+        html = self.browser.page_source
+        html = str(html.decode('utf-8'))
+        return html
+
+    def get_soup(self,url):
+        '''
+        :param url:
+        :return:
+        '''
+        html = self.get_url(url)
+        soup = BeautifulSoup(html)
+        return soup
