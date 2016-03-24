@@ -6,7 +6,7 @@ import nltk,re,pdb
 from nltk.stem import WordNetLemmatizer,PorterStemmer,SnowballStemmer
 from nltk.corpus import wordnet
 
-import tagging_methods
+from intent_class_models.text_processing import tagging_methods
 
 wnl = WordNetLemmatizer()
 porter_stemmer = PorterStemmer()
