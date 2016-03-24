@@ -18,8 +18,10 @@ def sent_tokenize_withnewline(text):
 class StanfordNERTaggerExtractor(object):
     """docstring for ClassName"""
     def __init__(self):
-        self.st = StanfordNERTagger('stanford-jars/english.all.3class.distsim.crf.ser.gz' ,
-            'stanford-jars/stanford-ner.jar' )
+        # self.st = StanfordNERTagger('intent_class_models/stanford-jars/english.all.3class.distsim.crf.ser.gz' ,
+        #     'intent_class_models/stanford-jars/stanford-ner.jar' )
+        self.st = StanfordNERTagger('english.all.3class.distsim.crf.ser.gz' ,
+            'stanford-ner.jar' )
 
     def tag_text_single(self,text):
         '''
@@ -90,36 +92,3 @@ class StanfordNERTaggerExtractor(object):
             final_tags.append(sent_tag_list)
         return final_tags
 
-
-class JobsExtractor(object):
-    def __init__(self):
-        with open('job_designations_all.json','r') as f:
-            jobs_dict = json.load(f)
-        self.reg_top_jobs = re.compile('|'.join(jobs_dict['top_jobs']))
-        # self.reg_jobs = re.compile('|'.join(jobs_dict['jobs']),re.IGNORECASE)
-        self.reg_jobs = re.compile('|'.join(jobs_dict['jobs']))
-
-    def find_top_jobs(self,text):
-        ''' '''
-        jobs = []
-        for match in self.reg_top_jobs.finditer(text):
-            jobs.append(text[match.start():match.end()])
-        return jobs
-
-    def find_jobs(self,text):
-        jobs = []
-        for match in self.reg_jobs.finditer(text):
-            jobs.append(text[match.start():match.end()])
-        return jobs
-
-    def find_all_jobs(self,text):
-        ''' '''
-        jobs = []
-        for i in self.find_top_jobs(text):
-            if i not in jobs:
-                jobs.append(i)
-        for i in self.find_jobs(text):
-            if i not in jobs:
-                jobs.append(i)
-        # jobs = list(set(jobs))
-        return jobs

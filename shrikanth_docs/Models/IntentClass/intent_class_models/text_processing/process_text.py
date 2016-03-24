@@ -1,10 +1,10 @@
 import nltk,re
-from word_transformations import Tokenizer
+from intent_class_models.text_processing.word_transformations import Tokenizer
 
 import extract_phrases
-from nltk.corpus import stopwords
-import clean_mails
-from constants import *
+# from nltk.corpus import stopwords
+from intent_class_models.text_processing import clean_mails
+from intent_class_models.naive_bayes.constants import *
 
 tk = Tokenizer()
 

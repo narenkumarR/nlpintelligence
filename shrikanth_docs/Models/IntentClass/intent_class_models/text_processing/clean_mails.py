@@ -6,7 +6,7 @@ import re,pdb
 import nltk
 import quotequail
 
-import entity_extraction
+from intent_class_models.text_processing import entity_extraction
 st = entity_extraction.StanfordNERTaggerExtractor()
 
 def quotequail_mail_split(sent):

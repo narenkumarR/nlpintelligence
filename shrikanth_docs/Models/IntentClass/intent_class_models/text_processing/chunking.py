@@ -3,7 +3,7 @@ __author__ = 'joswin'
 # -*- coding: utf-8 -*-
 
 import nltk
-from tagging_methods import get_postag_listinput
+from intent_class_models.text_processing.tagging_methods import get_postag_listinput
 
 class Chunker(object):
     '''
