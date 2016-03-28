@@ -101,14 +101,15 @@ class LinkedinSearcher(object):
         :param page:
         :return:
         '''
-        res_df = self.get_details_from_searchpage(page)
+        res_df = self.get_all_details_from_searchpage(page)
         res_df.to_excel(out_loc)
 
-    def get_all_results(self,search_dic):
+    def get_all_results(self,search_dic,max_page=10):
         ''' fetch results from each page
         :param search_dic:
         :return:
         '''
+        self.max_pages = max_page
         search_dic['titleScope'] = ['C']
         search_dic['companyScope'] = ['C']
         page_no = 1

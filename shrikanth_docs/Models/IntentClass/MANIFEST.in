@@ -1,0 +1,4 @@
+include README
+recursive-include intent_class_models/stanford-jars *
+recursive-include intent_class_models/text_processing *
+recursive-include intent_class_models/naive_bayes *
