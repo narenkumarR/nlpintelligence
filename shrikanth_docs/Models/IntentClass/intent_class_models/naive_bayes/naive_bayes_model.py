@@ -3,8 +3,8 @@ import pandas as pd
 from sklearn.feature_extraction.text import CountVectorizer
 from sklearn.naive_bayes import MultinomialNB
 
-from process_text import process_textlist,tokenizer
-from constants import stop_words_vectorizer
+from intent_class_models.text_processing.process_text import process_textlist,tokenizer
+from intent_class_models.naive_bayes.constants import stop_words_vectorizer
 
 
 class NaiveBayesModel(object):
@@ -14,7 +14,7 @@ class NaiveBayesModel(object):
         '''
         pass
 
-    def fit_model(self,text_list,label_list,feature_loc='feature_names.txt'):
+    def fit_model(self,text_list,label_list,feature_loc='intent_class_models/naive_bayes/feature_names.txt'):
         '''
         :param text_list: list of texts
         :param label_list: list of labels
@@ -50,7 +50,8 @@ class NaiveBayesModel(object):
         '''
         self.model.partial_fit(self.vectorizer.transform(process_textlist(text_list)),pd.Series(label_list))
 
-    def load_model(self,model_loc='model_object.pkl',feature_loc='feature_names.txt'):
+    def load_model(self,model_loc='intent_class_models/naive_bayes/model_object.pkl',
+                   feature_loc='intent_class_models/naive_bayes/feature_names.txt'):
         '''
         :param model_loc:
         :param feature_loc:
@@ -74,7 +75,7 @@ class NaiveBayesModel(object):
         with open(model_loc,'w') as f:
             pickle.dump(self.model,f)
 
-    def save_feature_names(self,feature_loc='feature_names.txt'):
+    def save_feature_names(self,feature_loc='intent_class_models/naive_bayes/feature_names.txt'):
         ''' After building model using vectorizer, if we want to save the features, we can use this
         :param feature_loc:
         :return:
