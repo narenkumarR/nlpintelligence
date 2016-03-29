@@ -43,7 +43,7 @@ def process_textlist(text_list):
     '''
     text_list = [clean_mails.fetch_first_mail_text(sent,False) for sent in text_list]
     text_list = [clean_mails.clean_mail_text(sent) for sent in text_list]
-    text_list = clean_mails.remove_endtext_ner_mail_listinput(text_list,remove_endtext_ner_mail_input)
+    # text_list = clean_mails.remove_endtext_ner_mail_listinput(text_list,remove_endtext_ner_mail_input)
     text_list = [extract_phrases.multiple_replace(replace_phr_input,
         text.lower(),word_limit=True,flags=2) for text in text_list]
     text_list = tk.stopword_removal_listinput(text_list,stop_words)
