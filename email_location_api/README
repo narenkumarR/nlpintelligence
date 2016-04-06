@@ -1,4 +1,20 @@
 Install the following packages using pip
 eg: sudo pip install package-name
-flask,flask_restful,nltk,sklearn
-in nltk, download stopwords list and punkt model using nltk.download()
+flask,flask_restful,bs4,Levenshtein (pip install python-levenshtein)
+To run:
+cd to the email_location_api folder
+
+then start the app by doing:
+python api.py ip port
+#If no ip and port, it will run in localhost:5000
+#if only ip, app will run in port 5000
+
+posting requests:
+    To post a request, pass and json of form {id1:details_json1,id2:details_json2}
+    details_json can be of two form:
+        1) Email input : {"Email":email_id}
+        2) Name+Company : {"Name":name,"Company":company_name}
+    Multiple requests can be sent together, but will take time to run.
+
+#eg to post a request on http://127.0.0.1:5000
+curl -H "Content-Type: application/json" -X POST -d '{"person1":{"Email":"person1@company1.com"},"person2":{"Name":"person name","Company":"company1"}}' http://127.0.0.1:5000

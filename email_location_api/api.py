@@ -41,5 +41,8 @@ if __name__ == '__main__':
         ip = sys.argv[1]
         port = sys.argv[2]
         app.run(host=ip,port=port)
+    elif len(sys.argv) == 2:
+        ip = sys.argv[1]
+        app.run(host=ip)
     else:
-        app.run(debug=True)
+        app.run(debug=True,threaded=True)
