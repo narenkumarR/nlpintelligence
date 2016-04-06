@@ -1,0 +1,4 @@
+Install the following packages using pip
+eg: sudo pip install package-name
+flask,flask_restful,nltk,sklearn
+in nltk, download stopwords list and punkt model using nltk.download()

@@ -9,6 +9,7 @@ from constants import company_stops_regex,mail_end_regex
 from duckduckgo_crawler import DuckduckgoCrawler
 from linkedin_matcher import LinkedinLocationMatcher
 
+from constants import confidences
 
 class Utils(object):
     '''
@@ -53,9 +54,9 @@ class EmailLocationFinder(object):
         #if gmail,yahoo etc, dont match the company part. select the top result
         if not re.search(r'gmail|yahoo|outlook',company_part):
             # location,other_details,found_person = self.linkedin_top_profile_company_match(search_results,name_part,company_part,5)
-            location,other_details,found_person,linkedin_extracted = self.linkedin_matcher.linkedin_name_company_match(search_results,name_part,company_part,5)
+            location,other_details,found_person,_ = self.linkedin_matcher.linkedin_name_company_match(search_results,name_part,company_part,5)
             if found_person:
-                return location,other_details,linkedin_extracted
+                return location,other_details
             # else:
             #     search_results = GoogleCrawler().fetch_results(search_string)
             #     location,other_details,found_person = self.linkedin_top_profile_company_match(search_results,name_part,company_part,5)
@@ -104,4 +105,21 @@ class EmailLocationFinder(object):
             return location,other_details
         return '',{}
 
-
+    def get_location_ddg_linkedin(self,args_dict):
+        '''
+        :param args_dict: dictionary with keys 'Name','Company' or with key 'email'
+        :return:
+        '''
+        try:
+            if 'Name' in args_dict and 'Company' in args_dict:
+                location,dets = self.ddg_linkedin_name_company_match(args_dict['Name'],args_dict['Company'])
+            elif 'Email' in args_dict:
+                location,dets = self.get_email_loc_linkedin_duckduckgo(args_dict['Email'])
+            else:
+                return {'Location':'','Confidence':0}
+            res_from = dets['res_from']
+            if res_from in confidences:
+                confidence = confidences[res_from]
+            return {'Location':location,'Confidence':confidence}
+        except:
+            return {'Location':'','Confidence':0}
