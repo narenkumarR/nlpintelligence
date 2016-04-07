@@ -39,7 +39,7 @@ class LinkedinLocationMatcher(object):
                 if (comp_part_cleaned in company_name_cleaned or company_name_cleaned in comp_part_cleaned):
                     location = company_details['Headquarters']
                     other_details = {'url':res['url'],'Headquarters':company_details['Headquarters']
-                        , 'res_from':'company page'}
+                        , 'res_from':'company page, company names matching'}
                     found_company = True
                     return (location,other_details,found_company,fetched_details)
         return location,other_details,found_company,fetched_details
@@ -74,7 +74,8 @@ class LinkedinLocationMatcher(object):
         :param limit_results: (number) limit the no of results to look into. By default, look into all the results
         :return:
         '''
-        linkedin_results = [res for res in search_results if 'linkedin' in res['url']]
+        linkedin_results = [res for res in search_results if 'linkedin' in res['url'] and \
+                                     not re.search(r'/pub/dir',res['url'])]
         if limit_results:
             linkedin_results = linkedin_results[:limit_results]
         details_fetched, found_person = {}, False
@@ -83,6 +84,10 @@ class LinkedinLocationMatcher(object):
         linkedin_extracted = [] # the best result till now
         additional_depth, additional_depth_stop = 0,1
         for res in linkedin_results:
+            if additional_depth >= additional_depth_stop:
+                break
+            if found_person:
+                additional_depth += 1
             try:
                 url = res['url']
                 soup = BeautifulsoupCrawl.single_wp(url)
@@ -97,7 +102,8 @@ class LinkedinLocationMatcher(object):
                     # if names not similar, continue
                     if name_part_cleaned not in linkedin_name_cleaned and linkedin_name_cleaned not in name_part_cleaned:
                         if Levenshtein.distance(str(name_part_cleaned),str(linkedin_name_cleaned))>10\
-                                or distance.jaccard(str(name_part_cleaned),str(linkedin_name_cleaned))>=0.5:
+                                or distance.jaccard(str(name_part_cleaned),str(linkedin_name_cleaned))>=0.5\
+                                or len(set.intersection(set(linkedin_details['Name'].split()),set(name_part.split())))==0:
                             continue
                     # clean company & position for matching
                     position_cleaned = re.sub(r'[^a-zA-Z0-9]','',position_linkedin).lower()
@@ -127,8 +133,6 @@ class LinkedinLocationMatcher(object):
                             found_person = True
                             return (details_fetched['Location'],details_fetched,found_person,linkedin_extracted)
 
-                    if additional_depth == additional_depth_stop:
-                        break
                     # Here found_person set to True only when there was a match from the text part. In that case
                     # we will go to next links (till additional_depth_stop), and check for match only in current company.
                     # If no match, go with the first result itself
@@ -139,7 +143,6 @@ class LinkedinLocationMatcher(object):
                                                     ,'prev companies':prevcompanies_linkedin,'Location':linkedin_details['Location']
                                                     ,'res_from':'profile page with previous company match'}
                             found_person = True
-                            additional_depth += 1
                             continue
                         #search for the company name in the entire text(profile part of the page)
                         if re.search(comp_part_cleaned,re.sub(r'[^a-zA-Z0-9]','',soup.find('div',{'id':'profile'}).text),re.IGNORECASE):
@@ -147,7 +150,6 @@ class LinkedinLocationMatcher(object):
                                              , 'prev companies':prevcompanies_linkedin,'Location':linkedin_details['Location']
                                 , 'res_from':'profile page with company match on page text'}
                             found_person = True
-                            additional_depth += 1
                             continue
                         #search for the company name in the entire text(rest of the page(people who viewed this also viewed))
                         if re.search(comp_part_cleaned,re.sub(r'[^a-zA-Z0-9]','',soup.find('div',{'id':'aux'}).text),re.IGNORECASE):
@@ -155,7 +157,6 @@ class LinkedinLocationMatcher(object):
                                              , 'prev companies':prevcompanies_linkedin,'Location':linkedin_details['Location']
                                 , 'res_from':'profile page with company match on page text (also viewed part)'}
                             found_person = True
-                            additional_depth += 1
                             continue
             except:
                 continue

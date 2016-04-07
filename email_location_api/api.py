@@ -2,10 +2,12 @@ __author__ = 'joswin'
 from flask import Flask,request
 from flask_restful import Resource, Api
 import sys
+import pdb
+# from email_location.email_location_finder import EmailLocationFinder
 
-from email_location.email_location_finder import EmailLocationFinder
-
-loc_finder = EmailLocationFinder()
+# loc_finder = EmailLocationFinder()
+from email_location.parallel_wrapper import Worker
+worker = Worker()
 
 app = Flask(__name__)
 api = Api(app)
@@ -24,7 +26,9 @@ class NBModel(Resource):
         json_data = request.get_json()
         out_dict = {}
         for key in json_data:
-            out_dict[key] = loc_finder.get_location_ddg_linkedin(json_data[key])
+            # out_dict[key] = loc_finder.get_location_ddg_linkedin_dictinput(json_data[key])
+            # pdb.set_trace()
+            out_dict[key] = worker.find_best_location(json_data[key])
         return out_dict
 
     def put(self):
