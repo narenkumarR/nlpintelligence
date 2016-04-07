@@ -8,7 +8,9 @@ import re
 from constants import company_stops_regex,mail_end_regex
 from duckduckgo_crawler import DuckduckgoCrawler
 from linkedin_matcher import LinkedinLocationMatcher
+from angellist_search import AngellistCrawler
 
+from constants import confidences
 
 class Utils(object):
     '''
@@ -27,6 +29,9 @@ class Utils(object):
             return mail
         except:
             return mail
+    def remove_common_mail(self,mail):
+        regex = re.compile(r'gmail|yahoo|outlook')
+        return regex.sub('',mail)
 
 utils = Utils()
 
@@ -38,70 +43,109 @@ class EmailLocationFinder(object):
         :return:
         '''
         self.linkedin_matcher = LinkedinLocationMatcher()
+        self.angellist_crawler = AngellistCrawler()
 
-    def get_email_loc_linkedin_duckduckgo(self,email):
-        '''
-        :param email:
-        :return:
-        '''
-        #split the email and search in duckduckgo
-        # pdb.set_trace()
-        name_part,company_part = email.split('@')
-        company_part = utils.remove_mail_end(company_part)
-        search_string = name_part+' '+company_part+' linkedin'
-        search_results = DuckduckgoCrawler().fetch_results(search_string)
-        #if gmail,yahoo etc, dont match the company part. select the top result
-        if not re.search(r'gmail|yahoo|outlook',company_part):
-            # location,other_details,found_person = self.linkedin_top_profile_company_match(search_results,name_part,company_part,5)
-            location,other_details,found_person,linkedin_extracted = self.linkedin_matcher.linkedin_name_company_match(search_results,name_part,company_part,5)
-            if found_person:
-                return location,other_details,linkedin_extracted
-            # else:
-            #     search_results = GoogleCrawler().fetch_results(search_string)
-            #     location,other_details,found_person = self.linkedin_top_profile_company_match(search_results,name_part,company_part,5)
-            #     if found_person:
-            #         return location,other_details
-        else:
-            location,other_details,found_person = self.linkedin_matcher.linkedin_top_person_match(search_results,4)
-            if found_person:
-                return location,other_details
-        #if no results, search only for company
-        search_results = DuckduckgoCrawler().fetch_results(company_part+' linkedin')
-        location,other_details,found_person,fetched_details = self.linkedin_matcher.linkedin_top_company_match(search_results,company_part,4)
-        return location,other_details
-
-
-    def ddg_linkedin_name_company_match(self,name,company,single_query='',flag_single=False):
+    def ddg_linkedin_location(self,name,company,email):
         '''
         :param name:
         :param company:
-        :param single_query : directly give the query here instead of code constructing the query
+        :param email:
         :return:
         '''
-        # pdb.set_trace()
-        if flag_single:
-            search_results = DuckduckgoCrawler().fetch_results(single_query)
-        else:
+        if name and company:
             company = company.lower()
             company = re.sub(company_stops_regex,'',company)
             search_string = name+' '+company+' linkedin'
-            search_results = DuckduckgoCrawler().fetch_results(search_string)
-        location,other_details,found_person,_ = self.linkedin_matcher.linkedin_name_company_match(search_results,name,company,5)
-        if found_person:
-            return (location, other_details)
-        search_results = DuckduckgoCrawler().fetch_results(company+' linkedin')
-        location,other_details,found_company,fetched_details = self.linkedin_matcher.linkedin_top_company_match(search_results,company,4)
-        if found_company:
-            return location,other_details
-        if fetched_details:
-            url, company_details = fetched_details[0]
-            if 'Headquarters' in company_details:
-                location = company_details['Headquarters']
-                other_details = {'url':url,'Headquarters':company_details['Headquarters']
-                           , 'res_from':'company page'}
-            else:
-                other_details = {'url':url,'Headquarters':'No page','res_from':'company page'}
-            return location,other_details
+        elif email:
+            name,company = email.split('@')
+            company = utils.remove_mail_end(company)
+            company = utils.remove_common_mail(company)
+            search_string = name+' '+company+' linkedin'
+        elif name and not company:
+            search_string = name+' linkedin'
+        else:
+            return '',{}
+        search_results = DuckduckgoCrawler().fetch_results(search_string)
+        if name and company:
+            location,other_details,found_person,_ = self.linkedin_matcher.linkedin_name_company_match(search_results,name,company,5)
+            if found_person:
+                return location,other_details
+            location,other_details,found_company,fetched_details = self.linkedin_matcher.linkedin_top_company_match(search_results,company,4)
+            if found_company:
+                return location,other_details
+            # if company not found, return the first result as company
+            if fetched_details:
+                url, company_details = fetched_details[0]
+                if 'Headquarters' in company_details:
+                    location = company_details['Headquarters']
+                    other_details = {'url':url,'Headquarters':company_details['Headquarters']
+                               , 'res_from':'company page, but company names not matching'}
+                    return location,other_details
+        elif name and not company:
+            location,other_details,found_person = self.linkedin_matcher.linkedin_top_person_match(search_results,4)
+            if found_person:
+                return location,other_details
         return '',{}
 
+    def get_location_ddg_linkedin_dictinput(self,args_dict):
+        '''
+        :param args_dict: dictionary with keys 'Name','Company' or with key 'email'
+        :return:
+        '''
+        try:
+            args_dict['Name'] = args_dict.get('Name','')
+            args_dict['Company'] = args_dict.get('Company','')
+            args_dict['Email'] = args_dict.get('Email','')
+            location,dets = self.ddg_linkedin_location(args_dict['Name'],args_dict['Company'],args_dict['Email'])
+            res_from = dets['res_from']
+            if res_from in confidences:
+                confidence = confidences[res_from]
+                return {'Location':location,'Confidence':confidence}
+            else:
+                return {'Location':location,'Confidence':confidences['None']}
+        except:
+            return {'Location':'','Confidence':0}
 
+    def get_location_angellist_dictinput(self,args_dict):
+        '''
+        :param args_dict:
+        :return:
+        '''
+        try:
+            args_dict['Name'] = args_dict.get('Name','')
+            args_dict['Company'] = args_dict.get('Company','')
+            args_dict['Email'] = args_dict.get('Email','')
+            location,dets = self.angellist_find_loc(args_dict['Name'],args_dict['Company'],args_dict['Email'])
+            res_from = dets['res_from']
+            if res_from in confidences:
+                confidence = confidences[res_from]
+                return {'Location':location,'Confidence':confidence}
+            else:
+                return {'Location':location,'Confidence':confidences['None']}
+        except:
+            return {'Location':'','Confidence':0}
+
+    def angellist_find_loc(self,name,company,email):
+        '''
+        :param name:
+        :param company:
+        :param email:
+        :return:
+        '''
+        try:
+            if name and company:
+                location,details,found_person = self.angellist_crawler.search_person(name,company)
+                return location,details
+            elif email:
+                name_part,company_part = email.split('@')
+                company_part = utils.remove_mail_end(company_part)
+                company_part = utils.remove_common_mail(company_part)
+                location,details,found_person = self.angellist_crawler.search_person(name_part,company_part)
+                return location,details
+            elif name and not company:
+                location,details,found_person = self.angellist_crawler.search_person(name,'')
+                return location,details
+            else:
+                return '',{}
+        except:
+            return '',{}

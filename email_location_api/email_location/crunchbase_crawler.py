@@ -6,8 +6,41 @@ Created On: 14-Mar-2016
 Author: ideas2it
 """
 import re
+import pdb
+from selenium import webdriver
+from selenium.webdriver.support.ui import Select
+
 from bs_crawl import BeautifulsoupCrawl
-# from bs4 import BeautifulSoup
+
+class CrunchbaseCrawler(object):
+    '''Website getting blocked for some reason
+    '''
+    def __init__(self):
+        self.profile_crawler = CrunchbaseProfileCrawler()
+        # self.browser = webdriver.PhantomJS('phantomjs-2.1.1-linux-x86_64/bin/phantomjs')
+        self.browser = webdriver.Firefox()
+
+    def load_search_page(self):
+        '''
+        :return:
+        '''
+        url = "https://www.crunchbase.com/search"
+        self.browser.get(url)
+
+    def search_person(self,name,company):
+        '''
+        :param name:
+        :param company:
+        :return:
+        '''
+        search_field = self.browser.find_element_by_id("search_input")
+        search_field.send_keys(name+' '+company)
+        # select = Select(self.browser.find_element_by_id('display_results'))
+        # select.select_by_visible_text('Person')
+        pdb.set_trace()
+        # self.browser.find_element_by_name("submit").click()
+        # blocked me here. may be do later
+
 
 class CrunchbaseProfileCrawler(object):
     '''Crawl a linkedin profie page
