@@ -6,7 +6,7 @@ import pdb
 # from email_location.email_location_finder import EmailLocationFinder
 
 # loc_finder = EmailLocationFinder()
-from email_location.parallel_wrapper import Worker
+from email_location.parallel_wrapper1 import Worker
 worker = Worker()
 
 app = Flask(__name__)
@@ -23,12 +23,16 @@ class NBModel(Resource):
         '''
         # json input data should be of the form {key1:{json1},key2:{json2}..}
         # json1,json2 etc can have two forms: {'Email':email_id} or {'Name':name,'Company':company}
+        # in addition json1,json2 have key 'Method', with possible values 'Fast' or 'Best'. If no key 'best' is assumed
         json_data = request.get_json()
         out_dict = {}
         for key in json_data:
-            # out_dict[key] = loc_finder.get_location_ddg_linkedin_dictinput(json_data[key])
-            # pdb.set_trace()
-            out_dict[key] = worker.find_best_location(json_data[key])
+            arg_dict = json_data[key]
+            method = arg_dict.get('Method','Best')
+            if method == 'Fast':
+                out_dict[key] = worker.find_location_fast(arg_dict)
+            else:
+                out_dict[key] = worker.find_location_best(arg_dict)
         return out_dict
 
     def put(self):
