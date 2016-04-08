@@ -52,16 +52,17 @@ class AngellistCrawler(object):
         self.profile_crawler = AngellistProfileCrawler()
         self.utils = Utils()
 
-    def search_person(self,name,company):
+    def search_person(self,name,company,no_results = 5):
         '''
         :param name:
+        :param no_results : no of links to look into
         :return:
         '''
         name_url = re.sub(' ','+',name)
         url = 'https://angel.co/search?q='+name_url+'&type=people'
         soup = BeautifulsoupCrawl.single_wp(url)
         res = soup.find('div',{'class':'results-list'}).findAll('div',{'class':'result'})
-        res_links = [i.find('a')['href'] for i in res]
+        res_links = [i.find('a')['href'] for i in res][:no_results]
         # if company part is not there, give the first result
         if not company:
             dets = self.profile_crawler.fetch_details_urlinput(res_links[0])
