@@ -18,15 +18,17 @@ class Worker():
     def __init__(self):
         pass
 
-    def linkedin_result(self,args_dict,event=None):
-        self.out.append(loc_finder.get_location_ddg_linkedin_dictinput(args_dict))
-        if event:
-            event.set()
+    def linkedin_result_best(self,args_dict,event):
+        out_dic = loc_finder.get_location_ddg_linkedin_dictinput(args_dict)
+        if out_dic['Location']:
+            self.out.append(out_dic)
+        event.set()
 
-    def angellist_result(self,args_dict,event=None):
-        self.out.append(loc_finder.get_location_angellist_dictinput(args_dict))
-        if event:
-            event.set()
+    def angellist_result_best(self,args_dict,event):
+        out_dic = loc_finder.get_location_angellist_dictinput(args_dict)
+        if out_dic['Location']:
+            self.out.append(out_dic)
+        event.set()
 
     def find_location_best(self,args_dict):
         '''
@@ -37,8 +39,8 @@ class Worker():
         timeout, n_threads = 10, 2
         final_dic = {'Location':'','Confidence':0}
         event1,event2 = threading.Event(),threading.Event()
-        t1 = threading.Thread(target=self.linkedin_result, args=(args_dict,event1))
-        t2 = threading.Thread(target=self.angellist_result, args=(args_dict,event2))
+        t1 = threading.Thread(target=self.linkedin_result_best, args=(args_dict,event1))
+        t2 = threading.Thread(target=self.angellist_result_best, args=(args_dict,event2))
         t1.daemon = True
         t2.daemon = True
         t1.start()
@@ -56,6 +58,18 @@ class Worker():
         print(self.out)
         return final_dic
 
+    def linkedin_result_fast(self,args_dict,event):
+        out_dic = loc_finder.get_location_ddg_linkedin_dictinput(args_dict)
+        if out_dic['Location']:
+            self.out.append(out_dic)
+            event.set()
+
+    def angellist_result_fast(self,args_dict,event):
+        out_dic = loc_finder.get_location_angellist_dictinput(args_dict)
+        if out_dic['Location']:
+            self.out.append(out_dic)
+            event.set()
+
     def find_location_fast(self,args_dict):
         '''
         :param args_dict:
@@ -64,8 +78,8 @@ class Worker():
         self.out = []
         final_dic = {'Location':'','Confidence':0}
         event = threading.Event()
-        t1 = threading.Thread(target=self.linkedin_result, args=(args_dict,event,))
-        t2 = threading.Thread(target=self.angellist_result, args=(args_dict,event,))
+        t1 = threading.Thread(target=self.linkedin_result_fast, args=(args_dict,event,))
+        t2 = threading.Thread(target=self.angellist_result_fast, args=(args_dict,event,))
         t1.daemon = True
         t2.daemon = True
         t1.start()
