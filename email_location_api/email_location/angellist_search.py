@@ -65,6 +65,7 @@ class AngellistCrawler(object):
         res_links = [i.find('a')['href'] for i in res][:no_results]
         # if company part is not there, give the first result
         if not company:
+            # if no company only select the first link
             dets = self.profile_crawler.fetch_details_urlinput(res_links[0])
             angel_name, angel_companies, angel_location = dets['Name'], dets['Companies'], dets['Location']
             if angel_name and angel_location:
@@ -78,15 +79,16 @@ class AngellistCrawler(object):
             for link in res_links:
                 dets = self.profile_crawler.fetch_details_urlinput(link)
                 angel_name, angel_companies, angel_location = dets['Name'], dets['Companies'], dets['Location']
-                # check for names matching
-                if not self.utils.name_match(name,angel_name):
-                    continue
-                # check for companies matching
-                if self.utils.company_match(company,angel_companies):
-                    details_fetched = {'Name':name,'Company':company,'Location':angel_location,
-                                       'AllCompanies':angel_companies,'res_from':'Angel List Company+Name Match'}
-                    found_person = True
-                    return (details_fetched['Location'],details_fetched,found_person)
+                if angel_name and angel_location:
+                    # check for names matching
+                    if not self.utils.name_match(name,angel_name):
+                        continue
+                    # check for companies matching
+                    if self.utils.company_match(company,angel_companies):
+                        details_fetched = {'Name':name,'Company':company,'Location':angel_location,
+                                           'AllCompanies':angel_companies,'res_from':'Angel List Company+Name Match'}
+                        found_person = True
+                        return (details_fetched['Location'],details_fetched,found_person)
         return '',{},False
 
 

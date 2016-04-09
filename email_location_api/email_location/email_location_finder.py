@@ -46,7 +46,7 @@ class EmailLocationFinder(object):
         self.angellist_crawler = AngellistCrawler()
 
     def get_location_ddg_linkedin(self,name,company,email):
-        '''
+        '''Main function for finding location
         :param name:
         :param company:
         :param email:
@@ -68,22 +68,26 @@ class EmailLocationFinder(object):
         search_results = DuckduckgoCrawler().fetch_results(search_string)
         if name and company:
             location,other_details,found_person,_ = self.linkedin_matcher.linkedin_name_company_match(search_results,name,company,5)
-            if found_person:
+            if found_person and location:
                 return location,other_details
+            # here passed the results from the previous ddg search as input, but it is not giving good results
+            # so searching again in ddg
+            search_string = company + 'linkedin'
+            search_results = DuckduckgoCrawler().fetch_results(search_string)
             location,other_details,found_company,fetched_details = self.linkedin_matcher.linkedin_top_company_match(search_results,company,4)
-            if found_company:
+            if found_company and location:
                 return location,other_details
-            # if company not found, return the first result as company
-            if fetched_details:
-                url, company_details = fetched_details[0]
-                if 'Headquarters' in company_details:
-                    location = company_details['Headquarters']
-                    other_details = {'url':url,'Headquarters':company_details['Headquarters']
-                               , 'res_from':'company page, but company names not matching'}
-                    return location,other_details
+            # if company not found, return the first result as company. No need for this because it will be error most probably
+            # if fetched_details:
+            #     url, company_details = fetched_details[0]
+            #     if 'Headquarters' in company_details:
+            #         location = company_details['Headquarters']
+            #         other_details = {'url':url,'Headquarters':company_details['Headquarters']
+            #                    , 'res_from':'company page, but company names not matching'}
+            #         return location,other_details
         elif name and not company:
             location,other_details,found_person = self.linkedin_matcher.linkedin_top_person_match(search_results,4)
-            if found_person:
+            if found_person and location:
                 return location,other_details
         return '',{}
 

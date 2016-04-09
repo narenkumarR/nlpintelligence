@@ -7,7 +7,7 @@ confidences = {'profile page with company match':95,'profile page with previous 
                'profile page with company match on page text':80,
                'profile page with company match on page text (also viewed part)':80,
                'profile page without company match':50,
-               'company page, company names matching':40,'company page, but company names not matching':25,
+               'company page, company names matching':40,'company page, but company names not matching':5,
                'Angel List Company+Name Match' : 90,
                'Angel List only Name match':50,
                'None':0}
