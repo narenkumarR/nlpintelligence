@@ -74,8 +74,9 @@ class LinkedinLocationMatcher(object):
         :param limit_results: (number) limit the no of results to look into. By default, look into all the results
         :return:
         '''
-        linkedin_results = [res for res in search_results if 'linkedin' in res['url'] and \
-                                     not re.search(r'/pub/dir',res['url'])]
+        linkedin_results = [res for res in search_results if 'linkedin' in res['url']]
+                                     # and not re.search(r'/pub/dir',res['url'])] #removed because sometimes the results
+                                                                            #are given in this format
         if limit_results:
             linkedin_results = linkedin_results[:limit_results]
         details_fetched, found_person = {}, False
