@@ -1,4 +1,5 @@
 from bs4 import BeautifulSoup
+import numpy as np
 import re,nltk,string,pickle,pdb
 from nltk.corpus import stopwords
 from gensim.models import word2vec
@@ -45,6 +46,22 @@ def doc_to_sentences( doc, tokenizer, remove_stopwords=False ):
     # so this returns a list of lists
     return sentences
 
+def get_word2vec_model(document):
+    sentences = []
+    for doc in document:
+        doc= filter(lambda x: x in string.printable, doc)
+        sentences += doc_to_sentences(doc, tokenizer)
+
+    num_features = 300    # Word vector dimensionality
+    min_word_count = 10   # Minimum word count
+    num_workers = 2       # Number of threads to run in parallel
+    context = 10          # Context window size
+    downsampling = 1e-3   # Downsample setting for frequent words
+    print "Training model..."
+    model = word2vec.Word2Vec(sentences, workers=num_workers, size=num_features, min_count = min_word_count,window = context, sample = downsampling)
+    return model
+
+
 def gen_word2vec_model(document,out_loc):
     sentences = []
     for doc in document:
@@ -56,7 +73,6 @@ def gen_word2vec_model(document,out_loc):
     num_workers = 2       # Number of threads to run in parallel
     context = 10          # Context window size
     downsampling = 1e-3   # Downsample setting for frequent words
-    pdb.set_trace()
     print "Training model..."
     model = word2vec.Word2Vec(sentences, workers=num_workers, size=num_features, min_count = min_word_count,window = context, sample = downsampling)
     model.save(out_loc)
