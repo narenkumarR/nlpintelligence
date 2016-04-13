@@ -1,10 +1,9 @@
+__author__ = 'joswin'
+
 import cookielib
-import os
 import urllib
 import urllib2
-import re
 import os
-import string
 from bs4 import BeautifulSoup
 from selenium import webdriver
 cookie_filename = "parser.cookies.txt"
@@ -99,11 +98,15 @@ class LinkedInParserUrllib2(object):
 class LinkedinParserSelenium(object):
     '''
     '''
-    def __init__(self,username,password):
+    def __init__(self,browser = 'Firefox',browser_loc='/home/madan/Downloads/phantomjs-2.1.1-linux-x86_64/bin/phantomjs'):
         '''
         :return:
         '''
-        self.browser = webdriver.Firefox()
+        if browser == 'PhantomJS':
+            self.browser = webdriver.PhantomJS(browser_loc)
+        else:
+            self.browser = webdriver.Firefox()
+            self.browser.set_page_load_timeout(25)
 
     def login(self,username,password):
         '''
