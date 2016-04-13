@@ -1,3 +1,5 @@
+__author__ = 'joswin'
+
 import cookielib
 import urllib
 import urllib2
@@ -104,6 +106,7 @@ class LinkedinParserSelenium(object):
             self.browser = webdriver.PhantomJS(browser_loc)
         else:
             self.browser = webdriver.Firefox()
+            self.browser.set_page_load_timeout(25)
 
     def login(self,username,password):
         '''

@@ -8,8 +8,8 @@ from bs_crawl import BeautifulsoupCrawl
 import linkedin_parser
 import logging
 
-all_org_cases = ['Specialties','Website','Industry','Type','Headquarters','Company Size','Founded',\
-                     'Company Name','Description Text','Employee Details','Also Viewed Companies']
+all_org_cases = ['Specialties','Website','Industry','Type','Headquarters','Company Size','Founded',
+                     'Company Name','Description Text','Employee Details','Also Viewed Companies','Linkedin URL']
 
 
 def dec_fun(fn):
@@ -22,7 +22,7 @@ def dec_fun(fn):
         try:
             return fn(*args,**kwargs)
         except Exception as e:
-            logging.error('Exception while fetching details from company page :', exc_info=True)
+            logging.exception('Exception while fetching details from company page ')
             return None
     return new_fun
 
@@ -42,7 +42,7 @@ def complete_cases_org(fn):
                     out1[i] = ''
             return out1
         except Exception as e:
-            logging.error('Exception while running main from company page :', exc_info=True)
+            logging.exception('Exception while running main from company page ')
             return None
     return new_fun1
 
@@ -55,56 +55,75 @@ class LinkedinOrganizationService(object):
         self.link_parser = linkedin_parser.LinkedinParserSelenium('','')
 
 
-    @complete_cases_org
+    # @complete_cases_org
     def get_organization_details_from_linkedin_link(self,url,use_selenium=True):
         '''
         :param url: linkedin company url
         :return:
         '''
-        if use_selenium:
-            self.soup = self.link_parser.get_soup(url)
-        else:
-            self.soup = self._crawler(url)
-        self.details = {}
-        self.get_name()
-        self.get_description()
-        self.get_details()
-        self.get_employees()
-        self.get_also_viewed()
-        return self.details
+        try:
+            if use_selenium:
+                self.soup = self.link_parser.get_soup(url)
+            else:
+                self.soup = self._crawler(url)
+            self.details = {'Linkedin URL':url}
+            self.get_name()
+            self.get_description()
+            self.get_details()
+            self.get_employees()
+            self.get_also_viewed()
+            return self.details
+        except Exception as e:
+            logging.exception('Exception while running main from company page for url:'+url)
+            return self.details
 
-    @dec_fun
+    # @dec_fun
     def get_description(self):
         '''
         :return:
         '''
-        para = self.soup.find("div", {"class": "basic-info-description"}).findChild().getText()
-        para = re.sub(r'[.]+','. ',re.sub(r'[\r\n]','.',para))
-        self.details['Description Text'] = para
+        try:
+            para = self.soup.find("div", {"class": "basic-info-description"}).findChild().getText()
+            para = re.sub(r'[.]+','. ',re.sub(r'[\r\n]','.',para))
+            self.details['Description Text'] = para
+        except:
+            self.details['Description Text'] = ''
 
-    @dec_fun
+    # @dec_fun
     def get_name(self):
         '''
         :return:
         '''
-        self.details['Company Name'] = self.soup.find("div",{"class":"content-wrapper"}).find("h1").findChild().getText().strip()
+        try:
+            self.details['Company Name'] = self.soup.find("div",{"class":"content-wrapper"}).find("h1").findChild().getText().strip()
+        except:
+            return
 
-    @dec_fun
+    # @dec_fun
     def get_details(self):
         '''
         :return:
         '''
-        headers = ['h3','h4']
-        for header in headers:
-            for tag in self.soup.find("div",{"class":"basic-info-about"}).findAll(header):
-                self.details[tag.getText().strip()] = tag.find_next().getText().strip()
-
-    @dec_fun
+        try:
+            headers = ['h3','h4']
+            for header in headers:
+                for tag in self.soup.find("div",{"class":"basic-info-about"}).findAll(header):
+                    try:
+                        self.details[tag.getText().strip()] = tag.find_next().getText().strip()
+                    except:
+                        continue
+        except:
+            return
+    # @dec_fun
     def get_employees(self):
         '''
         :return:
         '''
-        p_list = self.soup.find('div',{'class':'company-employees module'}).findAll('li')
+        try:
+            p_list = self.soup.find('div',{'class':'company-employees module'}).findAll('li')
+        except:
+            self.details['Employee Details'] = []
+            return
         out_list = []
         for tmp in p_list:
             tmp_dic = {}
@@ -123,12 +142,16 @@ class LinkedinOrganizationService(object):
             out_list.append(tmp_dic)
         self.details['Employee Details'] = out_list
 
-    @dec_fun
+    # @dec_fun
     def get_also_viewed(self):
         '''
         :return:
         '''
-        p_list = self.soup.find('div',{'class':'also-viewed module'}).findAll('li')
+        try:
+            p_list = self.soup.find('div',{'class':'also-viewed module'}).findAll('li')
+        except:
+            self.details['Also Viewed Companies'] = []
+            return
         out_list = []
         for tmp in p_list:
             tmp_dic = {}

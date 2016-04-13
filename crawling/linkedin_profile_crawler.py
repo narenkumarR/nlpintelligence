@@ -26,15 +26,16 @@ class LinkedinProfileCrawler(object):
         :param outs_needed: list of parameters need to be fetched. if empty, all are fetched
         :return: dictionary with the fetched details
         '''
-        outs = {}
+        outs = {'Linkedin URL':url}
         try:
             if use_selenium:
                 soup = self.link_parser.get_soup(url)
             else:
                 soup = self._crawler(url)
-            outs = self.fetch_details_soupinput(soup)
+            tmp = self.fetch_details_soupinput(soup)
+            outs.update(tmp)
         except Exception as e:
-            logging.error('Error while fetching details :', exc_info=True)
+            logging.exception('Error while fetching details for url: '+url)
         return outs
 
     def fetch_details_soupinput(self,soup):
