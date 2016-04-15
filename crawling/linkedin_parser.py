@@ -6,6 +6,8 @@ import urllib2
 import os
 from bs4 import BeautifulSoup
 from selenium import webdriver
+from pyvirtualdisplay import Display
+
 cookie_filename = "parser.cookies.txt"
 
 class LinkedInParserUrllib2(object):
@@ -98,14 +100,22 @@ class LinkedInParserUrllib2(object):
 class LinkedinParserSelenium(object):
     '''
     '''
-    def __init__(self,browser = 'Firefox',browser_loc='/home/madan/Downloads/phantomjs-2.1.1-linux-x86_64/bin/phantomjs'):
+    def __init__(self,browser = 'Firefox',browser_loc='/home/madan/Downloads/phantomjs-2.1.1-linux-x86_64/bin/phantomjs',
+                 visible = True,proxy = False):
         '''
         :return:
         '''
+        if not visible:
+            self.display = Display(visible=0, size=(800, 600))
+            self.display.start()
+        else:
+            self.display = None
         if browser == 'PhantomJS':
             self.browser = webdriver.PhantomJS(browser_loc)
         else:
-            self.browser = webdriver.Firefox()
+            firefox_profile = webdriver.FirefoxProfile()
+            firefox_profile.set_preference("browser.privatebrowsing.autostart", True)
+            self.browser = webdriver.Firefox(firefox_profile=firefox_profile)
             self.browser.set_page_load_timeout(25)
 
     def login(self,username,password):
@@ -126,6 +136,9 @@ class LinkedinParserSelenium(object):
         :return:
         '''
         self.browser.close()
+        self.browser.quit()
+        if self.display:
+            self.display.stop()
 
     def get_url(self,url):
         '''
