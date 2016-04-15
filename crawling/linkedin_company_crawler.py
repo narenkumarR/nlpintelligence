@@ -7,6 +7,9 @@ import re
 from bs_crawl import BeautifulsoupCrawl
 import linkedin_parser
 import logging
+from selenium.common.exceptions import TimeoutException
+from socket import error as socket_error
+from httplib import CannotSendRequest
 
 all_org_cases = ['Specialties','Website','Industry','Type','Headquarters','Company Size','Founded',
                      'Company Name','Description Text','Employee Details','Also Viewed Companies','Linkedin URL']
@@ -49,10 +52,10 @@ def complete_cases_org(fn):
 
 
 class LinkedinOrganizationService(object):
-    def __init__(self):
+    def __init__(self,browser='Firefox',visible = True):
         # print('class intializing')
         self._crawler = BeautifulsoupCrawl.single_wp
-        self.link_parser = linkedin_parser.LinkedinParserSelenium('','')
+        self.link_parser = linkedin_parser.LinkedinParserSelenium(browser,visible=visible)
 
 
     # @complete_cases_org
@@ -62,17 +65,36 @@ class LinkedinOrganizationService(object):
         :return:
         '''
         try:
+            self.details = {'Linkedin URL':url}
             if use_selenium:
                 self.soup = self.link_parser.get_soup(url)
             else:
                 self.soup = self._crawler(url)
-            self.details = {'Linkedin URL':url}
+            try:
+                if 'Largest Professional Network' in self.soup.title.text:
+                    self.details['Notes'] = 'Not Available Pubicly'
+                    return self.details
+            except:
+                self.details['Notes'] = 'Java script code'
+                return self.details
+                # logging.info(self.soup)
+            # else:
+            #     self.details['Notes'] = 'Publicaly available'
             self.get_name()
             self.get_description()
             self.get_details()
             self.get_employees()
             self.get_also_viewed()
             return self.details
+        except TimeoutException:
+            logging.error('Time out exception for url: '+url)
+            return None
+        except socket_error:
+            logging.error('Socket error for url:'+url)
+            return None
+        except CannotSendRequest:
+            logging.error('Cannot send request error for url:{}'.format(url))
+            return None
         except Exception as e:
             logging.exception('Exception while running main from company page for url:'+url)
             return self.details
