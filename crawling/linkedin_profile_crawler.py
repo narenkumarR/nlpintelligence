@@ -6,6 +6,9 @@ Author: ideas2it
 from bs_crawl import BeautifulsoupCrawl
 import linkedin_parser
 # from bs4 import BeautifulSoup
+from selenium.common.exceptions import TimeoutException
+from socket import error as socket_error
+from httplib import CannotSendRequest
 
 import logging
 # logger = logging.getLogger(__name__)
@@ -13,12 +16,12 @@ import logging
 class LinkedinProfileCrawler(object):
     '''Crawl a linkedin profie page
     '''
-    def __init__(self):
+    def __init__(self,browser='Firefox',visible=True):
         '''
         :return:
         '''
         self._crawler = BeautifulsoupCrawl.single_wp
-        self.link_parser = linkedin_parser.LinkedinParserSelenium('','')
+        self.link_parser = linkedin_parser.LinkedinParserSelenium(browser,visible=visible)
 
     def fetch_details_urlinput(self,url,use_selenium = True):
         '''
@@ -32,8 +35,24 @@ class LinkedinProfileCrawler(object):
                 soup = self.link_parser.get_soup(url)
             else:
                 soup = self._crawler(url)
+            try:
+                if 'Largest Professional Network' in soup.title.text:
+                    outs['Notes'] = 'Not Available Pubicly'
+                    return outs
+            except:
+                outs['Notes'] = 'Java script code'
+                return outs
             tmp = self.fetch_details_soupinput(soup)
             outs.update(tmp)
+        except TimeoutException:
+            logging.error('Time out exception for url:'+url)
+            return None
+        except socket_error:
+            logging.error('Socket error for url:'+url)
+            return None
+        except CannotSendRequest:
+            logging.error('Cannot send request error for url:{}'.format(url))
+            return None
         except Exception as e:
             logging.exception('Error while fetching details for url: '+url)
         return outs
@@ -60,6 +79,7 @@ class LinkedinProfileCrawler(object):
         outs['Experience'] = self.get_experience(soup)
         outs['Skills'] = self.get_skills(soup)
         outs['Related People'] = self.get_related_people(soup)
+        outs['Same Name People'] = self.get_same_name_people(soup)
         return outs
 
     def get_name(self,soup):
@@ -221,3 +241,28 @@ class LinkedinProfileCrawler(object):
             return out_list
         except:
             return []
+
+    def get_same_name_people(self,soup):
+        try:
+            lis = soup.find('section',{'class':'insights profile-section'}).find('div',{'class':'name-search'}).findAll('li')
+            out_list = []
+            for li in lis:
+                li_dic = {}
+                try:
+                    li_dic['Linkedin Page'] = li.find('a')['href']
+                except:
+                    li_dic['Linkedin Page'] = ''
+                try:
+                    li_dic['Name'] = li.find('h4').text
+                except:
+                    continue # if no name continue
+                    # li_dic['Name'] = ''
+                try:
+                    li_dic['Position'] = li.find('p').text
+                except:
+                    li_dic['Position'] = ''
+                out_list.append(li_dic)
+            return out_list
+        except:
+            return []
+
