@@ -22,7 +22,7 @@ class LinkedinCompanyCrawlerThread(object):
             self.proxy_generator = ProxyGen(visible=visible,page_load_timeout=25)
             self.proxies = Queue(maxsize=0)
             self.proxies.put((None,None)) #try with actual ip first time
-            self.gen_proxies()
+            # self.gen_proxies() # logging problem if this runs before init. put this in run call
 
     def gen_proxies(self):
         '''
@@ -36,10 +36,10 @@ class LinkedinCompanyCrawlerThread(object):
             except Exception :
                 logging.exception('could not create proxies. using None')
                 proxies = [(None,None)]
+        logging.info('Proxies fetched {}'.format(proxies))
         for i in proxies:
             if self.ip_matcher.match(i[0]):
                 self.proxies.put(i)
-        logging.info('Proxies fetched {}'.format(proxies))
         # logging.info('All Proxies fetched {}'.format(self.proxies)) #not printing proxy list. only object name
 
     def get_proxy(self):
@@ -161,6 +161,7 @@ class LinkedinCompanyCrawlerThread(object):
         self.out_loc = out_loc
         self.out_queue = Queue(maxsize=0)
         self.processed_queue = Queue(maxsize=0)
+        self.gen_proxies()
         for i in range(n_threads):
             worker = threading.Thread(target=self.worker_fetch_url)
             worker.setDaemon(True)
@@ -188,7 +189,7 @@ class LinkedinProfileCrawlerThread(object):
             self.proxy_generator = ProxyGen(visible=visible,page_load_timeout=25)
             self.proxies = Queue(maxsize=0)
             self.proxies.put((None,None)) #try with actual ip first time
-            self.gen_proxies()
+            # self.gen_proxies() #moving this to run call due to logging problem
 
     def gen_proxies(self):
         '''
@@ -202,10 +203,10 @@ class LinkedinProfileCrawlerThread(object):
             except Exception :
                 logging.exception('could not create proxies. using None')
                 proxies = [(None,None)]
+        logging.info('Proxies fetched {}'.format(proxies))
         for i in proxies:
             if self.ip_matcher.match(i[0]):
                 self.proxies.put(i)
-        logging.info('Proxies fetched {}'.format(proxies))
         # logging.info('All Proxies fetched {}'.format(self.proxies)) #not printing proxy list. only object name
 
     def get_proxy(self):
@@ -303,6 +304,7 @@ class LinkedinProfileCrawlerThread(object):
                         crawler = linkedin_profile_crawler.LinkedinProfileCrawler(self.browser,self.visible,proxy=self.proxy,
                                                                                   proxy_ip=proxy_ip,proxy_port=proxy_port)
                     except:
+                        logging.exception('Exception while trying to change ip')
                         crawler = crawler_bck
                     del crawler_bck
             self.in_queue.task_done()
@@ -327,6 +329,7 @@ class LinkedinProfileCrawlerThread(object):
         self.out_loc = out_loc
         self.out_queue = Queue(maxsize=0)
         self.processed_queue = Queue(maxsize=0)
+        self.gen_proxies()
         for i in range(n_threads):
             worker = threading.Thread(target=self.worker_fetch_url)
             worker.setDaemon(True)
