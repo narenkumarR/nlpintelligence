@@ -1,5 +1,6 @@
 __author__ = 'joswin'
 
+import logging
 import cookielib
 import urllib
 import urllib2
@@ -101,8 +102,14 @@ class LinkedinParserSelenium(object):
     '''
     '''
     def __init__(self,browser = 'Firefox',browser_loc='/home/madan/Downloads/phantomjs-2.1.1-linux-x86_64/bin/phantomjs',
-                 visible = True,proxy = False):
+                 visible = True,proxy = False,proxy_ip=None,proxy_port=None):
         '''
+        :param browser:
+        :param browser_loc:
+        :param visible:
+        :param proxy:
+        :param proxy_ip: should be character??
+        :param proxy_port: should be character??
         :return:
         '''
         if not visible:
@@ -115,8 +122,16 @@ class LinkedinParserSelenium(object):
         else:
             firefox_profile = webdriver.FirefoxProfile()
             firefox_profile.set_preference("browser.privatebrowsing.autostart", True)
+            if proxy:
+                if (not proxy_ip) or (not proxy_port):
+                    logging.error('No ip/port, not using proxy')
+                else:
+                    firefox_profile.set_preference("network.proxy.type", 1)
+                    firefox_profile.set_preference("network.proxy.http", proxy_ip)
+                    firefox_profile.set_preference("network.proxy.http_port", proxy_port)
+                    firefox_profile.update_preferences()
             self.browser = webdriver.Firefox(firefox_profile=firefox_profile)
-            self.browser.set_page_load_timeout(25)
+        self.browser.set_page_load_timeout(25)
 
     def login(self,username,password):
         '''
@@ -131,7 +146,7 @@ class LinkedinParserSelenium(object):
         password_field.send_keys(password)
         self.browser.find_element_by_name("submit").click()
 
-    def logout(self):
+    def exit(self):
         '''
         :return:
         '''

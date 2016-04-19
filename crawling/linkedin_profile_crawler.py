@@ -16,12 +16,16 @@ import logging
 class LinkedinProfileCrawler(object):
     '''Crawl a linkedin profie page
     '''
-    def __init__(self,browser='Firefox',visible=True):
+    def __init__(self,browser='Firefox',visible=True,proxy=False,proxy_ip = None,proxy_port = None):
         '''
         :return:
         '''
         self._crawler = BeautifulsoupCrawl.single_wp
-        self.link_parser = linkedin_parser.LinkedinParserSelenium(browser,visible=visible)
+        self.link_parser = linkedin_parser.LinkedinParserSelenium(browser,visible=visible,proxy=proxy,
+                                                                  proxy_ip=proxy_ip,proxy_port=proxy_port)
+
+    def exit(self):
+        self.link_parser.exit()
 
     def fetch_details_urlinput(self,url,use_selenium = True):
         '''
