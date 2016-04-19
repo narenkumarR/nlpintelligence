@@ -52,10 +52,11 @@ def complete_cases_org(fn):
 
 
 class LinkedinOrganizationService(object):
-    def __init__(self,browser='Firefox',visible = True):
+    def __init__(self,browser='Firefox',visible = True,proxy=False,proxy_ip = None,proxy_port = None):
         # print('class intializing')
         self._crawler = BeautifulsoupCrawl.single_wp
-        self.link_parser = linkedin_parser.LinkedinParserSelenium(browser,visible=visible)
+        self.link_parser = linkedin_parser.LinkedinParserSelenium(browser,visible=visible,proxy=proxy,
+                                                                  proxy_ip=proxy_ip,proxy_port=proxy_port)
 
 
     # @complete_cases_org

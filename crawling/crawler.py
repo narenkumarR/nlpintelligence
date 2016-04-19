@@ -1,5 +1,6 @@
 __author__ = 'joswin'
 
+import re
 from Queue import Queue
 import threading
 import logging
@@ -7,27 +8,68 @@ import time
 from random import randint
 
 import linkedin_company_crawler,linkedin_profile_crawler
+from proxy_generator import ProxyGen
 
 class LinkedinCompanyCrawlerThread(object):
-    def __init__(self,browser='Firefox',visible=True):
+    def __init__(self,browser='Firefox',visible=True,proxy=False):
         '''
         '''
         self.browser = browser
         self.visible = visible
+        self.proxy = proxy
+        self.ip_matcher = re.compile("^\d{1,3}\.\d{1,3}\.\d{1,3}\.\d{1,3}$")
+        if proxy:
+            self.proxy_generator = ProxyGen(visible=visible,page_load_timeout=25)
+            self.proxies = Queue(maxsize=0)
+            self.proxies.put((None,None)) #try with actual ip first time
+            self.gen_proxies()
+
+    def gen_proxies(self):
+        '''
+        :return:
+        '''
+        if not self.proxy:
+            return [(None,None)]
+        else:
+            try:
+                proxies = self.proxy_generator.get_proxy_ultraproxies()
+            except Exception :
+                logging.exception('could not create proxies. using None')
+                proxies = [(None,None)]
+        for i in proxies:
+            if self.ip_matcher.match(i[0]):
+                self.proxies.put(i)
+        logging.info('Proxies fetched {}'.format(proxies))
+        # logging.info('All Proxies fetched {}'.format(self.proxies)) #not printing proxy list. only object name
+
+    def get_proxy(self):
+        ''' call this when a proxy is needed
+        :return:
+        '''
+        if self.proxies.empty():
+            self.gen_proxies()
+        return self.proxies.get()
 
     def worker_fetch_url(self):
         '''
         :return:
         '''
-        company_crawler = linkedin_company_crawler.LinkedinOrganizationService(self.browser,self.visible)
-        def get_output(url,res_1,event):
-            logging.info('get_output function before fetching- url:{},res_1:{}'.format(url,res_1))
-            res_1['result'] = company_crawler.get_organization_details_from_linkedin_link(url)
-            logging.info('get_output function after fetching- url:{},res_1:{}'.format(url,res_1))
+        try: #some error happens while getting proxy sometimes. putting it in try
+            proxy_dets = self.get_proxy()
+            logging.info('proxy to be used : {}'.format(proxy_dets))
+            proxy_ip,proxy_port = proxy_dets[0],proxy_dets[1]
+            crawler = linkedin_company_crawler.LinkedinOrganizationService(self.browser,self.visible,proxy=self.proxy,
+                                                                      proxy_ip=proxy_ip,proxy_port=proxy_port)
+        except: #if  coming here, run without proxy
+            logging.info('Error while getting proxy. Running without proxy')
+            crawler = linkedin_company_crawler.LinkedinOrganizationService(self.browser,self.visible,proxy=False,
+                                                                      proxy_ip=None,proxy_port=None)
+        def get_output(crawler,url,res_1,event):
+            res_1['result'] = crawler.get_organization_details_from_linkedin_link(url)
             event.set()
         no_errors = 0
         ind = 0
-        n_blocks = 0
+        n_blocks =0
         while True:
             ind += 1
             url = self.in_queue.get()
@@ -36,11 +78,10 @@ class LinkedinCompanyCrawlerThread(object):
                 time.sleep(randint(1,4))
                 res_1 = {}
                 event = threading.Event()
-                t1 = threading.Thread(target=get_output, args=(url,res_1,event,))
+                t1 = threading.Thread(target=get_output, args=(crawler,url,res_1,event,))
                 t1.daemon = True
                 t1.start()
                 event.wait(timeout=30)
-                logging.info('Fetched details after event wait - res_1:{}'.format(res_1))
                 if res_1 is None: #if None means timeout happened, push to queue again
                     self.in_queue.put(url)
                     # no_errors += 1
@@ -70,7 +111,7 @@ class LinkedinCompanyCrawlerThread(object):
                         no_errors += 1
                 else:
                     no_errors += 1
-            except Exception as e:
+            except Exception :
                 logging.exception('Error while execution for url: '+url+', sleeping 2 seconds')
                 time.sleep(2)
                 no_errors += 1
@@ -78,11 +119,26 @@ class LinkedinCompanyCrawlerThread(object):
                 time.sleep(randint(8,12))
                 if ind%100 == 0:
                     time.sleep(randint(25,35))
-            if no_errors >= 6:
-                n_blocks += 1
-                logging.info('Error condition met, sleeping for '+str(n_blocks*600)+' seconds')
-                time.sleep(n_blocks*600)
+            if no_errors == 6:
                 no_errors = no_errors - 1
+                if not self.proxy:
+                    n_blocks += 1
+                    logging.info('Error condition met, sleeping for '+str(min(n_blocks,6)*600)+' seconds')
+                    time.sleep(min(n_blocks,6)*600)
+                else:
+                    logging.info('Error condition met, trying to use another ip')
+                    crawler_bck = crawler
+                    try:
+                        crawler.exit()
+                        del crawler
+                        proxy_dets = self.get_proxy()
+                        logging.info('proxy to be used: {}'.format(proxy_dets))
+                        proxy_ip,proxy_port = proxy_dets[0],proxy_dets[1]
+                        crawler = linkedin_company_crawler.LinkedinOrganizationService(self.browser,self.visible,proxy=self.proxy,
+                                                                                  proxy_ip=proxy_ip,proxy_port=proxy_port)
+                    except:
+                        crawler = crawler_bck
+                    del crawler_bck
             self.in_queue.task_done()
 
     def worker_save_res(self):
@@ -121,18 +177,60 @@ class LinkedinCompanyCrawlerThread(object):
         logging.info('Finished')
 
 class LinkedinProfileCrawlerThread(object):
-    def __init__(self,browser='Firefox',visible=True):
+    def __init__(self,browser='Firefox',visible=True,proxy=False):
         '''
         '''
         self.browser = browser
         self.visible = visible
+        self.proxy = proxy
+        self.ip_matcher = re.compile("^\d{1,3}\.\d{1,3}\.\d{1,3}\.\d{1,3}$")
+        if proxy:
+            self.proxy_generator = ProxyGen(visible=visible,page_load_timeout=25)
+            self.proxies = Queue(maxsize=0)
+            self.proxies.put((None,None)) #try with actual ip first time
+            self.gen_proxies()
+
+    def gen_proxies(self):
+        '''
+        :return:
+        '''
+        if not self.proxy:
+            return [(None,None)]
+        else:
+            try:
+                proxies = self.proxy_generator.get_proxy_ultraproxies()
+            except Exception :
+                logging.exception('could not create proxies. using None')
+                proxies = [(None,None)]
+        for i in proxies:
+            if self.ip_matcher.match(i[0]):
+                self.proxies.put(i)
+        logging.info('Proxies fetched {}'.format(proxies))
+        # logging.info('All Proxies fetched {}'.format(self.proxies)) #not printing proxy list. only object name
+
+    def get_proxy(self):
+        ''' call this when a proxy is needed
+        :return:
+        '''
+        if self.proxies.empty():
+            self.gen_proxies()
+        return self.proxies.get()
 
     def worker_fetch_url(self):
         '''
         :return:
         '''
-        crawler = linkedin_profile_crawler.LinkedinProfileCrawler(self.browser,self.visible)
-        def get_output(url,res_1,event):
+        try: #some error happens while getting proxy sometimes. putting it in try
+            proxy_dets = self.get_proxy()
+            logging.info('proxy to be used : {}'.format(proxy_dets))
+            proxy_ip,proxy_port = proxy_dets[0],proxy_dets[1]
+            crawler = linkedin_profile_crawler.LinkedinProfileCrawler(self.browser,self.visible,proxy=self.proxy,
+                                                                      proxy_ip=proxy_ip,proxy_port=proxy_port)
+        except: #if  coming here, run without proxy
+            logging.info('Error while getting proxy. Running without proxy')
+            crawler = linkedin_profile_crawler.LinkedinProfileCrawler(self.browser,self.visible,proxy=False,
+                                                                      proxy_ip=None,proxy_port=None)
+        def get_output(crawler,url,res_1,event):
             res_1['result'] = crawler.fetch_details_urlinput(url)
             event.set()
         no_errors = 0
@@ -146,7 +244,7 @@ class LinkedinProfileCrawlerThread(object):
                 time.sleep(randint(1,4))
                 res_1 = {}
                 event = threading.Event()
-                t1 = threading.Thread(target=get_output, args=(url,res_1,event,))
+                t1 = threading.Thread(target=get_output, args=(crawler,url,res_1,event,))
                 t1.daemon = True
                 t1.start()
                 event.wait(timeout=30)
@@ -179,7 +277,7 @@ class LinkedinProfileCrawlerThread(object):
                         no_errors += 1
                 else:
                     no_errors += 1
-            except Exception as e:
+            except Exception :
                 logging.exception('Error while execution for url: '+url+', sleeping 2 seconds')
                 time.sleep(2)
                 no_errors += 1
@@ -188,10 +286,25 @@ class LinkedinProfileCrawlerThread(object):
                 if ind%100 == 0:
                     time.sleep(randint(25,35))
             if no_errors == 6:
-                n_blocks += 1
-                logging.info('Error condition met, sleeping for '+str(n_blocks*600)+' seconds')
-                time.sleep(n_blocks*600)
                 no_errors = no_errors - 1
+                if not self.proxy:
+                    n_blocks += 1
+                    logging.info('Error condition met, sleeping for '+str(min(n_blocks,6)*600)+' seconds')
+                    time.sleep(min(n_blocks,6)*600)
+                else:
+                    logging.info('Error condition met, trying to use another ip')
+                    crawler_bck = crawler
+                    try:
+                        crawler.exit()
+                        del crawler
+                        proxy_dets = self.get_proxy()
+                        logging.info('proxy to be used: {}'.format(proxy_dets))
+                        proxy_ip,proxy_port = proxy_dets[0],proxy_dets[1]
+                        crawler = linkedin_profile_crawler.LinkedinProfileCrawler(self.browser,self.visible,proxy=self.proxy,
+                                                                                  proxy_ip=proxy_ip,proxy_port=proxy_port)
+                    except:
+                        crawler = crawler_bck
+                    del crawler_bck
             self.in_queue.task_done()
 
     def worker_save_res(self):
