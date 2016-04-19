@@ -279,33 +279,49 @@ def get_finished_links(var_name='Linkedin URL',*args):
     return list(set(link_list))
 
 
-import crawler
 import pandas as pd
-orgs = pd.read_csv("odm.csv/organizations.csv")
-urls = orgs['linkedin_url']
-urls = urls[~urls.isnull()]
-urls = list(set(urls))
+# orgs = pd.read_csv("odm.csv/organizations.csv")
+# urls = orgs['linkedin_url']
+# urls = urls[~urls.isnull()]
+# urls = list(set(urls))
+import crawler
 finished_urls = get_finished_links('Linkedin URL','crawled_res/company_crawled_13April.txt',
                          'crawled_res/company_crawled_13April_1.txt','crawled_res/company_crawled_13April_2.txt',
-                         'crawled_res/company_crawled_15April.txt','crawled_res/company_crawled_15April_1.txt')
-urls = list(set(urls)-set(finished_urls))
-del orgs
-cc = crawler.LinkedinCompanyCrawlerThread('Firefox',False)
-cc.run(urls,'company_crawled_15April_2.txt','company_crawling_15April_2.log',6)
+                         'crawled_res/company_crawled_15April.txt','crawled_res/company_crawled_15April_1.txt',
+                         'crawled_res/company_crawled_15April_2.txt')
+import pickle
+with open('company_urls_to_crawl_18April.pkl','r') as f:
+    urls = pickle.load(f)
 
-import crawler
-import pandas as pd
-people = pd.read_csv("odm.csv/people.csv")
-urls = people['linkedin_url']
-urls = urls[~urls.isnull()]
-urls = list(set(urls))
+urls = urls[:20000]
+urls = list(set(urls)-set(finished_urls))
+# del orgs
+cc = crawler.LinkedinCompanyCrawlerThread('Firefox',False)
+cc.run(urls,'company_crawled_18April_1.txt','company_crawling_18April_1.log',6)
+
+# import pandas as pd
+# people = pd.read_csv("odm.csv/people.csv")
+# urls = people['linkedin_url']
+# urls = urls[~urls.isnull()]
+# urls = list(set(urls))
+from random import shuffle
 finished_urls = get_finished_links('Linkedin URL','crawled_res/people_crawled_12April.txt',
                          'crawled_res/people_crawled_13April.txt','crawled_res/people_crawled_13April_1.txt',
-                         'crawled_res/people_crawled_13April_2.txt','crawled_res/people_crawled_15April_1.txt')
+                         'crawled_res/people_crawled_13April_2.txt','crawled_res/people_crawled_15April_1.txt',
+                         'crawled_res/people_crawled_15April_2.txt','crawled_res/people_crawled_18April_1.txt',
+                         'crawled_res/people_crawled_18April_2.txt')
+
+import pickle
+with open('people_urls_to_crawl_18April.pkl','r') as f:
+    urls = pickle.load(f)
+
+urls = urls[:40000]
 urls = list(set(urls)-set(finished_urls))
-del people
-cc = crawler.LinkedinProfileCrawlerThread('Firefox',False)
-cc.run(urls,'people_crawled_15April_2.txt','people_crawling_15April_2.log',4)
+shuffle(urls)
+# del people
+import crawler
+cc = crawler.LinkedinProfileCrawlerThread('Firefox',visible=True,proxy=True)
+cc.run(urls,'people_crawled_19April_1.txt','people_crawling_19April_1.log',4)
 
 ###trying with process #causing errors(storing wrong information)
 import crawler_multiprocessing
