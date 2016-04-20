@@ -5,7 +5,7 @@ from selenium_crawl import SeleniumParser
 class ProxyGen(object):
     '''
     '''
-    def __init__(self,visible=True,page_load_timeout=25):
+    def __init__(self,visible=True,page_load_timeout=60):
         self.browser = SeleniumParser(visible=visible,page_load_timeout=page_load_timeout)
 
     def generate_proxy(self):

@@ -150,7 +150,7 @@ class LinkedinParserSelenium(object):
         '''
         :return:
         '''
-        self.browser.close()
+        # self.browser.close()
         self.browser.quit()
         if self.display:
             self.display.stop()
