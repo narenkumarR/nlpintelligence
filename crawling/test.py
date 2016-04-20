@@ -288,16 +288,19 @@ import crawler
 finished_urls = get_finished_links('Linkedin URL','crawled_res/company_crawled_13April.txt',
                          'crawled_res/company_crawled_13April_1.txt','crawled_res/company_crawled_13April_2.txt',
                          'crawled_res/company_crawled_15April.txt','crawled_res/company_crawled_15April_1.txt',
-                         'crawled_res/company_crawled_15April_2.txt')
+                         'crawled_res/company_crawled_15April_2.txt','crawled_res/company_crawled_18April_1.txt',
+                         'crawled_res/company_crawled_19April_1.txt','crawled_res/company_crawled_19April_2.txt',
+                         'company_crawled_20April_1.txt')
+
 import pickle
 with open('company_urls_to_crawl_18April.pkl','r') as f:
     urls = pickle.load(f)
 
-urls = urls[:20000]
+urls = urls[:40000]
 urls = list(set(urls)-set(finished_urls))
 # del orgs
-cc = crawler.LinkedinCompanyCrawlerThread('Firefox',False)
-cc.run(urls,'company_crawled_18April_1.txt','company_crawling_18April_1.log',6)
+cc = crawler.LinkedinCompanyCrawlerThread('Firefox',visible=False,proxy=True)
+cc.run(urls,'company_crawled_20April_1.txt','company_crawling_20April_1.log',6)
 
 # import pandas as pd
 # people = pd.read_csv("odm.csv/people.csv")
@@ -309,21 +312,25 @@ finished_urls = get_finished_links('Linkedin URL','crawled_res/people_crawled_12
                          'crawled_res/people_crawled_13April.txt','crawled_res/people_crawled_13April_1.txt',
                          'crawled_res/people_crawled_13April_2.txt','crawled_res/people_crawled_15April_1.txt',
                          'crawled_res/people_crawled_15April_2.txt','crawled_res/people_crawled_18April_1.txt',
-                         'crawled_res/people_crawled_18April_2.txt')
+                         'crawled_res/people_crawled_18April_2.txt','crawled_res/people_crawled_19April_1.txt',
+                         'crawled_res/people_crawled_19April_2.txt')
 
 import pickle
 with open('people_urls_to_crawl_18April.pkl','r') as f:
     urls = pickle.load(f)
 
-urls = urls[:40000]
+urls = urls[:80000]
 urls = list(set(urls)-set(finished_urls))
 shuffle(urls)
 # del people
 import crawler
 cc = crawler.LinkedinProfileCrawlerThread('Firefox',visible=True,proxy=True)
-cc.run(urls,'people_crawled_19April_1.txt','people_crawling_19April_1.log',4)
+cc.run(urls,'people_crawled_20April_1.txt','people_crawling_20April_1.log',6)
 
 ###trying with process #causing errors(storing wrong information)
+#############################################################
+#############################################################
+
 import crawler_multiprocessing
 import pandas as pd
 orgs = pd.read_csv("odm.csv/organizations.csv")
@@ -351,6 +358,9 @@ del people
 cc = crawler_multiprocessing.LinkedinProfileCrawlerProcess('PhantomJS')
 cc.run(urls,'people_crawled_15April.txt','people_crawling_15April.log',4)
 
+#############################################################
+#############################################################
+#############################################################
 
 ####removing duplicates
 good_dict = {}
@@ -363,3 +373,55 @@ with open('people_crawled_15April_2.txt','r') as f:
 with open('people_crawled_clean.txt','w') as f:
     for i in good_dict:
         f.write(str(good_dict[i])+'\n')
+
+#############################################################
+#############################################################
+#############################################################
+# extracting urls from company page and people page for next level of crawling
+name_list = ['crawled_res/company_crawled_13April.txt',
+                         'crawled_res/company_crawled_13April_1.txt','crawled_res/company_crawled_13April_2.txt',
+                         'crawled_res/company_crawled_15April.txt','crawled_res/company_crawled_15April_1.txt',
+                         'crawled_res/company_crawled_15April_2.txt','crawled_res/company_crawled_18April_1.txt',
+                         'crawled_res/company_crawled_19April_1.txt','crawled_res/company_crawled_19April_2.txt',
+                         ]
+out_file = 'companies_second_layer_urls.txt'
+out_list = []
+for name in name_list:
+    with open(name,'r') as f_in:
+        for line in f_in:
+            tmp = eval(line)
+            if 'Also Viewed Companies' in tmp:
+                for det in tmp['Also Viewed Companies']:
+                    out_list.append(det['company_linkedin_url'])
+
+out_list = list(set(out_list))
+import re
+with open(out_file,'w') as f:
+    for i in out_list:
+        f.write(re.sub(r'\?trk=extra_biz_viewers_viewed','',i)+'\n')
+
+#for people
+name_list = ['crawled_res/people_crawled_12April.txt',
+                         'crawled_res/people_crawled_13April.txt','crawled_res/people_crawled_13April_1.txt',
+                         'crawled_res/people_crawled_13April_2.txt','crawled_res/people_crawled_15April_1.txt',
+                         'crawled_res/people_crawled_15April_2.txt','crawled_res/people_crawled_18April_1.txt',
+                         'crawled_res/people_crawled_18April_2.txt','crawled_res/people_crawled_19April_1.txt',
+                         'crawled_res/people_crawled_19April_2.txt']
+out_file = 'people_second_layer_urls.txt'
+out_list = []
+import re
+for name in name_list:
+    with open(name,'r') as f_in:
+        for line in f_in:
+            tmp = eval(line)
+            if 'Related People' in tmp:
+                for det in tmp['Related People']:
+                    out_list.append(re.sub(r'\?trk=pub-pbmap','',det['Linkedin Page']))
+            if 'Same Name People' in tmp:
+                for det in tmp['Same Name People']:
+                    out_list.append(re.sub(r'\?trk=prof-samename-picture','',det['Linkedin Page']))
+
+out_list = list(set(out_list))
+with open(out_file,'w') as f:
+    for i in out_list:
+        f.write(i+'\n')

@@ -61,7 +61,7 @@ class LinkedinCompanyCrawlerThread(object):
             crawler = linkedin_company_crawler.LinkedinOrganizationService(self.browser,self.visible,proxy=self.proxy,
                                                                       proxy_ip=proxy_ip,proxy_port=proxy_port)
         except: #if  coming here, run without proxy
-            logging.info('Error while getting proxy. Running without proxy')
+            logging.exception('Error while getting proxy. Running without proxy {}'.format(proxy_dets))
             crawler = linkedin_company_crawler.LinkedinOrganizationService(self.browser,self.visible,proxy=False,
                                                                       proxy_ip=None,proxy_port=None)
         def get_output(crawler,url,res_1,event):
@@ -70,7 +70,7 @@ class LinkedinCompanyCrawlerThread(object):
         no_errors = 0
         ind = 0
         n_blocks =0
-        while True:
+        while self.run_queue:
             ind += 1
             url = self.in_queue.get()
             logging.info('Input URL:'+url)
@@ -126,19 +126,18 @@ class LinkedinCompanyCrawlerThread(object):
                     logging.info('Error condition met, sleeping for '+str(min(n_blocks,6)*600)+' seconds')
                     time.sleep(min(n_blocks,6)*600)
                 else:
-                    logging.info('Error condition met, trying to use another ip')
-                    crawler_bck = crawler
+                    logging.info('Error condition met, trying to use another ip. current ip : {}'.format(proxy_dets))
                     try:
                         crawler.exit()
-                        del crawler
+                        logging.info('Getting proxy ip details')
                         proxy_dets = self.get_proxy()
                         logging.info('proxy to be used: {}'.format(proxy_dets))
                         proxy_ip,proxy_port = proxy_dets[0],proxy_dets[1]
-                        crawler = linkedin_company_crawler.LinkedinOrganizationService(self.browser,self.visible,proxy=self.proxy,
+                        crawler.init_selenium_parser(self.browser,self.visible,proxy=self.proxy,
                                                                                   proxy_ip=proxy_ip,proxy_port=proxy_port)
                     except:
-                        crawler = crawler_bck
-                    del crawler_bck
+                        logging.exception('Exception while trying to change ip, use same parser')
+                        crawler.init_selenium_parser()
             self.in_queue.task_done()
 
     def worker_save_res(self):
@@ -158,7 +157,9 @@ class LinkedinCompanyCrawlerThread(object):
         :return:
         '''
         logging.basicConfig(filename=log_file_loc, level=logging.INFO,format='%(asctime)s %(message)s')
+        self.run_queue = True
         self.out_loc = out_loc
+        self.in_queue = Queue(maxsize=0)
         self.out_queue = Queue(maxsize=0)
         self.processed_queue = Queue(maxsize=0)
         self.gen_proxies()
@@ -169,11 +170,15 @@ class LinkedinCompanyCrawlerThread(object):
         worker = threading.Thread(target=self.worker_save_res)
         worker.setDaemon(True)
         worker.start()
-        self.in_queue = Queue(maxsize=0)
         for i in inp_list:
             self.in_queue.put(i)
         del inp_list
-        self.in_queue.join()
+        while not self.in_queue.empty():
+            try:
+                time.sleep(2)
+            except KeyboardInterrupt:
+                self.run_queue = False
+                break
         self.out_queue.join()
         logging.info('Finished')
 
@@ -237,7 +242,7 @@ class LinkedinProfileCrawlerThread(object):
         no_errors = 0
         ind = 0
         n_blocks =0
-        while True:
+        while self.run_queue:
             ind += 1
             url = self.in_queue.get()
             logging.info('Input URL:'+url)
@@ -294,19 +299,16 @@ class LinkedinProfileCrawlerThread(object):
                     time.sleep(min(n_blocks,6)*600)
                 else:
                     logging.info('Error condition met, trying to use another ip')
-                    crawler_bck = crawler
                     try:
                         crawler.exit()
-                        del crawler
                         proxy_dets = self.get_proxy()
                         logging.info('proxy to be used: {}'.format(proxy_dets))
                         proxy_ip,proxy_port = proxy_dets[0],proxy_dets[1]
-                        crawler = linkedin_profile_crawler.LinkedinProfileCrawler(self.browser,self.visible,proxy=self.proxy,
+                        crawler.init_selenium_parser(self.browser,self.visible,proxy=self.proxy,
                                                                                   proxy_ip=proxy_ip,proxy_port=proxy_port)
                     except:
                         logging.exception('Exception while trying to change ip')
-                        crawler = crawler_bck
-                    del crawler_bck
+                        crawler.init_selenium_parser()
             self.in_queue.task_done()
 
     def worker_save_res(self):
@@ -326,7 +328,9 @@ class LinkedinProfileCrawlerThread(object):
         :return:
         '''
         logging.basicConfig(filename=log_file_loc, level=logging.INFO,format='%(asctime)s %(message)s')
+        self.run_queue = True
         self.out_loc = out_loc
+        self.in_queue = Queue(maxsize=0)
         self.out_queue = Queue(maxsize=0)
         self.processed_queue = Queue(maxsize=0)
         self.gen_proxies()
@@ -337,11 +341,15 @@ class LinkedinProfileCrawlerThread(object):
         worker = threading.Thread(target=self.worker_save_res)
         worker.setDaemon(True)
         worker.start()
-        self.in_queue = Queue(maxsize=0)
         for i in inp_list:
             self.in_queue.put(i)
         del inp_list
-        self.in_queue.join()
+        while not self.in_queue.empty():
+            try:
+                time.sleep(2)
+            except KeyboardInterrupt:
+                self.run_queue = False
+                break
         self.out_queue.join()
         logging.info('Finished')
 
