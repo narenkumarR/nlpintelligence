@@ -1,18 +1,36 @@
 __author__ = 'joswin'
 
 from selenium_crawl import SeleniumParser
+import logging
 
 class ProxyGen(object):
     '''
     '''
-    def __init__(self,visible=True,page_load_timeout=60):
-        self.browser = SeleniumParser(visible=visible,page_load_timeout=page_load_timeout)
+    def __init__(self,browser='Firefox',visible=True,page_load_timeout=60):
+        self.browser = browser
+        self.visible = visible
+        self.page_load_timeout = page_load_timeout
+        self.activate_browser()
+
+    def activate_browser(self):
+        self.browser = SeleniumParser(browser=self.browser,visible=self.visible,
+                                      page_load_timeout=self.page_load_timeout)
+        self.browser_active = True
 
     def generate_proxy(self):
         '''
         :return:
         '''
-        pass
+        if not self.browser_active:
+            self.activate_browser()
+        proxy_list = self.get_proxy_ultraproxies()
+        return proxy_list
+
+    def exit(self):
+        logging.info('exiting proxy browser')
+        self.browser.exit()
+        self.browser_active = False
+        logging.info('finished exiting proxy browser')
 
     def gen_proxy_samair(self):
         ''' look at proxy from http://www.samair.ru/proxy/ip-address-01.htm
