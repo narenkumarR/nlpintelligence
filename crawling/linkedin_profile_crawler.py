@@ -8,7 +8,7 @@ import linkedin_parser
 # from bs4 import BeautifulSoup
 from selenium.common.exceptions import TimeoutException
 from socket import error as socket_error
-from httplib import CannotSendRequest
+from httplib import CannotSendRequest,BadStatusLine
 
 import logging
 # logger = logging.getLogger(__name__)
@@ -75,6 +75,9 @@ class LinkedinProfileCrawler(object):
             return None
         except CannotSendRequest:
             logging.error('Cannot send request error for url:{}'.format(url))
+            return None
+        except BadStatusLine:
+            logging.error('Badstatus line error for url:{}'.format(url))
             return None
         except Exception as e:
             logging.exception('Error while fetching details for url: '+url)

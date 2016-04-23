@@ -28,6 +28,7 @@ class ThreadTest(object):
                 res = res_1['result']
                 self.out_queue.put(res)
             self.in_queue.task_done()
+            print 'thread id : {}, thread name: {}'.format(threading.currentThread(),t1.name)
 
     def worker_print(self):
         while True:

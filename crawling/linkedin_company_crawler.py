@@ -8,7 +8,7 @@ from bs_crawl import BeautifulsoupCrawl
 import linkedin_parser
 import logging
 from selenium.common.exceptions import TimeoutException
-from httplib import CannotSendRequest
+from httplib import CannotSendRequest,BadStatusLine
 from socket import error as socket_error
 
 all_org_cases = ['Specialties','Website','Industry','Type','Headquarters','Company Size','Founded',
@@ -118,6 +118,9 @@ class LinkedinOrganizationService(object):
             return None
         except CannotSendRequest:
             logging.error('Cannot send request error for url:{}'.format(url))
+            return None
+        except BadStatusLine:
+            logging.error('Badstatus line error for url:{}'.format(url))
             return None
         except Exception as e:
             logging.exception('Exception while running main from company page for url:'+url)

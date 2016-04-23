@@ -21,7 +21,7 @@ class LinkedinCompanyCrawlerThread(object):
         if proxy:
             self.proxy_generator = ProxyGen(visible=visible,page_load_timeout=25)
             self.proxies = Queue(maxsize=0)
-            self.proxies.put((None,None)) #try with actual ip first time
+            # self.proxies.put((None,None)) #try with actual ip first time
             # self.gen_proxies() # logging problem if this runs before init. put this in run call
 
     def gen_proxies(self):
@@ -32,14 +32,15 @@ class LinkedinCompanyCrawlerThread(object):
             return [(None,None)]
         else:
             try:
-                proxies = self.proxy_generator.get_proxy_ultraproxies()
+                proxies = self.proxy_generator.generate_proxy()
             except Exception :
                 logging.exception('could not create proxies. using None')
                 proxies = [(None,None)]
         logging.info('Proxies fetched {}'.format(proxies))
         for i in proxies:
-            if self.ip_matcher.match(i[0]):
-                self.proxies.put(i)
+            if i[0] is not None:
+                if self.ip_matcher.match(i[0]):
+                    self.proxies.put(i)
         # logging.info('All Proxies fetched {}'.format(self.proxies)) #not printing proxy list. only object name
 
     def get_proxy(self):
@@ -61,7 +62,7 @@ class LinkedinCompanyCrawlerThread(object):
             crawler = linkedin_company_crawler.LinkedinOrganizationService(self.browser,self.visible,proxy=self.proxy,
                                                                       proxy_ip=proxy_ip,proxy_port=proxy_port)
         except: #if  coming here, run without proxy
-            logging.exception('Error while getting proxy. Running without proxy {}'.format(proxy_dets))
+            logging.exception('Error while getting proxy. Running without proxy ')
             crawler = linkedin_company_crawler.LinkedinOrganizationService(self.browser,self.visible,proxy=False,
                                                                       proxy_ip=None,proxy_port=None)
         def get_output(crawler,url,res_1,event):
@@ -73,9 +74,11 @@ class LinkedinCompanyCrawlerThread(object):
         while self.run_queue:
             ind += 1
             url = self.in_queue.get()
-            logging.info('Input URL:'+url)
+            # if url in self.processed_queue.queue or url in self.error_queue.queue:
+            #     continue
+            logging.info('Input URL:{}, thread:{}'.format(url,threading.currentThread()))
             try:
-                time.sleep(randint(1,4))
+                time.sleep(randint(1,2))
                 res_1 = {}
                 event = threading.Event()
                 t1 = threading.Thread(target=get_output, args=(crawler,url,res_1,event,))
@@ -83,6 +86,7 @@ class LinkedinCompanyCrawlerThread(object):
                 t1.start()
                 event.wait(timeout=30)
                 if res_1 is None: #if None means timeout happened, push to queue again
+                    crawler.exit()
                     self.in_queue.put(url)
                     # no_errors += 1
                 elif 'result' in res_1:
@@ -90,14 +94,22 @@ class LinkedinCompanyCrawlerThread(object):
                     if res:
                         if 'Company Name' in res :
                             if res['Company Name'] and res['Company Name'] != 'LinkedIn':
-                                if res['Company Name'] not in self.processed_queue.queue:
-                                    self.processed_queue.put(res['Company Name'])
-                                    self.out_queue.put(res)
-                                    no_errors = 0
-                                    n_blocks = 0
-                                else:
-                                    logging.info('Duplicate name while processing url:'+url+'. Duplicate value:'+res['Company Name'])
-                                    no_errors += 1
+                                self.out_queue.put(res)
+                                # self.processed_queue.put(url)
+                                no_errors = 0
+                                n_blocks = 0
+                                # if 'Also Viewed Companies' in res:
+                                    # for com_dic in res['Also Viewed Companies']:
+                                    #     if com_dic['company_linkedin_url'] not in self.processed_queue.queue:
+                                    #         self.in_queue.put(com_dic['company_linkedin_url'])
+                                # if res['Company Name'] not in self.processed_queue.queue:
+                                #     self.processed_queue.put(res['Company Name'])
+                                #     self.out_queue.put(res)
+                                #     no_errors = 0
+                                #     n_blocks = 0
+                                # else:
+                                #     logging.info('Duplicate name while processing url:'+url+'. Duplicate value:'+res['Company Name'])
+                                #     no_errors += 1
                             else:
                                 no_errors += 1
                         elif 'Notes' in res:
@@ -113,12 +125,15 @@ class LinkedinCompanyCrawlerThread(object):
                     no_errors += 1
             except Exception :
                 logging.exception('Error while execution for url: '+url+', sleeping 2 seconds')
-                time.sleep(2)
+                time.sleep(1)
                 no_errors += 1
             if ind%10 == 0:
-                time.sleep(randint(8,12))
+                time.sleep(randint(2,6))
                 if ind%100 == 0:
-                    time.sleep(randint(25,35))
+                    # logging.info('Completed URLs: {}, Error URLs: {}, URLs to crawl: {}'.format(len(self.processed_queue.queue),
+                    #                                                          len(self.error_queue.queue),
+                    #                                                          len(self.in_queue.queue)))
+                    time.sleep(randint(10,20))
             if no_errors == 6:
                 no_errors = no_errors - 1
                 if not self.proxy:
@@ -138,14 +153,22 @@ class LinkedinCompanyCrawlerThread(object):
                     except:
                         logging.exception('Exception while trying to change ip, use same parser')
                         crawler.init_selenium_parser()
+            if no_errors>0:
+                logging.info('Something went wrong, could not fetch details for url: {}, thread id: {}'.format(url,threading.currentThread()))
+                # self.error_queue.put(url)
             self.in_queue.task_done()
+        logging.info('exiting crawler, thread:{}'.format(threading.currentThread()))
+        crawler.exit()
+        logging.info('crawler exited, thread:{}'.format(threading.currentThread()))
 
     def worker_save_res(self):
         '''
         :return:
         '''
-        while True:
+        while self.run_write_queue:
             res = self.out_queue.get()
+            if res is None:
+                break
             with open(self.out_loc,'a') as f:
                 f.write(str(res)+'\n')
             self.out_queue.task_done()
@@ -158,10 +181,12 @@ class LinkedinCompanyCrawlerThread(object):
         '''
         logging.basicConfig(filename=log_file_loc, level=logging.INFO,format='%(asctime)s %(message)s')
         self.run_queue = True
+        self.run_write_queue = True
         self.out_loc = out_loc
         self.in_queue = Queue(maxsize=0)
         self.out_queue = Queue(maxsize=0)
-        self.processed_queue = Queue(maxsize=0)
+        # self.processed_queue = Queue(maxsize=0)
+        # self.error_queue = Queue(maxsize=0)
         self.gen_proxies()
         for i in range(n_threads):
             worker = threading.Thread(target=self.worker_fetch_url)
@@ -173,14 +198,23 @@ class LinkedinCompanyCrawlerThread(object):
         for i in inp_list:
             self.in_queue.put(i)
         del inp_list
+        # self.in_queue.join()
+        #doing while loop instead of join to save all the results in the queue. not sure if this is working or not.
         while not self.in_queue.empty():
             try:
                 time.sleep(2)
-            except KeyboardInterrupt:
-                self.run_queue = False
+            except :
+                # self.run_queue = False
                 break
+        # time.sleep(20) #giving 20 second wait for all existing tasks to finish
+        logging.info('crawling stopped, trying to save already crawled results. No of results left in out queue : {}'.format(len(self.out_queue.queue)))
         self.out_queue.join()
-        logging.info('Finished')
+        self.run_queue = False
+        self.run_write_queue = False
+        self.proxy_generator.exit()
+        logging.info('Finished. No of results left in out queue : {}'.format(len(self.out_queue.queue)))
+        # logging._removeHandlerRef()
+
 
 class LinkedinProfileCrawlerThread(object):
     def __init__(self,browser='Firefox',visible=True,proxy=False):
@@ -191,9 +225,9 @@ class LinkedinProfileCrawlerThread(object):
         self.proxy = proxy
         self.ip_matcher = re.compile("^\d{1,3}\.\d{1,3}\.\d{1,3}\.\d{1,3}$")
         if proxy:
-            self.proxy_generator = ProxyGen(visible=visible,page_load_timeout=25)
+            self.proxy_generator = ProxyGen(browser=browser,visible=visible,page_load_timeout=25)
             self.proxies = Queue(maxsize=0)
-            self.proxies.put((None,None)) #try with actual ip first time
+            # self.proxies.put((None,None)) #try with actual ip first time
             # self.gen_proxies() #moving this to run call due to logging problem
 
     def gen_proxies(self):
@@ -204,14 +238,15 @@ class LinkedinProfileCrawlerThread(object):
             return [(None,None)]
         else:
             try:
-                proxies = self.proxy_generator.get_proxy_ultraproxies()
+                proxies = self.proxy_generator.generate_proxy()
             except Exception :
                 logging.exception('could not create proxies. using None')
                 proxies = [(None,None)]
         logging.info('Proxies fetched {}'.format(proxies))
         for i in proxies:
-            if self.ip_matcher.match(i[0]):
-                self.proxies.put(i)
+            if i[0] is not None:
+                if self.ip_matcher.match(i[0]):
+                    self.proxies.put(i)
         # logging.info('All Proxies fetched {}'.format(self.proxies)) #not printing proxy list. only object name
 
     def get_proxy(self):
@@ -245,7 +280,7 @@ class LinkedinProfileCrawlerThread(object):
         while self.run_queue:
             ind += 1
             url = self.in_queue.get()
-            logging.info('Input URL:'+url)
+            logging.info('Input URL:{}, thread:{}'.format(url,threading.currentThread()))
             try:
                 time.sleep(randint(1,4))
                 res_1 = {}
@@ -262,14 +297,17 @@ class LinkedinProfileCrawlerThread(object):
                     if res:
                         if 'Name' in res :
                             if res['Name'] and res['Name'] != 'LinkedIn':
-                                if res['Name'] not in self.processed_queue.queue:
-                                    self.processed_queue.put(res['Name'])
-                                    self.out_queue.put(res)
-                                    no_errors = 0
-                                    n_blocks = 0
-                                else:
-                                    logging.info('Duplicate name while processing url:'+url+'. Duplicate value:'+res['Name'])
-                                    no_errors += 1
+                                self.out_queue.put(res)
+                                no_errors = 0
+                                n_blocks = 0
+                                # if res['Name'] not in self.processed_queue.queue:
+                                #     self.processed_queue.put(res['Name'])
+                                #     self.out_queue.put(res)
+                                #     no_errors = 0
+                                #     n_blocks = 0
+                                # else:
+                                #     logging.info('Duplicate name while processing url:'+url+'. Duplicate value:'+res['Name'])
+                                #     no_errors += 1
                             else:
                                 no_errors += 1
                         elif 'Notes' in res:
@@ -284,13 +322,13 @@ class LinkedinProfileCrawlerThread(object):
                 else:
                     no_errors += 1
             except Exception :
-                logging.exception('Error while execution for url: '+url+', sleeping 2 seconds')
-                time.sleep(2)
+                logging.exception('Error while execution for url: '+url+', sleeping 1 seconds')
+                time.sleep(1)
                 no_errors += 1
             if ind%10 == 0:
-                time.sleep(randint(8,12))
+                time.sleep(randint(2,6))
                 if ind%100 == 0:
-                    time.sleep(randint(25,35))
+                    time.sleep(randint(10,20))
             if no_errors == 6:
                 no_errors = no_errors - 1
                 if not self.proxy:
@@ -298,7 +336,7 @@ class LinkedinProfileCrawlerThread(object):
                     logging.info('Error condition met, sleeping for '+str(min(n_blocks,6)*600)+' seconds')
                     time.sleep(min(n_blocks,6)*600)
                 else:
-                    logging.info('Error condition met, trying to use another ip')
+                    logging.info('Error condition met, trying to use another ip. Current ip: {}'.format(proxy_dets))
                     try:
                         crawler.exit()
                         proxy_dets = self.get_proxy()
@@ -309,13 +347,18 @@ class LinkedinProfileCrawlerThread(object):
                     except:
                         logging.exception('Exception while trying to change ip')
                         crawler.init_selenium_parser()
+            if no_errors>0:
+                logging.info('Something went wrong, could not fetch details for url: {}, thread id: {}'.format(url,threading.currentThread()))
             self.in_queue.task_done()
+        logging.info('exiting crawler, thread:{}'.format(threading.currentThread()))
+        crawler.exit()
+        logging.info('crawler exited, thread:{}'.format(threading.currentThread()))
 
     def worker_save_res(self):
         '''
         :return:
         '''
-        while True:
+        while self.run_write_queue:
             res = self.out_queue.get()
             with open(self.out_loc,'a') as f:
                 f.write(str(res)+'\n')
@@ -329,10 +372,11 @@ class LinkedinProfileCrawlerThread(object):
         '''
         logging.basicConfig(filename=log_file_loc, level=logging.INFO,format='%(asctime)s %(message)s')
         self.run_queue = True
+        self.run_write_queue = True
         self.out_loc = out_loc
         self.in_queue = Queue(maxsize=0)
         self.out_queue = Queue(maxsize=0)
-        self.processed_queue = Queue(maxsize=0)
+        # self.processed_queue = Queue(maxsize=0)
         self.gen_proxies()
         for i in range(n_threads):
             worker = threading.Thread(target=self.worker_fetch_url)
@@ -343,13 +387,20 @@ class LinkedinProfileCrawlerThread(object):
         worker.start()
         for i in inp_list:
             self.in_queue.put(i)
-        del inp_list
+        # self.in_queue.join()
+        #doing while loop instead of join to save all the results in the queue. not sure if this is working or not.
         while not self.in_queue.empty():
             try:
                 time.sleep(2)
-            except KeyboardInterrupt:
-                self.run_queue = False
+            except :
+                # self.run_queue = False
                 break
+        # time.sleep(20) #giving 20 second wait for all existing tasks to finish
+        logging.info('crawling stopped, trying to save already crawled results. No of results left in out queue : {}'.format(len(self.out_queue.queue)))
         self.out_queue.join()
-        logging.info('Finished')
+        self.run_queue = False
+        self.run_write_queue = False
+        self.proxy_generator.exit()
+        logging.info('Finished. No of results left in out queue : {}'.format(len(self.out_queue.queue)))
+        # logging._removeHandlerRef()
 

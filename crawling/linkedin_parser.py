@@ -121,9 +121,9 @@ class LinkedinParserSelenium(object):
             self.browser = webdriver.PhantomJS(browser_loc)
         else:
             firefox_profile = webdriver.FirefoxProfile()
-            firefox_profile.set_preference("browser.privatebrowsing.autostart", True)
+            # firefox_profile.set_preference("browser.privatebrowsing.autostart", True)
             if proxy:
-                if (not proxy_ip) or (not proxy_port):
+                if (not proxy_ip) or (not proxy_port) or (proxy_ip is None) or (proxy_port is None):
                     logging.error('No ip/port, not using proxy')
                 else:
                     firefox_profile.set_preference("network.proxy.type", 1)
