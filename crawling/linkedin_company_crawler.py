@@ -8,8 +8,8 @@ from bs_crawl import BeautifulsoupCrawl
 import linkedin_parser
 import logging
 from selenium.common.exceptions import TimeoutException
+from httplib import CannotSendRequest,BadStatusLine
 from socket import error as socket_error
-from httplib import CannotSendRequest
 
 all_org_cases = ['Specialties','Website','Industry','Type','Headquarters','Company Size','Founded',
                      'Company Name','Description Text','Employee Details','Also Viewed Companies','Linkedin URL']
@@ -55,9 +55,32 @@ class LinkedinOrganizationService(object):
     def __init__(self,browser='Firefox',visible = True,proxy=False,proxy_ip = None,proxy_port = None):
         # print('class intializing')
         self._crawler = BeautifulsoupCrawl.single_wp
-        self.link_parser = linkedin_parser.LinkedinParserSelenium(browser,visible=visible,proxy=proxy,
-                                                                  proxy_ip=proxy_ip,proxy_port=proxy_port)
+        self.browser = browser
+        self.visible = visible
+        self.proxy = proxy
+        self.proxy_ip = proxy_ip
+        self.proxy_port = proxy_port
+        self.init_selenium_parser(browser,visible,proxy,proxy_ip,proxy_port)
 
+    def exit(self):
+        self.link_parser.exit()
+
+    def init_selenium_parser(self,browser=None,visible = None,proxy=None,proxy_ip = None,proxy_port = None):
+        if browser is None and visible is None and visible is None and proxy is None: #if no input reload same parser
+            self.link_parser = linkedin_parser.LinkedinParserSelenium(self.browser,visible=self.visible,proxy=self.proxy,
+                                                                      proxy_ip=self.proxy_ip,proxy_port=self.proxy_port)
+        else:
+            try:  # try with inputs. if success, update the class variables. if error, try with already existing class vars
+                self.link_parser = linkedin_parser.LinkedinParserSelenium(browser,visible=visible,proxy=proxy,
+                                                                          proxy_ip=proxy_ip,proxy_port=proxy_port)
+                self.browser = browser
+                self.visible = visible
+                self.proxy = proxy
+                self.proxy_ip = proxy_ip
+                self.proxy_port = proxy_port
+            except:
+                self.link_parser = linkedin_parser.LinkedinParserSelenium(self.browser,visible=self.visible,proxy=self.proxy,
+                                                                          proxy_ip=self.proxy_ip,proxy_port=self.proxy_port)
 
     # @complete_cases_org
     def get_organization_details_from_linkedin_link(self,url,use_selenium=True):
@@ -95,6 +118,9 @@ class LinkedinOrganizationService(object):
             return None
         except CannotSendRequest:
             logging.error('Cannot send request error for url:{}'.format(url))
+            return None
+        except BadStatusLine:
+            logging.error('Badstatus line error for url:{}'.format(url))
             return None
         except Exception as e:
             logging.exception('Exception while running main from company page for url:'+url)
