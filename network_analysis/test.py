@@ -14,9 +14,11 @@ edge_list = []
 from random import shuffle
 shuffle(tmp)
 f=tmp[:200]
+dets = {}
 for line in f:
     tmp = eval(line)
     main_url = tmp['Linkedin URL']
+    dets[main_url] = tmp
     node_list.append(main_url)
     if 'Also Viewed Companies' in tmp:
         for i in tmp['Also Viewed Companies']:
@@ -32,6 +34,7 @@ for line in f:
 
 node_list = list(set(node_list))
 edge_list = list(set(edge_list))
+
 
 import networkx as nx
 G=nx.Graph()
@@ -115,3 +118,76 @@ data1=Data([trace3, trace4])
 fig1=Figure(data=data1, layout=layout)
 fig1['layout']['annotations'][0]['text']=annot
 py.iplot(fig1, filename='company-network-nx')
+
+
+
+#using specialties also
+#if alsoviewed, give distance as 1, else 2. Then look at specialties - no common /total .
+#add 1- ratio also to the distance.
+
+import re
+with open('company_crawled_15April_2.txt','r') as f:
+    tmp = f.readlines()
+
+with open('company_crawled_2016-04-22.txt','r') as f:
+    tmp1 = f.readlines()
+
+tmp = tmp+tmp1
+tmp = [eval(i) for i in tmp]
+tmp = [i for i in tmp if 'Notes' not in i]
+del tmp1
+from random import shuffle
+shuffle(tmp)
+tmp = tmp[:200]
+#create index
+#adding distance based on specialities
+def get_dist(spec1,spec2):
+    ''' specialities are , separated strings
+    :param spec1:
+    :param spec2:
+    :return:
+    '''
+    spec1 = re.sub('\n| ','',spec1).lower()
+    spec2 = re.sub('\n| ','',spec2).lower()
+    spec1l = spec1.split(',')
+    spec2l = spec2.split(',')
+    return 1-1.0*len(set(spec1l).intersection(set(spec2l)))/len(set(spec1l).union(set(spec2l)))
+
+node_list,edge_list = [],[]
+edge_dic = {}
+for indic in tmp:
+    b_url = indic['Linkedin URL']
+    node_list.append(b_url)
+    if 'Also Viewed Companies' in indic:
+        for indic1 in indic['Also Viewed Companies']:
+            n_url = indic1['company_linkedin_url']
+            n_url = re.sub(r'\?trk=pub-pbmap|\?trk=prof-samename-picture|\?trk=extra_biz_viewers_viewed','',n_url)
+            node_list.append(n_url)
+            if n_url < b_url:
+                edge_dic[(n_url,b_url)] = {'weight':1}
+            else:
+                edge_dic[(b_url,n_url)] = {'weight':1}
+
+tmp_dic = {}
+for indic in tmp:
+    tmp_dic[indic['Linkedin URL']] = indic
+
+from itertools import combinations
+for i,j in combinations(tmp_dic.keys(),2):
+    if 'Specialties' in tmp_dic[i] and 'Specialties' in tmp_dic[j]:
+        dist = get_dist(tmp_dic[i]['Specialties'],tmp_dic[j]['Specialties'])
+        if dist < 0.9:
+            print i,j
+            if j<i:
+                j,i = i,j
+            if (i,j) in edge_dic:
+                wt = edge_dic[(i,j)]['weight']
+                wt = 1+wt
+            else:
+                wt = 2+dist
+            edge_dic[(i,j)] = {'weight':wt}
+
+edge_list = [(i,j,edge_dic[(i,j)]) for i,j in edge_dic]
+G=nx.Graph()
+G.add_nodes_from(node_list)
+G.add_edges_from(edge_list)

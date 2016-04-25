@@ -7,6 +7,8 @@ import re
 import os
 import pickle
 from random import shuffle
+import multiprocessing
+import sys
 
 import crawler
 
@@ -195,3 +197,28 @@ class LinkedinCrawlerThread(object):
                 print('error. wait for 10 seconds, then try again')
                 time.sleep(10)
                 continue
+
+    def run_both_single(self,crawled_loc='crawled_res/',browser = 'Firefox',visible=False,
+                                 proxy=True,limit_no=30000,n_threads=6):
+        worker_people = multiprocessing.Process(target=self.run_people_crawler_single,args=(None,None,crawled_loc,browser,
+                                        visible,proxy,'people_urls_to_crawl_18April.pkl',limit_no,n_threads))
+        worker_company = multiprocessing.Process(target=self.run_organization_crawler_single,args=(None,None,crawled_loc,browser,
+                                        visible,proxy,'people_urls_to_crawl_18April.pkl',limit_no,n_threads))
+        worker_people.daemon = True
+        worker_company.daemon = True
+        worker_people.start()
+        worker_company.start()
+        worker_company.join()
+        worker_people.join()
+        time.sleep(10)
+
+if __name__ == '__main__':
+    cc = LinkedinCrawlerThread()
+    if len(sys.argv)<3:
+        cc.run_both_single()
+    else:
+        limit_no = sys.argv[1]
+        limit_no = int(limit_no)
+        n_threads = sys.argv[2]
+        n_threads = int(n_threads)
+        cc.run_both_single(limit_no=limit_no,n_threads=n_threads)
