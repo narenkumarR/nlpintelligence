@@ -152,7 +152,11 @@ class LinkedinCompanyCrawlerThread(object):
                                                                                   proxy_ip=proxy_ip,proxy_port=proxy_port)
                     except:
                         logging.exception('Exception while trying to change ip, use same parser')
-                        crawler.init_selenium_parser()
+                        try:
+                            crawler.init_selenium_parser() #try with already existing parameters
+                        except:
+                            logging.exception('Exception, can not restart crawler with already existing parameters, trying with default parameters, thread:{}'.format(threading.currentThread()))
+                            crawler.init_selenium_parser(self.browser,self.visible,proxy=False) #try without proxy
             if no_errors>0:
                 logging.info('Something went wrong, could not fetch details for url: {}, thread id: {}'.format(url,threading.currentThread()))
                 # self.error_queue.put(url)
@@ -214,6 +218,7 @@ class LinkedinCompanyCrawlerThread(object):
         self.proxy_generator.exit()
         logging.info('Finished. No of results left in out queue : {}'.format(len(self.out_queue.queue)))
         # logging._removeHandlerRef()
+        time.sleep(5)
 
 
 class LinkedinProfileCrawlerThread(object):
@@ -345,8 +350,12 @@ class LinkedinProfileCrawlerThread(object):
                         crawler.init_selenium_parser(self.browser,self.visible,proxy=self.proxy,
                                                                                   proxy_ip=proxy_ip,proxy_port=proxy_port)
                     except:
-                        logging.exception('Exception while trying to change ip')
-                        crawler.init_selenium_parser()
+                        logging.exception('Exception while trying to restart crawler with already existing parameters, thread:{}'.format(threading.currentThread()))
+                        try:
+                            crawler.init_selenium_parser() #try with already existing parameters
+                        except:
+                            logging.exception('Exception, can not restart crawler with already existing parameters, trying with default parameters, thread:{}'.format(threading.currentThread()))
+                            crawler.init_selenium_parser(self.browser,self.visible,proxy=False) #try without proxy
             if no_errors>0:
                 logging.info('Something went wrong, could not fetch details for url: {}, thread id: {}'.format(url,threading.currentThread()))
             self.in_queue.task_done()
@@ -403,4 +412,5 @@ class LinkedinProfileCrawlerThread(object):
         self.proxy_generator.exit()
         logging.info('Finished. No of results left in out queue : {}'.format(len(self.out_queue.queue)))
         # logging._removeHandlerRef()
+        time.sleep(5)
 
