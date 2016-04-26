@@ -125,20 +125,35 @@ py.iplot(fig1, filename='company-network-nx')
 #if alsoviewed, give distance as 1, else 2. Then look at specialties - no common /total .
 #add 1- ratio also to the distance.
 
-import re
-with open('company_crawled_15April_2.txt','r') as f:
-    tmp = f.readlines()
+import re,os
+def get_files_in_dir(dir_path='.',remove_regex = '',match_regex=''):
+    ''' get matching files
+    :param dir_path:
+    :param remove_regex:
+    :param match_regex:
+    :return:
+    '''
+    files = os.listdir(dir_path)
+    if dir_path == '.':
+        dir_path = ''
+    if remove_regex:
+        files = [i for i in files if not re.search(remove_regex,i)]
+    if match_regex:
+        files = [i for i in files if re.search(match_regex,i)]
+    files = [dir_path+i for i in files]
+    return files
 
-with open('company_crawled_2016-04-22.txt','r') as f:
-    tmp1 = f.readlines()
+files = get_files_in_dir(match_regex='^company.+\.txt$')
+tmp = []
+for file in files:
+    with open(file,'r') as f:
+        tmp.extend(f.readlines())
 
-tmp = tmp+tmp1
 tmp = [eval(i) for i in tmp]
 tmp = [i for i in tmp if 'Notes' not in i]
-del tmp1
 from random import shuffle
 shuffle(tmp)
-tmp = tmp[:200]
+# tmp = tmp[:200]
 #create index
 #adding distance based on specialities
 def get_dist(spec1,spec2):
@@ -173,21 +188,38 @@ for indic in tmp:
     tmp_dic[indic['Linkedin URL']] = indic
 
 from itertools import combinations
-for i,j in combinations(tmp_dic.keys(),2):
+ind = 0
+for i,j in combinations(tmp_dic.keys(),2): #slow , try creating pandas dataframe
     if 'Specialties' in tmp_dic[i] and 'Specialties' in tmp_dic[j]:
         dist = get_dist(tmp_dic[i]['Specialties'],tmp_dic[j]['Specialties'])
-        if dist < 0.9:
-            print i,j
+        if dist < 0.5:
+            # print i,j
             if j<i:
                 j,i = i,j
             if (i,j) in edge_dic:
                 wt = edge_dic[(i,j)]['weight']
-                wt = 1+wt
+                wt = min(wt,1+dist)
             else:
-                wt = 2+dist
+                wt = 1+dist
             edge_dic[(i,j)] = {'weight':wt}
 
 edge_list = [(i,j,edge_dic[(i,j)]) for i,j in edge_dic]
 G=nx.Graph()
 G.add_nodes_from(node_list)
 G.add_edges_from(edge_list)
+
+###trying dataframe
+import pandas as pd
+tmp_dic = {}
+for indic in tmp:
+    if 'Specialties' in indic:
+        specs = indic['Specialties']
+        specs =  re.sub('\n| |&','',specs).lower()
+        dic1 = {}
+        for sp in specs.split(','):
+            dic1[sp] = 1
+        tmp_dic[indic['Linkedin URL']] = dic1
+    else:
+        tmp_dic[indic['Linkedin URL']] = {}
+
+tmp_df = pd.DataFrame.from_dict(tmp_dic,orient='index') #slow

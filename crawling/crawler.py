@@ -63,8 +63,9 @@ class LinkedinCompanyCrawlerThread(object):
                                                                       proxy_ip=proxy_ip,proxy_port=proxy_port)
         except: #if  coming here, run without proxy
             logging.exception('Error while getting proxy. Running without proxy ')
+            proxy_ip, proxy_port = None,None
             crawler = linkedin_company_crawler.LinkedinOrganizationService(self.browser,self.visible,proxy=False,
-                                                                      proxy_ip=None,proxy_port=None)
+                                                                      proxy_ip=proxy_ip,proxy_port=proxy_port)
         def get_output(crawler,url,res_1,event):
             res_1['result'] = crawler.get_organization_details_from_linkedin_link(url)
             event.set()
@@ -155,8 +156,12 @@ class LinkedinCompanyCrawlerThread(object):
                         try:
                             crawler.init_selenium_parser() #try with already existing parameters
                         except:
-                            logging.exception('Exception, can not restart crawler with already existing parameters, trying with default parameters, thread:{}'.format(threading.currentThread()))
-                            crawler.init_selenium_parser(self.browser,self.visible,proxy=False) #try without proxy
+                            logging.exception('Exception, can not restart crawler with already existing parameters, trying to restart, thread:{}'.format(threading.currentThread()))
+                            try:
+                                crawler = linkedin_company_crawler.LinkedinOrganizationService(self.browser,self.visible,proxy=self.proxy,
+                                                                      proxy_ip=proxy_ip,proxy_port=proxy_port)
+                            except:
+                                logging.exception('could not start crawler')
             if no_errors>0:
                 logging.info('Something went wrong, could not fetch details for url: {}, thread id: {}'.format(url,threading.currentThread()))
                 # self.error_queue.put(url)
@@ -274,8 +279,9 @@ class LinkedinProfileCrawlerThread(object):
                                                                       proxy_ip=proxy_ip,proxy_port=proxy_port)
         except: #if  coming here, run without proxy
             logging.info('Error while getting proxy. Running without proxy')
+            proxy_ip,proxy_port = None,None
             crawler = linkedin_profile_crawler.LinkedinProfileCrawler(self.browser,self.visible,proxy=False,
-                                                                      proxy_ip=None,proxy_port=None)
+                                                                      proxy_ip=proxy_ip,proxy_port=proxy_port)
         def get_output(crawler,url,res_1,event):
             res_1['result'] = crawler.fetch_details_urlinput(url)
             event.set()
@@ -354,8 +360,12 @@ class LinkedinProfileCrawlerThread(object):
                         try:
                             crawler.init_selenium_parser() #try with already existing parameters
                         except:
-                            logging.exception('Exception, can not restart crawler with already existing parameters, trying with default parameters, thread:{}'.format(threading.currentThread()))
-                            crawler.init_selenium_parser(self.browser,self.visible,proxy=False) #try without proxy
+                            logging.exception('Exception, can not restart crawler with already existing parameters, trying to restart, thread:{}'.format(threading.currentThread()))
+                            try:
+                                crawler = linkedin_company_crawler.LinkedinOrganizationService(self.browser,self.visible,proxy=self.proxy,
+                                                                      proxy_ip=proxy_ip,proxy_port=proxy_port)
+                            except:
+                                logging.exception('could not start crawler')
             if no_errors>0:
                 logging.info('Something went wrong, could not fetch details for url: {}, thread id: {}'.format(url,threading.currentThread()))
             self.in_queue.task_done()
