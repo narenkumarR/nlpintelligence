@@ -23,7 +23,15 @@ class ProxyGen(object):
         '''
         if not self.browser_active:
             self.activate_browser()
-        proxy_list = self.get_proxy_ultraproxies()
+        proxy_list = []
+        try:
+            proxy_list.extend(self.get_proxy_ultraproxies())
+        except:
+            pass
+        try:
+            proxy_list.extend(self.get_proxy_free_proxy_list())
+        except:
+            pass
         return proxy_list
 
     def exit(self):
@@ -53,5 +61,15 @@ class ProxyGen(object):
         for tr in trs:
             ip = tr.findAll('td')[0].text[:-1]
             port = trs[0].findAll('td')[1].text
+            proxy_list.append((ip,port))
+        return proxy_list
+
+    def get_proxy_free_proxy_list(self):
+        soup = self.browser.get_soup('https://free-proxy-list.net/')
+        proxy_list = []
+        tmp = soup.find('div',{'class':'block-settings'}).find('div',{'id':'proxylisttable_wrapper','class':'dataTables_wrapper'}).find('tbody').findAll('tr')
+        for tr in tmp:
+            ip = tr.findAll('td')[0].text
+            port = tr.findAll('td')[1].text
             proxy_list.append((ip,port))
         return proxy_list
