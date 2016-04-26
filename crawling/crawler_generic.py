@@ -24,7 +24,10 @@ class LinkedinCrawlerThread(object):
             with open(f_name,'r') as f:
                 for line in f:
                     tmp = eval(line)
-                    link_list.append(tmp[var_name])
+                    try:
+                        link_list.append(tmp[var_name])
+                    except:
+                        continue
         return list(set(link_list))
 
     def get_files_in_dir(self,dir_path='.',remove_regex = '',match_regex=''):
@@ -64,7 +67,7 @@ class LinkedinCrawlerThread(object):
 
     def run_organization_crawler_single(self,res_file=None,log_file=None,crawled_loc='crawled_res/',browser='Firefox',
                                         visible=False,proxy=True,
-                                 url_file='company_urls_to_crawl_18April.pkl',limit_no=60000,n_threads=6):
+                                 url_file='company_urls_to_crawl_18April.pkl',limit_no=60000,n_threads=6,finished_urls_file='finished_urls.pkl'):
         '''
         :param res_file:
         :param log_file:
@@ -79,14 +82,16 @@ class LinkedinCrawlerThread(object):
         if log_file is None:
             log_file = crawled_loc+'logs/company_crawling'+str(datetime.date.today())+'.log'
         crawled_files = self.get_files_in_dir(crawled_loc,match_regex='^company.+\.txt$')
-        finished_urls = self.get_finished_links('Linkedin URL',*crawled_files)
         with open(url_file,'r') as f:
             urls = pickle.load(f)
         connected_urls = self.get_connected_urls(crawled_files,['Also Viewed Companies'],page_field='company_linkedin_url')
         urls = urls+connected_urls
+        with open(finished_urls_file,'r') as f:
+            finished_urls = pickle.load(f)
         urls = list(set(urls)-set(finished_urls))
         shuffle(urls)
         urls = urls[:limit_no]
+        del finished_urls
         cc = crawler.LinkedinCompanyCrawlerThread(browser,visible=visible,proxy=proxy)
         cc.run(urls,res_file,log_file,n_threads)
 
@@ -131,7 +136,7 @@ class LinkedinCrawlerThread(object):
 
     def run_people_crawler_single(self,res_file=None,log_file=None,crawled_loc='crawled_res/',browser='Firefox',
                                         visible=False,proxy=True,
-                                 url_file='people_urls_to_crawl_18April.pkl',limit_no=60000,n_threads=6):
+                                 url_file='people_urls_to_crawl_18April.pkl',limit_no=60000,n_threads=6,finished_urls_file='finished_urls.pkl'):
         '''
         :param res_file:
         :param log_file:
@@ -146,15 +151,17 @@ class LinkedinCrawlerThread(object):
         if log_file is None:
             log_file = crawled_loc+'logs/people_crawling'+str(datetime.date.today())+'.log'
         crawled_files = self.get_files_in_dir(crawled_loc,match_regex='^people.+\.txt$')
-        finished_urls = self.get_finished_links('Linkedin URL',*crawled_files)
         with open(url_file,'r') as f:
             urls = pickle.load(f)
         connected_urls = self.get_connected_urls(crawled_files,['Related People','Same Name People'],
                                                  page_field='Linkedin Page')
         urls = urls+connected_urls
+        with open(finished_urls_file,'r') as f:
+            finished_urls = pickle.load(f)
         urls = list(set(urls)-set(finished_urls))
         shuffle(urls)
         urls = urls[:limit_no]
+        del finished_urls
         cc = crawler.LinkedinProfileCrawlerThread(browser,visible=visible,proxy=proxy)
         cc.run(urls,res_file,log_file,n_threads)
 
@@ -198,8 +205,19 @@ class LinkedinCrawlerThread(object):
                 time.sleep(10)
                 continue
 
+    def gen_finished_urls_pkl(self,crawled_loc = 'crawled_res/',finished_urls_file='finished_urls.pkl'):
+        '''
+        :param finished_urls_file:
+        :return:
+        '''
+        crawled_files = cc.get_files_in_dir(crawled_loc,match_regex='^company.+\.txt$|^people.+\.txt$')
+        finished_urls = cc.get_finished_links('Linkedin URL',*crawled_files)
+        with open(finished_urls_file,'w') as f:
+            pickle.dump(finished_urls,f)
+
     def run_both_single(self,crawled_loc='crawled_res/',browser = 'Firefox',visible=False,
                                  proxy=True,limit_no=30000,n_threads=6):
+        self.gen_finished_urls_pkl(crawled_loc)
         worker_people = multiprocessing.Process(target=self.run_people_crawler_single,args=(None,None,crawled_loc,browser,
                                         visible,proxy,'people_urls_to_crawl_18April.pkl',limit_no,n_threads))
         worker_company = multiprocessing.Process(target=self.run_organization_crawler_single,args=(None,None,crawled_loc,browser,
