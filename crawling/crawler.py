@@ -125,7 +125,7 @@ class LinkedinCompanyCrawlerThread(object):
                 else:
                     no_errors += 1
             except Exception :
-                logging.exception('Error while execution for url: '+url+', sleeping 2 seconds')
+                logging.exception('Error while execution for url: {0}, thread: {1}'.format(url,threading.currentThread()))
                 time.sleep(1)
                 no_errors += 1
             if ind%10 == 0:
@@ -142,17 +142,17 @@ class LinkedinCompanyCrawlerThread(object):
                     logging.info('Error condition met, sleeping for '+str(min(n_blocks,6)*600)+' seconds')
                     time.sleep(min(n_blocks,6)*600)
                 else:
-                    logging.info('Error condition met, trying to use another ip. current ip : {}'.format(proxy_dets))
+                    logging.info('Error condition met, trying to use another ip. current ip : {}, thread: {}'.format(proxy_dets,threading.currentThread()))
                     try:
                         crawler.exit()
-                        logging.info('Getting proxy ip details')
+                        logging.info('Getting proxy ip details, thread: {0}'.format(threading.currentThread()))
                         proxy_dets = self.get_proxy()
-                        logging.info('proxy to be used: {}'.format(proxy_dets))
+                        logging.info('proxy to be used: {0}, thread:{1}'.format(proxy_dets,threading.currentThread()))
                         proxy_ip,proxy_port = proxy_dets[0],proxy_dets[1]
                         crawler.init_selenium_parser(self.browser,self.visible,proxy=self.proxy,
                                                                                   proxy_ip=proxy_ip,proxy_port=proxy_port)
                     except:
-                        logging.exception('Exception while trying to change ip, use same parser')
+                        logging.exception('Exception while trying to change ip, use same parser, thread:{}'.format(threading.currentThread()))
                         try:
                             crawler.init_selenium_parser() #try with already existing parameters
                         except:
@@ -161,9 +161,10 @@ class LinkedinCompanyCrawlerThread(object):
                                 crawler = linkedin_company_crawler.LinkedinOrganizationService(self.browser,self.visible,proxy=self.proxy,
                                                                       proxy_ip=proxy_ip,proxy_port=proxy_port)
                             except:
-                                logging.exception('could not start crawler')
+                                logging.exception('could not start crawler, thread:{0}'.format(threading.currentThread()))
+                                # break #stop this thread??
             if no_errors>0:
-                logging.info('Something went wrong, could not fetch details for url: {}, thread id: {}'.format(url,threading.currentThread()))
+                logging.info('Something went wrong, could not fetch details for url: {0}, thread id: {1}'.format(url,threading.currentThread()))
                 # self.error_queue.put(url)
             self.in_queue.task_done()
         logging.info('exiting crawler, thread:{}'.format(threading.currentThread()))
@@ -333,7 +334,7 @@ class LinkedinProfileCrawlerThread(object):
                 else:
                     no_errors += 1
             except Exception :
-                logging.exception('Error while execution for url: '+url+', sleeping 1 seconds')
+                logging.exception('Error while execution for url: {0}, Thread: {1}'.format(url,threading.currentThread()))
                 time.sleep(1)
                 no_errors += 1
             if ind%10 == 0:
@@ -347,11 +348,11 @@ class LinkedinProfileCrawlerThread(object):
                     logging.info('Error condition met, sleeping for '+str(min(n_blocks,6)*600)+' seconds')
                     time.sleep(min(n_blocks,6)*600)
                 else:
-                    logging.info('Error condition met, trying to use another ip. Current ip: {}'.format(proxy_dets))
+                    logging.info('Error condition met, trying to use another ip. Thread: {0}, Current ip: {1}'.format(threading.currentThread(), proxy_dets))
                     try:
                         crawler.exit()
                         proxy_dets = self.get_proxy()
-                        logging.info('proxy to be used: {}'.format(proxy_dets))
+                        logging.info('proxy to be used: {0}, Thread:{1}'.format(proxy_dets,threading.currentThread()))
                         proxy_ip,proxy_port = proxy_dets[0],proxy_dets[1]
                         crawler.init_selenium_parser(self.browser,self.visible,proxy=self.proxy,
                                                                                   proxy_ip=proxy_ip,proxy_port=proxy_port)
