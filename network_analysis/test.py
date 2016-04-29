@@ -83,7 +83,7 @@ axis=dict(showline=False, # hide axis line, grid, ticklabels and  title
           showticklabels=False,
           title=''
           )
-layout=Layout(title= "company graph",
+layout=Layout(title= "company graph with specialties 4",
     font= Font(size=12),
     showlegend=False,
     autosize=False,
@@ -117,7 +117,7 @@ layout=Layout(title= "company graph",
 data1=Data([trace3, trace4])
 fig1=Figure(data=data1, layout=layout)
 fig1['layout']['annotations'][0]['text']=annot
-py.iplot(fig1, filename='company-network-nx')
+py.iplot(fig1, filename='company-network-nx-specialties4')
 
 
 
@@ -144,15 +144,20 @@ def get_files_in_dir(dir_path='.',remove_regex = '',match_regex=''):
     return files
 
 files = get_files_in_dir(match_regex='^company.+\.txt$')
-tmp = []
-for file in files:
-    with open(file,'r') as f:
-        tmp.extend(f.readlines())
 
-tmp = [eval(i) for i in tmp]
-tmp = [i for i in tmp if 'Notes' not in i]
-from random import shuffle
-shuffle(tmp)
+def gen_graph_fields(files):
+    for file in files:
+        print(file)
+        with open(file,'r') as f:
+            for line in f:
+                line_dic = eval(line)
+                if 'Also Viewed Companies' in line_dic:
+                    yield {'Linkedin URL':line_dic['Linkedin URL'],'Also Viewed Companies':line_dic['Also Viewed Companies']}
+
+# tmp = [eval(i) for i in tmp]
+# tmp = [i for i in tmp if 'Notes' not in i]
+# from random import shuffle
+# shuffle(tmp)
 # tmp = tmp[:200]
 #create index
 #adding distance based on specialities
@@ -170,18 +175,19 @@ def get_dist(spec1,spec2):
 
 node_list,edge_list = [],[]
 edge_dic = {}
-for indic in tmp:
+import networkx as nx
+G=nx.Graph()
+for indic in gen_graph_fields(files):
     b_url = indic['Linkedin URL']
-    node_list.append(b_url)
-    if 'Also Viewed Companies' in indic:
-        for indic1 in indic['Also Viewed Companies']:
-            n_url = indic1['company_linkedin_url']
-            n_url = re.sub(r'\?trk=pub-pbmap|\?trk=prof-samename-picture|\?trk=extra_biz_viewers_viewed','',n_url)
-            node_list.append(n_url)
-            if n_url < b_url:
-                edge_dic[(n_url,b_url)] = {'weight':1}
-            else:
-                edge_dic[(b_url,n_url)] = {'weight':1}
+    G.add_node(b_url)
+    for indic1 in indic['Also Viewed Companies']:
+        n_url = indic1['company_linkedin_url']
+        n_url = re.sub(r'\?trk=pub-pbmap|\?trk=prof-samename-picture|\?trk=extra_biz_viewers_viewed','',n_url)
+        G.add_node(n_url)
+        if n_url < b_url:
+            G.add_edge(n_url,b_url,{'weight':1})
+        else:
+            G.add_edge(b_url,n_url,{'weight':1})
 
 tmp_dic = {}
 for indic in tmp:
@@ -190,9 +196,12 @@ for indic in tmp:
 from itertools import combinations
 ind = 0
 for i,j in combinations(tmp_dic.keys(),2): #slow , try creating pandas dataframe
+    if ind%100000 == 0:
+        print 'ind:{}, edge_dic:{}'.format(ind,len(edge_dic))
+    ind += 1
     if 'Specialties' in tmp_dic[i] and 'Specialties' in tmp_dic[j]:
         dist = get_dist(tmp_dic[i]['Specialties'],tmp_dic[j]['Specialties'])
-        if dist < 0.5:
+        if dist < 0.7:
             # print i,j
             if j<i:
                 j,i = i,j
@@ -204,9 +213,38 @@ for i,j in combinations(tmp_dic.keys(),2): #slow , try creating pandas dataframe
             edge_dic[(i,j)] = {'weight':wt}
 
 edge_list = [(i,j,edge_dic[(i,j)]) for i,j in edge_dic]
+import networkx as nx
 G=nx.Graph()
 G.add_nodes_from(node_list)
 G.add_edges_from(edge_list)
+
+#graph too big. tak only 200
+import pickle
+from random import shuffle
+with open('edge_dict_1.pkl','r') as f:
+    edge_dic = pickle.load(f)
+
+#using node_list top 1000
+shuffle(node_list)
+node_list = node_list[:1000]
+
+edge_list = []
+for i,j in edge_dic:
+    if i in node_list or j in node_list:
+        edge_list.append((i,j,edge_dic[(i,j)]))
+
+#use 500 keys from edge_dic, use them as edges
+kk = edge_dic.keys()
+shuffle(kk)
+kk = kk[:550]
+node_list = []
+for i,j in kk:
+    node_list.extend([i,j])
+
+node_list = list(set(node_list))
+
+#finding neighbors
+nx.single_source_shortest_path_length(G, 'https://www.linkedin.com/company/schlumberger', cutoff=3)
 
 ###trying dataframe
 import pandas as pd
@@ -223,3 +261,5 @@ for indic in tmp:
         tmp_dic[indic['Linkedin URL']] = {}
 
 tmp_df = pd.DataFrame.from_dict(tmp_dic,orient='index') #slow
+#####################
+####################
