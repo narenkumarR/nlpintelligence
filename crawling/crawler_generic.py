@@ -289,8 +289,12 @@ class LinkedinCrawlerThread(object):
         worker_company.daemon = True
         worker_people.start()
         worker_company.start()
-        worker_company.join()
         worker_people.join()
+        worker_company.join(timeout=600)
+        if worker_people.is_alive():
+            worker_people.terminate()
+        if worker_company.is_alive():
+            worker_company.terminate()
         time.sleep(10)
 
 if __name__ == '__main__':

@@ -20,12 +20,17 @@ class LinkedinExtractor(Resource):
         '''
         json_data = request.get_json()
         if 'timeout' in json_data:
-            timeout = json_data['timeout']
+            timeout = int(json_data['timeout'])
             json_data.pop('timeout',None)
         else:
             timeout = 30
+        if 'n_threads' in json_data:
+            n_threads = int(json_data['n_threads'])
+            json_data.pop('n_threads',None)
+        else:
+            n_threads = 5
         # pdb.set_trace()
-        out_dict = cc.get_linkedin_url_multi(json_data,time_out=timeout)
+        out_dict = cc.get_linkedin_url_multi(json_data,time_out=timeout,n_threads=n_threads)
         return out_dict
 
 api.add_resource(LinkedinExtractor, '/')
