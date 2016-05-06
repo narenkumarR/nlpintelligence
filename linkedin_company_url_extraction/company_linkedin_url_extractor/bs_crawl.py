@@ -16,13 +16,14 @@ class BeautifulsoupCrawl(object):
     def __init__(self,headers = {'User-Agent': 'Mozilla/5.0 (Macintosh; Intel Mac OS X 10.10; rv:39.0) Gecko/20100101 Firefox/39.0'}):
         self.headers = headers
     
-    def single_wp(self,baseurl,headers = {'User-Agent': 'Mozilla/5.0 (Macintosh; Intel Mac OS X 10.10; rv:39.0) Gecko/20100101 Firefox/39.0'}):
+    def single_wp(self,baseurl,timeout = 30,
+                  headers = {'User-Agent': 'Mozilla/5.0 (Macintosh; Intel Mac OS X 10.10; rv:39.0) Gecko/20100101 Firefox/39.0'}):
         baseurl = url_cleaner.clean_url(baseurl)
         if headers:
             # parse the html using BeautifulSoup
-            response=BeautifulSoup(UrllibCrawl.getResponse(baseurl,headers=headers))
+            response=BeautifulSoup(UrllibCrawl.getResponse(baseurl,headers=headers,timeout=timeout))
         else:
-            response = BeautifulSoup(UrllibCrawl.getResponse(baseurl,headers=self.headers))
+            response = BeautifulSoup(UrllibCrawl.getResponse(baseurl,headers=self.headers,timeout=timeout))
         return response
 
     def multiple_wp(self,baseurlList,parallel=False,n_parallel = 4):
