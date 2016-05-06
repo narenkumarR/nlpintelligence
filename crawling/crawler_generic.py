@@ -232,8 +232,8 @@ class LinkedinCrawlerThread(object):
         :param crawled_loc:
         :param limit_no:
         :param ignore_urls: these urls need to be ignored eg: to be used by server
-        :param add_urls_company
-        :param add_urls_people
+        :param add_urls_company : add separate list of urls here, they will be tried to crawl first. otherwise taken from default
+        :param add_urls_people : same as above, for people urls
         :return:
         '''
         crawled_files_company = self.get_files_in_dir(crawled_loc,match_regex='^company.+\.txt$')
@@ -274,10 +274,15 @@ class LinkedinCrawlerThread(object):
         shuffle(connected_urls_company)
         for f_name in add_urls_people:
             with open(f_name,'r') as f:
-                connected_urls_people.extend(pickle.load(f))
+                tmp = pickle.load(f)
+                tmp = list(set(tmp)-finished_urls)
+                connected_urls_people.extend(tmp)
         for f_name in add_urls_company:
             with open(f_name,'r') as f:
-                connected_urls_company.extend(pickle.load(f))
+                tmp = pickle.load(f)
+                tmp = list(set(tmp)-finished_urls)
+                connected_urls_company.extend(tmp)
+                del tmp
         #no shuffling here because urls in add_urls is given more preference
         with open('company_remaining_urls.pkl','w') as f:
             pickle.dump(list(set(connected_urls_company[:-limit_no])-finished_urls),f)
