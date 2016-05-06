@@ -20,6 +20,31 @@ class CompanyLinkedinURLExtractorSingle(object):
     def get_linkedin_url(self,company_url,time_out=30):
         '''
         :param company_url:
+        :param time_out:
+        :return:
+        '''
+        logging.info('get_linkedin_url url:{}'.format(company_url))
+        soup = self.crawler.single_wp(company_url,timeout=time_out)
+        if str(soup):
+            urls = self.get_urls_soupinput(soup,company_url)
+            linkedin_url,confidence = self.get_linkedin_company_url_listinput(urls,company_url)
+            if confidence>0 and linkedin_url:
+                return linkedin_url,confidence
+        else: #else try from ddg. if could not find from main page also, try ddg
+            pass
+        search_query = company_url+' linkedin'
+        search_res = self.ddg_crawler.fetch_results(search_query,timeout=time_out)
+        conf = 95
+        for dic1 in search_res:
+            res_url,text = dic1['url'],dic1['text']
+            if re.search('linkedin.com/company',res_url):
+                return res_url,conf
+            conf = min(conf-5,60)
+        return '',0
+
+    def get_linkedin_url_threaded(self,company_url,time_out=30):
+        '''threaded implementation
+        :param company_url:
         :return:
         '''
         logging.info('get_linkedin_url url:{}'.format(company_url))
@@ -172,7 +197,7 @@ class CompanyLinkedinURLExtractorMulti(object):
                 out_dic[key] = ('',0)
         return out_dic
 
-    def get_linkedin_url_multi(self,url_dict,n_threads=5,time_out=30):
+    def get_linkedin_url_multi(self,url_dict,n_threads=2,time_out=30):
         '''
         :param url_dict: {key1:url1,key2:url2,...}
         :return:
