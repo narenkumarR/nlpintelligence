@@ -16,7 +16,7 @@ import logging
 class LinkedinProfileCrawler(object):
     '''Crawl a linkedin profie page
     '''
-    def __init__(self,browser='Firefox',visible = True,proxy=False,proxy_ip = None,proxy_port = None):
+    def __init__(self,browser='Firefox',visible = True,proxy=False,proxy_ip = None,proxy_port = None,use_tor=None):
         # print('class intializing')
         self._crawler = BeautifulsoupCrawl.single_wp
         self.browser = browser
@@ -24,27 +24,31 @@ class LinkedinProfileCrawler(object):
         self.proxy = proxy
         self.proxy_ip = proxy_ip
         self.proxy_port = proxy_port
-        self.init_selenium_parser(browser,visible,proxy,proxy_ip,proxy_port)
+        self.use_tor = use_tor
+        self.init_selenium_parser(browser,visible,proxy,proxy_ip,proxy_port,use_tor)
 
     def exit(self):
         self.link_parser.exit()
 
-    def init_selenium_parser(self,browser=None,visible = None,proxy=None,proxy_ip = None,proxy_port = None):
-        if browser is None and visible is None and visible is None and proxy is None: #if no input reload same parser
+    def init_selenium_parser(self,browser=None,visible = None,proxy=None,proxy_ip = None,proxy_port = None,use_tor=None):
+        if browser is None and visible is None and visible is None and proxy is None and use_tor is None: #if no input reload same parser
             self.link_parser = linkedin_parser.LinkedinParserSelenium(self.browser,visible=self.visible,proxy=self.proxy,
-                                                                      proxy_ip=self.proxy_ip,proxy_port=self.proxy_port)
+                                                                      proxy_ip=self.proxy_ip,proxy_port=self.proxy_port,
+                                                                      use_tor=self.use_tor)
         else:
             try:  # try with inputs. if success, update the class variables. if error, try with already existing class vars
                 self.link_parser = linkedin_parser.LinkedinParserSelenium(browser,visible=visible,proxy=proxy,
-                                                                          proxy_ip=proxy_ip,proxy_port=proxy_port)
+                                                                          proxy_ip=proxy_ip,proxy_port=proxy_port,use_tor=use_tor)
                 self.browser = browser
                 self.visible = visible
                 self.proxy = proxy
                 self.proxy_ip = proxy_ip
                 self.proxy_port = proxy_port
+                self.use_tor = use_tor
             except:
                 self.link_parser = linkedin_parser.LinkedinParserSelenium(self.browser,visible=self.visible,proxy=self.proxy,
-                                                                          proxy_ip=self.proxy_ip,proxy_port=self.proxy_port)
+                                                                          proxy_ip=self.proxy_ip,proxy_port=self.proxy_port,
+                                                                          use_tor=self.use_tor)
 
     def fetch_details_urlinput(self,url,use_selenium = True):
         '''

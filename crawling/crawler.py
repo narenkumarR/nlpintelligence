@@ -11,13 +11,14 @@ import linkedin_company_crawler,linkedin_profile_crawler
 from proxy_generator import ProxyGen
 
 class LinkedinCompanyCrawlerThread(object):
-    def __init__(self,browser='Firefox',visible=True,proxy=False):
+    def __init__(self,browser='Firefox',visible=True,proxy=False,use_tor=False):
         '''
         '''
         self.browser = browser
         self.visible = visible
         self.proxy = proxy
         self.ip_matcher = re.compile("^\d{1,3}\.\d{1,3}\.\d{1,3}\.\d{1,3}$")
+        self.use_tor = use_tor
         if proxy:
             self.proxy_generator = ProxyGen(visible=visible,page_load_timeout=25)
             self.proxies = Queue(maxsize=0)
@@ -60,12 +61,12 @@ class LinkedinCompanyCrawlerThread(object):
             logging.info('proxy to be used : {}'.format(proxy_dets))
             proxy_ip,proxy_port = proxy_dets[0],proxy_dets[1]
             crawler = linkedin_company_crawler.LinkedinOrganizationService(self.browser,self.visible,proxy=self.proxy,
-                                                                      proxy_ip=proxy_ip,proxy_port=proxy_port)
+                                                                      proxy_ip=proxy_ip,proxy_port=proxy_port,use_tor=self.use_tor)
         except: #if  coming here, run without proxy
             logging.exception('Error while getting proxy. Running without proxy ')
             proxy_ip, proxy_port = None,None
             crawler = linkedin_company_crawler.LinkedinOrganizationService(self.browser,self.visible,proxy=False,
-                                                                      proxy_ip=proxy_ip,proxy_port=proxy_port)
+                                                                      proxy_ip=proxy_ip,proxy_port=proxy_port,use_tor=self.use_tor)
         def get_output(crawler,url,res_1,event):
             res_1['result'] = crawler.get_organization_details_from_linkedin_link(url)
             event.set()
@@ -137,11 +138,13 @@ class LinkedinCompanyCrawlerThread(object):
                     time.sleep(randint(10,20))
             if no_errors == 6:
                 no_errors = no_errors - 1
-                if not self.proxy:
+                if self.use_tor:
+                    pass
+                elif not self.proxy:
                     n_blocks += 1
                     logging.info('Error condition met, sleeping for '+str(min(n_blocks,6)*600)+' seconds')
                     time.sleep(min(n_blocks,6)*600)
-                else:
+                else: #if proxy get another proxy
                     logging.info('Error condition met, trying to use another ip. current ip : {}, thread: {}'.format(proxy_dets,threading.currentThread()))
                     try:
                         crawler.exit()
@@ -150,7 +153,7 @@ class LinkedinCompanyCrawlerThread(object):
                         logging.info('proxy to be used: {0}, thread:{1}'.format(proxy_dets,threading.currentThread()))
                         proxy_ip,proxy_port = proxy_dets[0],proxy_dets[1]
                         crawler.init_selenium_parser(self.browser,self.visible,proxy=self.proxy,
-                                                                                  proxy_ip=proxy_ip,proxy_port=proxy_port)
+                                                                  proxy_ip=proxy_ip,proxy_port=proxy_port,use_tor=self.use_tor)
                     except:
                         logging.exception('Exception while trying to change ip, use same parser, thread:{}'.format(threading.currentThread()))
                         try:
@@ -159,7 +162,7 @@ class LinkedinCompanyCrawlerThread(object):
                             logging.exception('Exception, can not restart crawler with already existing parameters, trying to restart, thread:{}'.format(threading.currentThread()))
                             try:
                                 crawler = linkedin_company_crawler.LinkedinOrganizationService(self.browser,self.visible,proxy=self.proxy,
-                                                                      proxy_ip=proxy_ip,proxy_port=proxy_port)
+                                                                      proxy_ip=proxy_ip,proxy_port=proxy_port,use_tor=self.use_tor)
                             except:
                                 logging.exception('could not start crawler, thread:{0}'.format(threading.currentThread()))
                                 # break #stop this thread??
@@ -228,13 +231,19 @@ class LinkedinCompanyCrawlerThread(object):
 
 
 class LinkedinProfileCrawlerThread(object):
-    def __init__(self,browser='Firefox',visible=True,proxy=False):
+    def __init__(self,browser='Firefox',visible=True,proxy=False,use_tor=False):
         '''
+        :param browser:
+        :param visible:
+        :param proxy:
+        :param use_tor: if use_tor is True, proxy should be False
+        :return:
         '''
         self.browser = browser
         self.visible = visible
         self.proxy = proxy
         self.ip_matcher = re.compile("^\d{1,3}\.\d{1,3}\.\d{1,3}\.\d{1,3}$")
+        self.use_tor = use_tor
         if proxy:
             self.proxy_generator = ProxyGen(browser=browser,visible=visible,page_load_timeout=25)
             self.proxies = Queue(maxsize=0)
@@ -277,12 +286,12 @@ class LinkedinProfileCrawlerThread(object):
             logging.info('proxy to be used : {}'.format(proxy_dets))
             proxy_ip,proxy_port = proxy_dets[0],proxy_dets[1]
             crawler = linkedin_profile_crawler.LinkedinProfileCrawler(self.browser,self.visible,proxy=self.proxy,
-                                                                      proxy_ip=proxy_ip,proxy_port=proxy_port)
+                                                                      proxy_ip=proxy_ip,proxy_port=proxy_port,use_tor=self.use_tor)
         except: #if  coming here, run without proxy
             logging.info('Error while getting proxy. Running without proxy')
             proxy_ip,proxy_port = None,None
             crawler = linkedin_profile_crawler.LinkedinProfileCrawler(self.browser,self.visible,proxy=False,
-                                                                      proxy_ip=proxy_ip,proxy_port=proxy_port)
+                                                                      proxy_ip=proxy_ip,proxy_port=proxy_port,use_tor=self.use_tor)
         def get_output(crawler,url,res_1,event):
             res_1['result'] = crawler.fetch_details_urlinput(url)
             event.set()
@@ -343,7 +352,9 @@ class LinkedinProfileCrawlerThread(object):
                     time.sleep(randint(10,20))
             if no_errors == 6:
                 no_errors = no_errors - 1
-                if not self.proxy:
+                if self.use_tor:
+                    pass
+                elif not self.proxy:
                     n_blocks += 1
                     logging.info('Error condition met, sleeping for '+str(min(n_blocks,6)*600)+' seconds')
                     time.sleep(min(n_blocks,6)*600)
@@ -355,7 +366,7 @@ class LinkedinProfileCrawlerThread(object):
                         logging.info('proxy to be used: {0}, Thread:{1}'.format(proxy_dets,threading.currentThread()))
                         proxy_ip,proxy_port = proxy_dets[0],proxy_dets[1]
                         crawler.init_selenium_parser(self.browser,self.visible,proxy=self.proxy,
-                                                                                  proxy_ip=proxy_ip,proxy_port=proxy_port)
+                                                            proxy_ip=proxy_ip,proxy_port=proxy_port,use_tor=self.use_tor)
                     except:
                         logging.exception('Exception while trying to restart crawler with already existing parameters, thread:{}'.format(threading.currentThread()))
                         try:
@@ -363,8 +374,8 @@ class LinkedinProfileCrawlerThread(object):
                         except:
                             logging.exception('Exception, can not restart crawler with already existing parameters, trying to restart, thread:{}'.format(threading.currentThread()))
                             try:
-                                crawler = linkedin_company_crawler.LinkedinOrganizationService(self.browser,self.visible,proxy=self.proxy,
-                                                                      proxy_ip=proxy_ip,proxy_port=proxy_port)
+                                crawler = linkedin_profile_crawler.LinkedinProfileCrawler(self.browser,self.visible,proxy=self.proxy,
+                                                                      proxy_ip=proxy_ip,proxy_port=proxy_port,use_tor=self.use_tor)
                             except:
                                 logging.exception('could not start crawler')
             if no_errors>0:

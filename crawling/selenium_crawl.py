@@ -7,7 +7,7 @@ from pyvirtualdisplay import Display
 
 class SeleniumParser(object):
     def __init__(self,browser = 'Firefox',browser_loc='/home/madan/Downloads/phantomjs-2.1.1-linux-x86_64/bin/phantomjs',
-                 visible = True,proxy = False,proxy_ip=None,proxy_port=None,page_load_timeout=25):
+                 visible = True,proxy = False,proxy_ip=None,proxy_port=None,page_load_timeout=25,use_tor=False):
         if not visible:
             self.display = Display(visible=0, size=(800, 600))
             self.display.start()
@@ -18,15 +18,24 @@ class SeleniumParser(object):
         else:
             firefox_profile = webdriver.FirefoxProfile()
             firefox_profile.set_preference("browser.privatebrowsing.autostart", True)
-            if proxy:
-                if (not proxy_ip) or (not proxy_port):
-                    logging.error('No ip/port, not using proxy')
-                else:
-                    firefox_profile.set_preference("network.proxy.type", 1)
-                    firefox_profile.set_preference("network.proxy.http", proxy_ip)
-                    firefox_profile.set_preference("network.proxy.http_port", int(proxy_port))
-                    firefox_profile.update_preferences()
-            self.browser = webdriver.Firefox(firefox_profile=firefox_profile)
+            firefox_profile.set_preference( "permissions.default.image", 2 )
+            if not use_tor:
+                if proxy:
+                    if (not proxy_ip) or (not proxy_port) or (proxy_ip is None) or (proxy_port is None):
+                        logging.error('No ip/port, not using proxy')
+                    else:
+                        firefox_profile.set_preference("network.proxy.type", 1)
+                        firefox_profile.set_preference("network.proxy.http", proxy_ip)
+                        firefox_profile.set_preference("network.proxy.http_port", int(proxy_port))
+                        firefox_profile.update_preferences()
+                self.browser = webdriver.Firefox(firefox_profile=firefox_profile)
+            else:
+                firefox_profile.set_preference( "network.proxy.type", 1 )
+                firefox_profile.set_preference( "network.proxy.socks_version", 5 )
+                firefox_profile.set_preference( "network.proxy.socks", '127.0.0.1' )
+                firefox_profile.set_preference( "network.proxy.socks_port", 9050 )
+                firefox_profile.set_preference( "network.proxy.socks_remote_dns", True )
+                self.browser = webdriver.Firefox(firefox_profile=firefox_profile)
         self.browser.set_page_load_timeout(page_load_timeout)
 
     def get_url(self,url):

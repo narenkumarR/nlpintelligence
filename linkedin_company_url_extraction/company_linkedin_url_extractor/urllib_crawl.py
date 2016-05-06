@@ -10,7 +10,7 @@ import requests
 class UrllibCrawl:
 
     @staticmethod
-    def getResponse(baseurl,headers = {'User-Agent': 'Mozilla/5.0 (Macintosh; Intel Mac OS X 10.10; rv:39.0) Gecko/20100101 Firefox/39.0'}):
+    def getResponse(baseurl,headers = {'User-Agent': 'Mozilla/5.0 (Macintosh; Intel Mac OS X 10.10; rv:39.0) Gecko/20100101 Firefox/39.0'},timeout=30):
         # try:
         #     if headers:
         #         request_get = urllib2.Request(baseurl,data=None,\
@@ -31,7 +31,7 @@ class UrllibCrawl:
         #     request_get = requests.get(baseurl)
         #     return request_get.text
         try:
-            request_get = requests.get(baseurl)
+            request_get = requests.get(baseurl,timeout=timeout)
             return request_get.text
         except:
             return ''
