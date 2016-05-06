@@ -1,0 +1,15 @@
+Trying instructions in http://sacharya.com/crawling-anonymously-with-tor-in-python/
+password used is ubuntu1
+
+#using firefox is causing some issues. using urllib2/requests give javascript
+http://stackoverflow.com/questions/15316304/open-tor-browser-with-selenium
+
+#other options to crawl javasript pages:
+
+#dryscrape : no option to use tor (socks5 proxy setting is not available. only http proxy)
+#another option is polipo, but not sure if present in centos
+refer http://stackoverflow.com/questions/32425180/how-to-set-socks5-proxy-in-dryscrape-python
+
+#PyQT4
+http://stackoverflow.com/questions/22365325/connect-to-a-socks5-proxy-using-pyqt4
+

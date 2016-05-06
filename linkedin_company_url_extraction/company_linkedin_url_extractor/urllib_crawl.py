@@ -5,24 +5,36 @@ Author: ideas2it
 """
 
 import urllib2
-
+import requests
 
 class UrllibCrawl:
 
     @staticmethod
-    def getResponse(baseurl,headers = {'User-Agent': 'Mozilla/5.0 (Macintosh; Intel Mac OS X 10.10; rv:39.0) Gecko/20100101 Firefox/39.0'}):
-        request_get = urllib2.Request(baseurl,data=None,\
-                                      headers=headers)
-
-        # define the request
-        f_content=urllib2.urlopen(request_get)
-
-        # request, download and read the content
-        response_content=f_content.read().decode('utf-8')
-
-        print(f_content.read().decode('utf-8'))
-
-        return response_content
+    def getResponse(baseurl,headers = {'User-Agent': 'Mozilla/5.0 (Macintosh; Intel Mac OS X 10.10; rv:39.0) Gecko/20100101 Firefox/39.0'},timeout=30):
+        # try:
+        #     if headers:
+        #         request_get = urllib2.Request(baseurl,data=None,\
+        #                                   headers=headers)
+        #     else:
+        #         request_get = urllib2.Request(baseurl)
+        #
+        #     # define the request
+        #     f_content=urllib2.urlopen(request_get)
+        #
+        #     # request, download and read the content
+        #     response_content=f_content.read().decode('utf-8')
+        #
+        #     print(f_content.read().decode('utf-8'))
+        #
+        #     return response_content
+        # except urllib2.URLError:
+        #     request_get = requests.get(baseurl)
+        #     return request_get.text
+        try:
+            request_get = requests.get(baseurl,timeout=timeout)
+            return request_get.text
+        except:
+            return ''
 
     @staticmethod
     def getResponseProxy(baseurl):

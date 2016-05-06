@@ -24,3 +24,8 @@ class BeautifulsoupCrawl:
         print("url.............")
         
         return ""
+
+    @staticmethod
+    def get_soup(url):
+        response=BeautifulSoup(UrllibCrawl.getResponse(url))
+        return response
