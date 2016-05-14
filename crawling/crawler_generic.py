@@ -61,7 +61,7 @@ class LinkedinCrawlerThread(object):
         return list(set(link_list))
 
     def get_connected_urls_single_line(self,line,field_list,page_field,
-                                       remove_regex=r'\?trk=pub-pbmap|\?trk=prof-samename-picture|\?trk=extra_biz_viewers_viewed'):
+                                       remove_regex=r'\?trk=pub-pbmap|\?trk=prof-samename-picture|\?trk=extra_biz_viewers_viewed|\?trk=biz_employee_pub'):
         out_list = []
         tmp = eval(line)
         for field in field_list:
@@ -71,7 +71,7 @@ class LinkedinCrawlerThread(object):
         return out_list
 
     def get_connected_urls(self,name_list,field_list,page_field,
-                           remove_regex = r'\?trk=pub-pbmap|\?trk=prof-samename-picture|\?trk=extra_biz_viewers_viewed'):
+                           remove_regex = r'\?trk=pub-pbmap|\?trk=prof-samename-picture|\?trk=extra_biz_viewers_viewed|\?trk=biz_employee_pub'):
         '''get all connected urls
         :param name_list:
         :param page_field: in the dictionary, this is the key for linkedin url for the connected pages
@@ -217,7 +217,7 @@ class LinkedinCrawlerThread(object):
                 continue
 
     def gen_url_lists_single(self,file_names,field_list,page_field,var_name = 'Linkedin URL',
-                                       remove_regex=r'\?trk=pub-pbmap|\?trk=prof-samename-picture|\?trk=extra_biz_viewers_viewed',
+                                       remove_regex=r'\?trk=pub-pbmap|\?trk=prof-samename-picture|\?trk=extra_biz_viewers_viewed|\?trk=biz_employee_pub',
                                        ):
         connected_urls,finished_urls = [],[]
         for f_name in file_names:
@@ -237,15 +237,26 @@ class LinkedinCrawlerThread(object):
         :return:
         '''
         crawled_files_company = self.get_files_in_dir(crawled_loc,match_regex='^company.+\.txt$')
-        crawled_files_company.sort()
-        connected_urls_company,finished_urls_company = self.gen_url_lists_single(file_names=[crawled_files_company[-1]],
-                                                        field_list=['Also Viewed Companies'],
-                                                        page_field='company_linkedin_url')
+        if crawled_files_company:
+            crawled_files_company.sort()
+            connected_urls_company,finished_urls_company = self.gen_url_lists_single(file_names=[crawled_files_company[-1]],
+                                                            field_list=['Also Viewed Companies'],
+                                                            page_field='company_linkedin_url')
+            people_urls_company,_ = self.gen_url_lists_single(file_names=[crawled_files_company[-1]],
+                                                            field_list=['Employee Details'],
+                                                            page_field='linkedin_url')
+        else:
+            connected_urls_company,finished_urls_company,people_urls_company = [],[],[]
         crawled_files_people = self.get_files_in_dir(crawled_loc,match_regex='^people.+\.txt$')
-        crawled_files_people.sort()
-        connected_urls_people,finished_urls_people = self.gen_url_lists_single(file_names=[crawled_files_people[-1]],
-                                                        field_list=['Related People','Same Name People'],
-                                                        page_field='Linkedin Page')
+        if crawled_files_people:
+            crawled_files_people.sort()
+            connected_urls_people,finished_urls_people = self.gen_url_lists_single(file_names=[crawled_files_people[-1]],
+                                                            field_list=['Related People','Same Name People'],
+                                                            page_field='Linkedin Page')
+        else:
+            connected_urls_people,finished_urls_people = [],[]
+        connected_urls_people = connected_urls_people + people_urls_company
+        del people_urls_company
         finished_urls = list(set(finished_urls_company+finished_urls_people))
         for f_name in ignore_urls:
             with open(f_name,'r') as f:
