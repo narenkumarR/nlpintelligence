@@ -437,3 +437,5 @@ out_list = list(set(out_list))
 with open(out_file,'w') as f:
     for i in out_list:
         f.write(i+'\n')
+
+#find people urls from companies and add it to the list

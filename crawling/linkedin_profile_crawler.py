@@ -4,7 +4,8 @@ Created On: 07-Mar-2016
 Author: ideas2it
 """
 from bs_crawl import BeautifulsoupCrawl
-import linkedin_parser
+# import linkedin_parser
+import selenium_crawl
 # from bs4 import BeautifulSoup
 from selenium.common.exceptions import TimeoutException
 from socket import error as socket_error
@@ -32,12 +33,17 @@ class LinkedinProfileCrawler(object):
 
     def init_selenium_parser(self,browser=None,visible = None,proxy=None,proxy_ip = None,proxy_port = None,use_tor=None):
         if browser is None and visible is None and visible is None and proxy is None and use_tor is None: #if no input reload same parser
-            self.link_parser = linkedin_parser.LinkedinParserSelenium(self.browser,visible=self.visible,proxy=self.proxy,
+            # self.link_parser = linkedin_parser.LinkedinParserSelenium(self.browser,visible=self.visible,proxy=self.proxy,
+            #                                                           proxy_ip=self.proxy_ip,proxy_port=self.proxy_port,
+            #                                                           use_tor=self.use_tor)
+            self.link_parser = selenium_crawl.SeleniumParser(self.browser,visible=self.visible,proxy=self.proxy,
                                                                       proxy_ip=self.proxy_ip,proxy_port=self.proxy_port,
                                                                       use_tor=self.use_tor)
         else:
             try:  # try with inputs. if success, update the class variables. if error, try with already existing class vars
-                self.link_parser = linkedin_parser.LinkedinParserSelenium(browser,visible=visible,proxy=proxy,
+                # self.link_parser = linkedin_parser.LinkedinParserSelenium(browser,visible=visible,proxy=proxy,
+                #                                                           proxy_ip=proxy_ip,proxy_port=proxy_port,use_tor=use_tor)
+                self.link_parser = selenium_crawl.SeleniumParser(browser,visible=visible,proxy=proxy,
                                                                           proxy_ip=proxy_ip,proxy_port=proxy_port,use_tor=use_tor)
                 self.browser = browser
                 self.visible = visible
@@ -46,7 +52,10 @@ class LinkedinProfileCrawler(object):
                 self.proxy_port = proxy_port
                 self.use_tor = use_tor
             except:
-                self.link_parser = linkedin_parser.LinkedinParserSelenium(self.browser,visible=self.visible,proxy=self.proxy,
+                # self.link_parser = linkedin_parser.LinkedinParserSelenium(self.browser,visible=self.visible,proxy=self.proxy,
+                #                                                           proxy_ip=self.proxy_ip,proxy_port=self.proxy_port,
+                #                                                           use_tor=self.use_tor)
+                self.link_parser = selenium_crawl.SeleniumParser(self.browser,visible=self.visible,proxy=self.proxy,
                                                                           proxy_ip=self.proxy_ip,proxy_port=self.proxy_port,
                                                                           use_tor=self.use_tor)
 

@@ -368,7 +368,7 @@ class LinkedinProfileCrawlerThread(object):
                         crawler.init_selenium_parser(self.browser,self.visible,proxy=self.proxy,
                                                             proxy_ip=proxy_ip,proxy_port=proxy_port,use_tor=self.use_tor)
                     except:
-                        logging.exception('Exception while trying to restart crawler with already existing parameters, thread:{}'.format(threading.currentThread()))
+                        logging.exception('Exception while trying to change ip, use same parser, thread:{}'.format(threading.currentThread()))
                         try:
                             crawler.init_selenium_parser() #try with already existing parameters
                         except:
