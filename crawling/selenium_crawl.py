@@ -4,6 +4,17 @@ import logging
 from bs4 import BeautifulSoup
 from selenium import webdriver
 from pyvirtualdisplay import Display
+import httplib
+import socket
+
+from selenium.webdriver.remote.command import Command
+
+def get_status(driver):
+    try:
+        driver.execute(Command.STATUS)
+        return "Alive"
+    except (socket.error, httplib.CannotSendRequest):
+        return "Dead"
 
 class SeleniumParser(object):
     def __init__(self,browser = 'Firefox',browser_loc='/home/madan/Downloads/phantomjs-2.1.1-linux-x86_64/bin/phantomjs',
@@ -62,6 +73,7 @@ class SeleniumParser(object):
         :return:
         '''
         # self.browser.close()
-        self.browser.quit()
+        if get_status(self.browser) == 'Alive':
+            self.browser.quit()
         if self.display:
             self.display.stop()
