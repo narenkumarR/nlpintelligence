@@ -7,7 +7,6 @@ from sklearn.naive_bayes import MultinomialNB,BernoulliNB,GaussianNB
 from intent_class_models.text_processing.process_text import process_textlist,tokenizer
 from intent_class_models.naive_bayes.constants import stop_words_vectorizer
 
-
 class NaiveBayesModel(object):
     def __init__(self):
         '''
@@ -58,6 +57,7 @@ class NaiveBayesModel(object):
         y_train = pd.Series(label_list)
         self.model.fit(X_train,y_train)
         self.model_classes = list(self.model.classes_)
+        self.class_prior_weights = class_wts
 
 
     def update_model_single(self,text,label):
@@ -191,6 +191,8 @@ class NaiveBayesModel(object):
         no_classes = len(self.model_classes)
         for ind in inds:
             log_prob1 = np.concatenate([log_prob1[:,:ind],np.zeros((no_classes,1)),log_prob1[:,ind:]],axis=1)
+            # Trying to give log of prior probability. But the output probabilities are different. with 0 gives correct results
+            # log_prob1 = np.concatenate([log_prob1[:,:ind],np.reshape(np.log(self.class_prior_weights),(len(self.model_classes),1)),log_prob1[:,ind:]],axis=1)
             feat_count1 = np.concatenate([feat_count1[:,:ind],np.zeros((no_classes,1)),feat_count1[:,ind:]],axis=1)
         return log_prob1,feat_count1
 
