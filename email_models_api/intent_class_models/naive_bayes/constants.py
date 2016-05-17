@@ -1,7 +1,7 @@
 from nltk.corpus import stopwords
 
 remove_endtext_ner_mail_input = ['suriyah','krishnan','ashwin','ramaswamy']
-replace_phr_input = {'not': 'no',"n't":'no','dont':'no','wont':'no','cant':'no','your':'you'
+replace_phr_input = {'not': 'no',"n't":'no','dont':'no','wont':'no','cant':'no','non':'no','your':'you'
                                                     ,'yours':'you'}
 stop_phrases = ["curated essays","enterprise tech"]
 merge_phr_list = ['no need', 'no relevant'
@@ -43,7 +43,7 @@ def load_stop_words(stop_word_file):
 stop_words=stopwords.words('english')
 stops_add_list = [u'!', u"'", u"'d", u"'ll", u"'m", u"'re", u"'s", u"'ve", u',', u'-','_','www','facebook','ashwin'
     ,'youtube','linkedin','twitter','http','contractiq','techcrunch','suriyah','suriyahk','krishnan','https','hey'
-    ,'iphon','hello','hi','chuck','really','probably','regards','founder','co','cofounder','de','cheers','please'
+    ,'iphon','hello','hi','chuck','really','probably','regards','founder','co','cofounder','de','cheers','please','been'
     ]
 stops_del_list = ['not','no','take','off','appreciate','non','look','need','believe','see','','what','when','where','why','how'
     ,'which','who','out','now', u'you', u'your', u'yours','in']
