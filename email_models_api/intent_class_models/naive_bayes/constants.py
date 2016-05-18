@@ -46,7 +46,7 @@ stops_add_list = [u'!', u"'", u"'d", u"'ll", u"'m", u"'re", u"'s", u"'ve", u',',
     ,'iphon','hello','hi','chuck','really','probably','regards','founder','co','cofounder','de','cheers','please','been'
     ]
 stops_del_list = ['not','no','take','off','appreciate','non','look','need','believe','see','','what','when','where','why','how'
-    ,'which','who','out','now', u'you', u'your', u'yours','in']
+    ,'which','who','out','now', u'you', u'your', u'yours']
 stop_words = list(set(stop_words+stops_add_list))
 stop_words = list(set(stop_words)-set(stops_del_list))
 stop_words_vectorizer = list(set(stop_words+['thank','iphon','hello','hi','chuck','you','in']))
