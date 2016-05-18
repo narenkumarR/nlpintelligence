@@ -56,7 +56,7 @@ def process_textlist(text_list):
     # text_list = phm.merge_phrases_listinput(text_list,merge_phr_list,flags=2)
     text_list = phm.merge_word_listinput(text_list,['no','stop'],flags=re.IGNORECASE,keep_original=True)
     #check if date time is present in the text.if yes, put a field as 1,else 0
-    text_list = [txt+' datetime_in_text_xxx' if timex.check_if_date_present(txt) else txt for txt in text_list]
+    # text_list = [txt+' datetime_in_text_xxx' if timex.check_if_date_present(txt) else txt for txt in text_list]
     text_list = tk.porter_stemmer_listinput(text_list)
     return text_list
 
