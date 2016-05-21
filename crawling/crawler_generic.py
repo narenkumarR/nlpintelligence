@@ -12,6 +12,8 @@ import sys
 import gc
 
 import crawler
+from crawler import linkedin_url_clean_regex
+# linkedin_url_clean_regex=r'\?trk=pub-pbmap|\?trk=prof-samename-picture|\?trk=extra_biz_viewers_viewed|\?trk=biz_employee_pub'
 
 class LinkedinCrawlerThread(object):
     def __init__(self):
@@ -61,7 +63,14 @@ class LinkedinCrawlerThread(object):
         return list(set(link_list))
 
     def get_connected_urls_single_line(self,line,field_list,page_field,
-                                       remove_regex=r'\?trk=pub-pbmap|\?trk=prof-samename-picture|\?trk=extra_biz_viewers_viewed|\?trk=biz_employee_pub'):
+                                       remove_regex=linkedin_url_clean_regex):
+        '''
+        :param line:
+        :param field_list:
+        :param page_field:
+        :param remove_regex:
+        :return:
+        '''
         out_list = []
         tmp = eval(line)
         for field in field_list:
@@ -71,7 +80,7 @@ class LinkedinCrawlerThread(object):
         return out_list
 
     def get_connected_urls(self,name_list,field_list,page_field,
-                           remove_regex = r'\?trk=pub-pbmap|\?trk=prof-samename-picture|\?trk=extra_biz_viewers_viewed|\?trk=biz_employee_pub'):
+                           remove_regex = linkedin_url_clean_regex):
         '''get all connected urls
         :param name_list:
         :param page_field: in the dictionary, this is the key for linkedin url for the connected pages
@@ -216,13 +225,30 @@ class LinkedinCrawlerThread(object):
                 time.sleep(10)
                 continue
 
+    def get_single_field(self,line,field_name_list):
+        ''' get a single parameter
+        :param line:
+        :param field_name_list:
+        :return:
+        '''
+        pass
+
     def gen_url_lists_single(self,file_names,field_list,page_field,var_name = 'Linkedin URL',
-                                       remove_regex=r'\?trk=pub-pbmap|\?trk=prof-samename-picture|\?trk=extra_biz_viewers_viewed|\?trk=biz_employee_pub',
+                                       remove_regex=linkedin_url_clean_regex,
                                        ):
+        '''
+        :param file_names: names of files
+        :param field_list: the fields which contain connected urls
+        :param page_field: which url to extract
+        :param var_name: key name for id (here linkedin url for each row)
+        :param remove_regex:
+        :return:
+        '''
         connected_urls,finished_urls = [],[]
         for f_name in file_names:
             with open(f_name,'r') as f_in:
                 for line in f_in:
+                    # line = eval(line)
                     connected_urls.extend(self.get_connected_urls_single_line(line,field_list,page_field,remove_regex))
                     finished_urls.append(self.get_finished_links_single_line(line,var_name))
         return connected_urls,finished_urls
@@ -239,9 +265,11 @@ class LinkedinCrawlerThread(object):
         crawled_files_company = self.get_files_in_dir(crawled_loc,match_regex='^company.+\.txt$')
         if crawled_files_company:
             crawled_files_company.sort()
+            # extracting also viewed company details
             connected_urls_company,finished_urls_company = self.gen_url_lists_single(file_names=[crawled_files_company[-1]],
                                                             field_list=['Also Viewed Companies'],
                                                             page_field='company_linkedin_url')
+            # extracting employee details
             people_urls_company,_ = self.gen_url_lists_single(file_names=[crawled_files_company[-1]],
                                                             field_list=['Employee Details'],
                                                             page_field='linkedin_url')
@@ -250,13 +278,18 @@ class LinkedinCrawlerThread(object):
         crawled_files_people = self.get_files_in_dir(crawled_loc,match_regex='^people.+\.txt$')
         if crawled_files_people:
             crawled_files_people.sort()
+            # extracting related people and same name people
             connected_urls_people,finished_urls_people = self.gen_url_lists_single(file_names=[crawled_files_people[-1]],
                                                             field_list=['Related People','Same Name People'],
                                                             page_field='Linkedin Page')
+            # extracting company details for people
+            company_urls_people,_ = self.gen_url_lists_single(file_names=[crawled_files_people[-1]]
+                                                              ,field_list=['Experience'],page_field='Company Linkedin')
         else:
-            connected_urls_people,finished_urls_people = [],[]
+            connected_urls_people,finished_urls_people,company_urls_people = [],[],[]
         connected_urls_people = connected_urls_people + people_urls_company
-        del people_urls_company
+        connected_urls_company = connected_urls_company+company_urls_people
+        del people_urls_company,company_urls_people
         finished_urls = list(set(finished_urls_company+finished_urls_people))
         for f_name in ignore_urls:
             with open(f_name,'r') as f:
