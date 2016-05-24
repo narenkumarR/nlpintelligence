@@ -60,7 +60,7 @@ crawled_loc = 'crawled_res/'
 crawled_files_company = cc.get_files_in_dir(crawled_loc,match_regex='^company.+\.txt$')
 crawled_files_company.sort()
 # lcc.con.get_cursor()
-for f_name in crawled_files_company[92:]:
+for f_name in crawled_files_company[107:]:
     print f_name
     with open(f_name,'r') as f_in:
         for line in f_in:
@@ -73,7 +73,7 @@ crawled_loc = 'crawled_res/'
 crawled_files_people = cc.get_files_in_dir(crawled_loc,match_regex='^people.+\.txt$')
 crawled_files_people.sort()
 # lpc.con.get_cursor()
-for f_name in crawled_files_people[16:]:
+for f_name in crawled_files_people[25:]:
     print f_name
     with open(f_name,'r') as f_in:
         for line in f_in:
