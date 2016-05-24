@@ -439,3 +439,4 @@ with open(out_file,'w') as f:
         f.write(i+'\n')
 
 #find people urls from companies and add it to the list
+

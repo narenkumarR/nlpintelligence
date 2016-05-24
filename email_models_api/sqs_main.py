@@ -17,9 +17,12 @@ max_queue_messages = 10
 while True:
     for message in in_queue.receive_messages(MaxNumberOfMessages=max_queue_messages):
         # pdb.set_trace()
-        message_id = 'no id'
         body_json = json.loads(message.body)
         prediction = str(nb.predict_textinput(body_json['text'])[0])
-        out_json = '"id":{},"prediction":{}'.format(body_json['id'],prediction)
+        try:
+            message_id = body_json['id']
+        except:
+            message_id = 'no id'
+        out_json = '"id":{},"prediction":{}'.format(message_id,prediction)
         out_queue.send_message(MessageBody=out_json)
         message.delete()
