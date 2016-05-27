@@ -298,16 +298,30 @@ class LinkedinCompanyCrawlerThread(object):
         logging.basicConfig(filename=log_file_loc, level=logging.INFO,format='%(asctime)s %(message)s')
         if self.use_db:
             self.con.get_cursor()
-            # query = 'SELECT url FROM linkedin_company_urls_to_crawl LIMIT {}'.format(limit_no)
-            query = 'select url from linkedin_company_urls_to_crawl offset floor(random() * (select count(*) from linkedin_company_urls_to_crawl)) limit {}'.format(limit_no)
+            # first look at priority table
+            query = 'select url from linkedin_company_urls_to_crawl_priority limit {}'.format(limit_no)
             self.con.cursor.execute(query)
-            inp_list = self.con.cursor.fetchall()
+            inp_list_priority = self.con.cursor.fetchall()
+            limit_no = limit_no - len(inp_list_priority)
+            # deleting the urls from priority table and inserting to base urls_to_crawl table
+            if inp_list_priority:
+                records_list_template = ','.join(['%s']*len(inp_list_priority))
+                query = 'DELETE FROM linkedin_company_urls_to_crawl_priority WHERE url in ({})'.format(records_list_template)
+                self.con.cursor.execute(query, inp_list_priority)
+                # self.con.commit()
+                query = 'INSERT INTO linkedin_company_urls_to_crawl VALUES {0} ON CONFLICT DO NOTHING'.format(records_list_template)
+                self.con.cursor.execute(query, inp_list_priority)
+                self.con.commit()
+            if limit_no >0 :
+                query = 'select url from linkedin_company_urls_to_crawl offset floor(random() * (select count(*) from linkedin_company_urls_to_crawl)) limit {}'.format(limit_no)
+                # query = 'select url from linkedin_company_urls_to_crawl limit {}'.format(limit_no)
+                self.con.cursor.execute(query)
+                inp_list = self.con.cursor.fetchall()
+            else:
+                inp_list = []
+            # creating final list
+            inp_list = inp_list_priority+inp_list
             inp_list = [i[0] for i in inp_list]
-            # deleting the urls from list to crawl. This is needed for parallel
-            # records_list_template = ','.join(['%s']*len(inp_list))
-            # query = 'DELETE FROM linkedin_company_urls_to_crawl WHERE url in ({})'.format(records_list_template)
-            # self.con.cursor.execute(query, inp_list)
-            # self.con.commit()
             self.con.close_cursor()
         self.run_queue = True
         self.run_write_queue = True
@@ -466,9 +480,11 @@ class LinkedinProfileCrawlerThread(object):
                                 no_errors += 1
                         elif 'Notes' in res:
                             if res['Notes'] == 'Not Available Pubicly':
-                                self.out_queue.put(res)
+                                # self.out_queue.put(res)
+                                pass
                             elif res['Notes'] == 'Java script code':
-                                self.out_queue.put(res)
+                                # self.out_queue.put(res)
+                                pass
                         else:
                             no_errors += 1
                     else:
@@ -634,10 +650,29 @@ class LinkedinProfileCrawlerThread(object):
         logging.basicConfig(filename=log_file_loc, level=logging.INFO,format='%(asctime)s %(message)s')
         if self.use_db:
             self.con.get_cursor()
-            # query = 'SELECT url FROM linkedin_people_urls_to_crawl LIMIT {}'.format(10)
-            query = 'select url from linkedin_people_urls_to_crawl offset floor(random() * (select count(*) from linkedin_people_urls_to_crawl)) limit {}'.format(limit_no)
+            # first look at priority table
+            query = 'select url from linkedin_people_urls_to_crawl_priority limit {}'.format(limit_no)
             self.con.cursor.execute(query)
-            inp_list = self.con.cursor.fetchall()
+            inp_list_priority = self.con.cursor.fetchall()
+            limit_no = limit_no - len(inp_list_priority)
+            # deleting the urls from priority table and inserting to base urls_to_crawl table
+            if inp_list_priority:
+                records_list_template = ','.join(['%s']*len(inp_list_priority))
+                query = 'DELETE FROM linkedin_people_urls_to_crawl_priority WHERE url in ({})'.format(records_list_template)
+                self.con.cursor.execute(query, inp_list_priority)
+                # self.con.commit()
+                query = 'INSERT INTO linkedin_people_urls_to_crawl VALUES {0} ON CONFLICT DO NOTHING'.format(records_list_template)
+                self.con.cursor.execute(query, inp_list_priority)
+                self.con.commit()
+            if limit_no>0:
+                # query = 'SELECT url FROM linkedin_people_urls_to_crawl LIMIT {}'.format(10)
+                query = 'select url from linkedin_people_urls_to_crawl offset floor(random() * (select count(*) from linkedin_people_urls_to_crawl)) limit {}'.format(limit_no)
+                self.con.cursor.execute(query)
+                inp_list = self.con.cursor.fetchall()
+            else:
+                inp_list = []
+            # creating final list
+            inp_list = inp_list_priority+inp_list
             inp_list = [i[0] for i in inp_list]
             # records_list_template = ','.join(['%s']*len(inp_list))
             # query = 'DELETE FROM linkedin_people_urls_to_crawl WHERE url in ({})'.format(records_list_template)
