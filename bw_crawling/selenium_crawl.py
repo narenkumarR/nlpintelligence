@@ -19,17 +19,6 @@ def get_status(driver):
 class SeleniumParser(object):
     def __init__(self,browser = 'Firefox',browser_loc='/home/madan/Downloads/phantomjs-2.1.1-linux-x86_64/bin/phantomjs',
                  visible = True,proxy = False,proxy_ip=None,proxy_port=None,page_load_timeout=25,use_tor=False):
-        '''
-        :param browser: browser name {'Firefox','PhantomJS'}
-        :param browser_loc: location of browser. for firefox this is not needed generally
-        :param visible: should this be visible or not
-        :param proxy: use any proxy ips
-        :param proxy_ip: if proxy is True, use this ip
-        :param proxy_port: if proxy is True, use this port
-        :param page_load_timeout: waiting time for page load
-        :param use_tor: flag to use tor. Tor should be started before running this code.
-        :return:
-        '''
         if not visible:
             self.display = Display(visible=0, size=(800, 600))
             self.display.start()
