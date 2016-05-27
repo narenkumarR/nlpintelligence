@@ -48,6 +48,13 @@ CREATE TABLE linkedin_company_finished_urls (
 CREATE TABLE linkedin_people_finished_urls (
     url text UNIQUE
 );
+CREATE TABLE linkedin_people_urls_to_crawl_priority (
+    url text UNIQUE
+);
+CREATE TABLE linkedin_company_urls_to_crawl_priority (
+    url text UNIQUE
+);
+
 '''
 import pdb
 from crawler_generic import LinkedinCrawlerThread
@@ -60,7 +67,7 @@ crawled_loc = 'crawled_res/'
 crawled_files_company = cc.get_files_in_dir(crawled_loc,match_regex='^company.+\.txt$')
 crawled_files_company.sort()
 # lcc.con.get_cursor()
-for f_name in crawled_files_company[107:]:
+for f_name in crawled_files_company:
     print f_name
     with open(f_name,'r') as f_in:
         for line in f_in:
@@ -73,10 +80,4 @@ crawled_loc = 'crawled_res/'
 crawled_files_people = cc.get_files_in_dir(crawled_loc,match_regex='^people.+\.txt$')
 crawled_files_people.sort()
 # lpc.con.get_cursor()
-for f_name in crawled_files_people[25:]:
-    print f_name
-    with open(f_name,'r') as f_in:
-        for line in f_in:
-            # pdb.set_trace()
-            line_dic = eval(line)
-            lpc.save_to_table(line_dic)
+opp
