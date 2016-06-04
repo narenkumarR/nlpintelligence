@@ -4,6 +4,8 @@ import logging
 from bs4 import BeautifulSoup
 from selenium import webdriver
 from pyvirtualdisplay import Display
+from url_cleaner import UrlCleaner
+url_cleaner = UrlCleaner()
 
 class SeleniumParser(object):
     def __init__(self,browser = 'Firefox',browser_loc='/home/madan/Downloads/phantomjs-2.1.1-linux-x86_64/bin/phantomjs',
@@ -34,6 +36,7 @@ class SeleniumParser(object):
         :param url:
         :return:
         '''
+        url = url_cleaner.clean_url(url)
         self.browser.get(url)
         html = self.browser.page_source
         html = str(html.encode('utf-8'))

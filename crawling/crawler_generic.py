@@ -104,7 +104,9 @@ class LinkedinCrawlerThread(object):
 
     def run_organization_crawler_single(self,res_file=None,log_file=None,crawled_loc='crawled_res/',browser='Firefox',
                                         visible=False,proxy=True,url_file='company_urls_to_crawl_18April.pkl',
-                                        n_threads=6,use_tor=False,use_db=False,limit_no=2000):
+                                        n_threads=6,use_tor=False,use_db=False,limit_no=2000,urls_to_crawl_table='linkedin_company_urls_to_crawl',
+            urls_to_crawl_priority='linkedin_company_urls_to_crawl_priority',base_table='linkedin_people_base',
+            urls_to_crawl_table_people = 'linkedin_people_urls_to_crawl'):
         '''
         :param res_file:
         :param log_file:
@@ -126,7 +128,9 @@ class LinkedinCrawlerThread(object):
             urls = pickle.load(f)
         cc = crawler.LinkedinCompanyCrawlerThread(browser,visible=visible,proxy=proxy,use_tor=use_tor,use_db=use_db)
         gc.collect()
-        cc.run(urls,res_file,log_file,n_threads,limit_no=limit_no)
+        cc.run(urls,res_file,log_file,n_threads,limit_no=limit_no,urls_to_crawl_table=urls_to_crawl_table,
+            urls_to_crawl_priority=urls_to_crawl_priority,base_table=base_table,
+            urls_to_crawl_table_people = urls_to_crawl_table_people)
 
     def run_organization_crawler_auto(self,crawled_loc='crawled_res/',browser = 'Firefox',visible=False,
                                  proxy=True,url_file='company_urls_to_crawl_18April.pkl',limit_no=30000,n_threads=6,
@@ -169,7 +173,9 @@ class LinkedinCrawlerThread(object):
 
     def run_people_crawler_single(self,res_file=None,log_file=None,crawled_loc='crawled_res/',browser='Firefox',
                                         visible=False,proxy=True,url_file='people_urls_to_crawl_18April.pkl',
-                                        n_threads=6,use_tor=False,use_db=False,limit_no=2000):
+                                        n_threads=6,use_tor=False,use_db=False,limit_no=2000,urls_to_crawl_table='linkedin_people_urls_to_crawl',
+            urls_to_crawl_priority='linkedin_people_urls_to_crawl_priority',base_table='linkedin_people_base',
+            urls_to_crawl_table_company = 'linkedin_company_urls_to_crawl'):
         '''
         :param res_file:
         :param log_file:
@@ -194,7 +200,9 @@ class LinkedinCrawlerThread(object):
                 urls = pickle.load(f)
         cc = crawler.LinkedinProfileCrawlerThread(browser,visible=visible,proxy=proxy,use_tor=use_tor,use_db=use_db)
         gc.collect()
-        cc.run(urls,res_file,log_file,n_threads,limit_no=limit_no)
+        cc.run(urls,res_file,log_file,n_threads,limit_no=limit_no,urls_to_crawl_table=urls_to_crawl_table,
+            urls_to_crawl_priority=urls_to_crawl_priority,base_table=base_table,
+            urls_to_crawl_table_company = urls_to_crawl_table_company)
 
     def run_people_crawler_auto(self,crawled_loc='crawled_res/',browser = 'Firefox',visible=False,
                                  proxy=True,url_file='people_urls_to_crawl_18April.pkl',limit_no=30000,n_threads=6,
@@ -351,7 +359,11 @@ class LinkedinCrawlerThread(object):
         gc.collect()
 
     def run_both_single(self,crawled_loc='crawled_res/',browser = 'Firefox',visible=False,
-                                 proxy=True,limit_no=30000,n_threads=6,use_tor=False,use_db=False):
+                                 proxy=True,limit_no=30000,n_threads=6,use_tor=False,use_db=False,
+                                 urls_to_crawl_people='linkedin_people_urls_to_crawl',
+            urls_to_crawl_people_priority='linkedin_people_urls_to_crawl_priority',people_base_table='linkedin_people_base',
+            urls_to_crawl_company = 'linkedin_company_urls_to_crawl',urls_to_crawl_company_priority='linkedin_company_urls_to_crawl_priority',
+                                 company_base_table='linkedin_company_base'):
         if use_tor:
             proxy = False
         if use_db:
@@ -361,12 +373,17 @@ class LinkedinCrawlerThread(object):
                                # ,ignore_urls=['company_urls_for_server.pkl','people_urls_for_server.pkl']
             )
             gc.collect()
+        # urls_to_crawl_table='linkedin_people_urls_to_crawl',
+        #     urls_to_crawl_priority='linkedin_people_urls_to_crawl_priority',base_table='linkedin_people_base',
+        #     urls_to_crawl_table_company = 'linkedin_company_urls_to_crawl'
         worker_people = multiprocessing.Process(target=self.run_people_crawler_single,
                                                 args=(None,None,crawled_loc,browser,visible,proxy,
-                                                'people_urls_to_crawl.pkl',n_threads,use_tor,use_db,limit_no))
+                                                'people_urls_to_crawl.pkl',n_threads,use_tor,use_db,limit_no,
+                                                urls_to_crawl_people,urls_to_crawl_people_priority,people_base_table,urls_to_crawl_company))
         worker_company = multiprocessing.Process(target=self.run_organization_crawler_single,
                                                  args=(None,None,crawled_loc,browser,visible,proxy,
-                                                'company_urls_to_crawl.pkl',n_threads,use_tor,use_db,limit_no))
+                                                'company_urls_to_crawl.pkl',n_threads,use_tor,use_db,limit_no,
+                                                 urls_to_crawl_company,urls_to_crawl_company_priority,company_base_table,urls_to_crawl_people))
         gc.collect()
         worker_people.daemon = True
         worker_company.daemon = True
@@ -391,7 +408,7 @@ if __name__ == '__main__':
         n_threads = sys.argv[2]
         n_threads = int(n_threads)
         cc.run_both_single(limit_no=limit_no,n_threads=n_threads,use_db=True)
-    else:#fourth argument is for using tor
+    elif len(sys.argv) == 4:#fourth argument is for using tor
         limit_no = sys.argv[1]
         limit_no = int(limit_no)
         n_threads = sys.argv[2]
@@ -399,4 +416,23 @@ if __name__ == '__main__':
         use_tor = sys.argv[3]
         use_tor = (use_tor == 'True')
         cc.run_both_single(limit_no=limit_no,n_threads=n_threads,use_tor=use_tor,use_db=True)
+    else: # from fifth argument is the table names
+        limit_no = sys.argv[1]
+        limit_no = int(limit_no)
+        n_threads = sys.argv[2]
+        n_threads = int(n_threads)
+        use_tor = sys.argv[3]
+        use_tor = (use_tor == 'True')
+        urls_to_crawl_people = sys.argv[4]
+        urls_to_crawl_people_priority = sys.argv[5]
+        people_base_table = sys.argv[6]
+        urls_to_crawl_company = sys.argv[7]
+        urls_to_crawl_company_priority = sys.argv[8]
+        company_base_table = sys.argv[9]
+        cc.run_both_single(limit_no=limit_no,n_threads=n_threads,use_tor=use_tor,use_db=True,
+                           urls_to_crawl_people=urls_to_crawl_people,
+            urls_to_crawl_people_priority=urls_to_crawl_people_priority,people_base_table=people_base_table,
+            urls_to_crawl_company = urls_to_crawl_company,urls_to_crawl_company_priority=urls_to_crawl_company_priority,
+                                 company_base_table=company_base_table)
+
 
