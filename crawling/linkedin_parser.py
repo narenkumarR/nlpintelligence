@@ -149,7 +149,7 @@ class LinkedinParserSelenium(object):
         :return:
         '''
         # self.browser = webdriver.PhantomJS()
-        self.login(username,password)
+        # self.login(username,password)
         self.browser.get('https://www.linkedin.com/')
         username_field = self.browser.find_element_by_id("login-email")
         password_field = self.browser.find_element_by_id("login-password")

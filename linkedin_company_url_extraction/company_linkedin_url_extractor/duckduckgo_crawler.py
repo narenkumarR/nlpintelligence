@@ -6,12 +6,14 @@ Author: ideas2it
 import pdb
 import urllib
 from bs_crawl import BeautifulsoupCrawl
+from selenium_crawl import SeleniumParser
 
 class DuckduckgoCrawler(object):
     '''
     '''
     def __init__(self):
         self.crawler = BeautifulsoupCrawl()
+        # self.crawler = SeleniumParser()
 
     def fetch_results(self,query,timeout=30):
         '''
@@ -20,6 +22,7 @@ class DuckduckgoCrawler(object):
         '''
         url = 'https://duckduckgo.com/html/?q='+urllib.quote_plus(query)
         soup = self.crawler.single_wp(url,timeout=timeout)
+        # soup = self.crawler.get_url(url)
         # pdb.set_trace()
         # res_links = soup.find('div',{'id':'links','class':'results'}).findAll('div',{'class':'result results_links results_links_deep web-result '})
         try:

@@ -1,0 +1,16 @@
+to run:
+python run_crawl.py
+
+needed packages:
+selenium, BeautifulSoup4,pyvirtualdisplay,psycopg2
+
+Make sure python-dev is installed in the system
+
+#sometimes need to install Xvfb and postgres related packages using apt-get
+#if python-dev is installed, psycopg2 works well most of the cases
+
+ssh ponvel@192.168.1.156
+ssh ideas2it@192.168.1.170
+ssh babuk@192.168.1.61
+ssh edwinxavier@192.168.1.99
+ssh contractiq@192.168.1.100
