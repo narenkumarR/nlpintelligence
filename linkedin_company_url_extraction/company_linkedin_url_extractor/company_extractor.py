@@ -1,6 +1,7 @@
 __author__ = 'joswin'
 
 from bs_crawl import BeautifulsoupCrawl
+from selenium_crawl import SeleniumParser
 from duckduckgo_crawler import DuckduckgoCrawler
 from urlparse import urljoin
 
@@ -15,6 +16,7 @@ class CompanyLinkedinURLExtractorSingle(object):
     '''
     def __init__(self):
         self.crawler = BeautifulsoupCrawl()
+        # self.crawler = SeleniumParser(page_load_timeout=50)
         self.ddg_crawler = DuckduckgoCrawler()
 
     def get_linkedin_url(self,company_url,time_out=30):
@@ -23,8 +25,9 @@ class CompanyLinkedinURLExtractorSingle(object):
         :param time_out:
         :return:
         '''
-        logging.info('get_linkedin_url url:{}'.format(company_url))
+        # logging.info('get_linkedin_url url:{}'.format(company_url))
         soup = self.crawler.single_wp(company_url,timeout=time_out)
+        soup = self.crawler.get_url(company_url)
         if str(soup):
             urls = self.get_urls_soupinput(soup,company_url)
             linkedin_url,confidence = self.get_linkedin_company_url_listinput(urls,company_url)
@@ -79,6 +82,7 @@ class CompanyLinkedinURLExtractorSingle(object):
         :return:
         '''
         soup = self.crawler.single_wp(base_url)
+        # soup = self.crawler.get_url(base_url)
         urls = self.get_urls_soupinput(soup,base_url)
         res_dic['Url direct result'] = self.get_linkedin_company_url_listinput(urls,base_url)
         event.set()
@@ -176,9 +180,12 @@ class CompanyLinkedinURLExtractorMulti(object):
         while self.run_queue:
             key,url = self.in_queue.get()
             logging.info('Trying to find linkedin url for : {0},{1}, thread:{2}'.format(key,url,threading.currentThread()))
-            res = link_extractor.get_linkedin_url(url,time_out=self.time_out)
-            self.out_queue.put((key,res))
-            logging.info('completed for : {0},{1}, res:{2},thread:{3}'.format(key,url,res,threading.currentThread()))
+            try:
+                res = link_extractor.get_linkedin_url(url,time_out=self.time_out)
+                self.out_queue.put((key,res))
+                logging.info('completed for : {0},{1}, res:{2},thread:{3}'.format(key,url,res,threading.currentThread()))
+            except:
+                pass
             self.in_queue.task_done()
 
 
