@@ -7,7 +7,7 @@ __author__ = 'joswin'
 '''
 
 CREATE TABLE linkedin_people_base (
-    linkedin_url text UNIQUE,
+    linkedin_url text ,
     name text,
     sub_text text,
     location text,
@@ -20,10 +20,12 @@ CREATE TABLE linkedin_people_base (
     skills text,
     experience text,
     related_people text,
-    same_name_people text
+    same_name_people text,
+    timestamp timestamp default current_timestamp,
+    current_company_linkedin_url text
 );
 CREATE TABLE linkedin_company_base (
-    linkedin_url text UNIQUE,
+    linkedin_url text ,
     company_name text,
     company_size text,
     industry text,
@@ -34,7 +36,8 @@ CREATE TABLE linkedin_company_base (
     specialties text,
     website text,
     employee_details text,
-    also_viewed_companies text
+    also_viewed_companies text,
+    timestamp timestamp default current_timestamp
 );
 CREATE TABLE linkedin_company_urls_to_crawl (
     url text UNIQUE
@@ -80,4 +83,9 @@ crawled_loc = 'crawled_res/'
 crawled_files_people = cc.get_files_in_dir(crawled_loc,match_regex='^people.+\.txt$')
 crawled_files_people.sort()
 # lpc.con.get_cursor()
-opp
+
+#getting current company linkedin
+'''
+alter table linkedin_people_base_date add column current_company_linkedin_url text;
+Update linkedin_people_base_date set current_company_linkedin_url = REPLACE((string_to_array(company_linkedin_url,','))[1],'?trk=ppro_cprof','');
+'''
