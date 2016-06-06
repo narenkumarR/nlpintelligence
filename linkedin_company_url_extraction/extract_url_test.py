@@ -58,7 +58,7 @@ pg = ProxyGen()
 query = ''' select "Domain","Company"  from companies_meta_data where not lower("LinkedIn") like '%linkedin%' and "Country" in ('IN','US') '''
 
 # offset = 789062
-offset = 600000
+offset = 488550
 limit_no = 50
 proxy_list = pg.generate_proxy()
 if proxy_list:
