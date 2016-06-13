@@ -162,7 +162,7 @@ class LinkedinProfileCrawler(object):
             tmp = soup.find('div',{'id':'profile'}).find('div',{'class':'profile-overview-content'}).\
                 find('table',{'class':'extra-info'}).find('tr').findAll('a')
             links = [i['href'] for i in tmp]
-            return ','.join(links)
+            return '|'.join(links)
         except:
             return ''
 
