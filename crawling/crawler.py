@@ -199,14 +199,18 @@ class LinkedinCompanyCrawlerThread(object):
         # first convert the connected fields into str. Otherwise the insert into table fails
         self.con.get_cursor()
         if res.get('Employee Details',[]):
-            employee_urls = [re.sub(linkedin_url_clean_regex,'',com_dic.get('linkedin_url','')) for com_dic in res['Employee Details']]
-            res['Employee Details'] = ','.join(employee_urls)
+            employee_urls = [re.sub(linkedin_url_clean_regex,'',com_dic.get('linkedin_url','')) + '{}' +
+                             com_dic.get('Name','') + '{}' + com_dic.get('Designation','')
+                             for com_dic in res['Employee Details']]
+            res['Employee Details'] = '|'.join(employee_urls)
         else:
             employee_urls = []
             res['Employee Details'] = ''
         if res.get('Also Viewed Companies',[]):
-            also_viewed_urls = [re.sub(linkedin_url_clean_regex,'',com_dic.get('company_linkedin_url','')) for com_dic in res['Also Viewed Companies']]
-            res['Also Viewed Companies'] = ','.join(also_viewed_urls)
+            also_viewed_urls = [re.sub(linkedin_url_clean_regex,'',com_dic.get('company_linkedin_url','')) + '{}' +
+                                com_dic.get('Company Name','')
+                                for com_dic in res['Also Viewed Companies']]
+            res['Also Viewed Companies'] = '|'.join(also_viewed_urls)
         else:
             also_viewed_urls = []
             res['Also Viewed Companies'] = ''
@@ -554,20 +558,28 @@ class LinkedinProfileCrawlerThread(object):
         # first convert the connected fields into str. Otherwise the insert into table fails
         self.con.get_cursor()
         if res.get('Related People',[]):
-            related_people_urls = [re.sub(linkedin_url_clean_regex,'',com_dic.get('Linkedin Page','')) for com_dic in res['Related People']]
-            res['Related People'] = ','.join(related_people_urls)
+            related_people_urls = [re.sub(linkedin_url_clean_regex,'',com_dic.get('Linkedin Page','')) + '{}' +
+                                   com_dic.get('Name','') + '{}' + com_dic.get('Position')
+                                   for com_dic in res['Related People']]
+            res['Related People'] = '|'.join(related_people_urls)
         else:
             related_people_urls = []
             res['Related People'] = ''
         if res.get('Same Name People',[]):
-            same_name_urls = [re.sub(linkedin_url_clean_regex,'',com_dic.get('Linkedin Page','')) for com_dic in res['Same Name People']]
-            res['Same Name People'] = ','.join(same_name_urls)
+            same_name_urls = [re.sub(linkedin_url_clean_regex,'',com_dic.get('Linkedin Page','')) + '{}' +
+                              com_dic.get('Name','') + '{}' + com_dic.get('Position','')
+                              for com_dic in res['Same Name People']]
+            res['Same Name People'] = '|'.join(same_name_urls)
         else:
             same_name_urls = []
             res['Same Name People'] = ''
         if res.get('Experience',[]):
-            company_urls = [re.sub(linkedin_url_clean_regex,'',com_dic.get('Company Linkedin','')) for com_dic in res['Experience']]
-            res['Experience'] = ','.join(company_urls)
+            company_urls = [re.sub(linkedin_url_clean_regex,'',com_dic.get('Company Linkedin','')) + '{}'+
+                            com_dic.get('Position','') + '{}' + com_dic.get('Company','') + '{}' +
+                            com_dic.get('Date Range','') + '{}' + com_dic.get('Location','') + '{}' +
+                            com_dic.get('Description','')
+                            for com_dic in res['Experience']]
+            res['Experience'] = '|'.join(company_urls)
         else:
             company_urls = []
             res['Experience'] = ''

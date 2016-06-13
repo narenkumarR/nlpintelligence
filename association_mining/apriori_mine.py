@@ -30,7 +30,8 @@ class Apriori(object):
         '''
         :param use_db: flag to use db as input or file
         :param query: query for selecting the data
-        :param iter: to use iterator based calculation. will be useful if the data is very large to fit in memory,not implemented now. only iterator based support present now
+        :param iter: to use iterator based calculation. will be useful if the data is very large to fit in memory,not implemented now. 
+                        only iterator based support present now
         :return:
         '''
         self.use_db = use_db
