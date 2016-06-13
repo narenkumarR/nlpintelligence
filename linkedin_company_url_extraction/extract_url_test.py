@@ -1,6 +1,7 @@
 __author__ = 'joswin'
 
 import psycopg2
+import gc
 con_bw = psycopg2.connect(database='builtwith_data', user='postgres',password='postgres',host='localhost')
 cursor_bw = con_bw.cursor()
 
@@ -15,7 +16,7 @@ query = ''' select "Domain","Company"  from companies_meta_data where not lower(
 from company_linkedin_url_extractor.company_extractor import CompanyLinkedinURLExtractorMulti
 cc = CompanyLinkedinURLExtractorMulti()
 
-offset = 100000
+offset = 275500
 limit_no = 100
 
 while True:
@@ -37,6 +38,8 @@ while True:
     cursor_lkd.execute(insert_query, linkedin_urls)
     con_lkd.commit()
     offset += 100
+    del query_1,tmp,tmpdic,out_dict,linkedin_urls,records_list_template,insert_query
+    gc.collect()
 
 
 
@@ -58,7 +61,7 @@ pg = ProxyGen()
 query = ''' select "Domain","Company"  from companies_meta_data where not lower("LinkedIn") like '%linkedin%' and "Country" in ('IN','US') '''
 
 # offset = 789062
-offset = 488550
+offset = 298250
 limit_no = 50
 proxy_list = pg.generate_proxy()
 if proxy_list:

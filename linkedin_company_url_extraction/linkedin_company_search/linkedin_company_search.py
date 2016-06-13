@@ -33,6 +33,7 @@ class LinkedinParser(SeleniumParser):
         '''
         search_string_list = []
         for key in search_dic:
+            # search_string_list.append(key+'='+urllib.quote('"' + '" OR "'.join(search_dic[key]) + '"'))
             search_string_list.append(key+'='+urllib.quote(' OR '.join(search_dic[key])))
         search_string = '&'.join(search_string_list)
         if not search_string:

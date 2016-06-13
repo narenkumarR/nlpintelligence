@@ -216,9 +216,11 @@ class CompanyLinkedinURLExtractorMulti(object):
         self.in_queue = Queue(maxsize=0)
         self.out_queue = Queue(maxsize=0)
         logging.info('threads started')
+        workers = []
         for i in range(n_threads):
             worker = threading.Thread(target=self.get_linkedin_url_single)
             worker.setDaemon(True)
+            workers.append(worker)
             worker.start()
         logging.info('putting urls into input queue')
         for i in url_dict:
@@ -226,4 +228,6 @@ class CompanyLinkedinURLExtractorMulti(object):
         start_time = time.time()
         self.in_queue.join()
         self.run_queue = False
+        for worker in workers:
+            worker.join(timeout=1)
         return self.get_outdic()
