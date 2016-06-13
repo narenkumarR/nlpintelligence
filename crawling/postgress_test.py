@@ -5,6 +5,8 @@ __author__ = 'joswin'
 #set password for this user as 'postgres
 
 '''
+alter table linkedin_company_base rename to linkedin_company_base_2016_06_10_2;
+alter table linkedin_people_base rename to linkedin_people_base_2016_06_10_2;
 
 CREATE TABLE linkedin_people_base (
     linkedin_url text ,
@@ -21,8 +23,7 @@ CREATE TABLE linkedin_people_base (
     experience text,
     related_people text,
     same_name_people text,
-    timestamp timestamp default current_timestamp,
-    current_company_linkedin_url text
+    timestamp timestamp default current_timestamp
 );
 CREATE TABLE linkedin_company_base (
     linkedin_url text ,
@@ -88,4 +89,30 @@ crawled_files_people.sort()
 '''
 alter table linkedin_people_base_date add column current_company_linkedin_url text;
 Update linkedin_people_base_date set current_company_linkedin_url = REPLACE((string_to_array(company_linkedin_url,','))[1],'?trk=ppro_cprof','');
+create index on linkedin_people_base_date (current_company_linkedin_url);
+'''
+
+'''
+#creating table from dhanesh 
+create table data_for_dhanesh_2016_06_06_1
+as 
+select distinct
+b.people_url as linkedin_url,a.name,c.website,b.company_url as company_linkedin_url
+from
+linkedin_people_base_2016_06_06 a 
+join
+company_people_matcher b on split_part(a.linkedin_url,'?trk',1) = b.people_url
+join
+linkedin_company_base_2016_06_06 c on b.company_url = split_part(c.linkedin_url,'?trk',1)
+where
+c.website is not null and c.website != 'NULL' and
+c.industry in 
+('Computer-Software','Computer Games',
+'Computer & Network Security',
+'Computer Networking','Computer Software',
+'Information Technology and Services',
+'İnternet','Consumer Electronics',
+'Computer Hardware','Industrial Automation',
+'E-Learning','Internet')
+and employee_details like '%linkedin%'
 '''
