@@ -253,14 +253,27 @@ engine = create_engine('postgresql://postgres:postgres@localhost:5432/builtwith_
 convert_to_long('data/nodejs_matrix.csv','company_technology',cols,dtype_dict,single_set=1000,to_db=True,db_engine=engine)
 
 # storing meta data
+import os
+import gc
+import re
+import bw_csv_reader
 import pandas as pd
+import logging
+logging.basicConfig(filename='meta_dumping.log', level=logging.INFO)
 from sqlalchemy import create_engine
-engine = create_engine('postgresql://postgres:postgres@localhost:5432/builtwith_data')
-f_names = ['data/express_meta.csv', 'data/drupal_us_india_meta.csv', 'data/turn_meta.csv', 'data/wordpress_us_india_meta.csv', 'data/magento_meta.csv']
+engine = create_engine('postgresql://postgres:postgres@localhost:5432/builtwith_data')  
+f_names = ['data/bw_meta_all/'+i for i in os.listdir('data/bw_meta_all/')]
+# f_names = ['data/express_meta.csv', 'data/drupal_us_india_meta.csv', 'data/turn_meta.csv', 'data/wordpress_us_india_meta.csv', 'data/magento_meta.csv']
+br = bw_csv_reader.BwCsvReader()
 for f_name in f_names:
-    tmp = pd.read_csv(f_name)
-    tmp['builtwith_source_technology'] = re.sub('\.csv','',re.sub('data/','',f_name))
-    tmp.to_sql('companies_meta_data',engine,index=False,if_exists='append')
+    print(f_name)
+    logging.info(f_name)
+    # tmp = pd.read_csv(f_name)
+    for tmp in br.read_csv(f_name):
+        tmp['builtwith_source_technology'] = re.sub('\.csv','',re.sub('data/','',f_name))
+        tmp.to_sql('companies_meta_data1',engine,index=False,if_exists='append')
+        del tmp
+        gc.collect()
 
 '''
 require("RPostgreSQL")

@@ -65,12 +65,16 @@ class LinkedinProfileCrawler(object):
         :param outs_needed: list of parameters need to be fetched. if empty, all are fetched
         :return: dictionary with the fetched details
         '''
-        outs = {'Linkedin URL':url}
+        outs = {'Linkedin URL':url,'Original URL':url}
         try:
             if use_selenium:
                 soup = self.link_parser.get_soup(url)
+                redirect_url = self.link_parser.browser.current_url
+                if '?trk=login_reg_redirect' in redirect_url:
+                    redirect_url = url
             else:
                 soup = self._crawler(url)
+                redirect_url = url
             try:
                 if 'Largest Professional Network' in soup.title.text:
                     outs['Notes'] = 'Not Available Pubicly'
@@ -78,6 +82,7 @@ class LinkedinProfileCrawler(object):
             except:
                 outs['Notes'] = 'Java script code'
                 return outs
+            outs['Linkedin URL'] = redirect_url
             tmp = self.fetch_details_soupinput(soup)
             outs.update(tmp)
         except TimeoutException:

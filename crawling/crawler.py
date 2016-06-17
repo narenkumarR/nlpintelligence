@@ -37,7 +37,7 @@ class LinkedinCompanyCrawlerThread(object):
             self.table_field_names = ['linkedin_url','company_name','company_size','industry','company_type','headquarters',
                                       'description','founded','specialties','website','employee_details','also_viewed_companies']
         if proxy:
-            self.proxy_generator = ProxyGen(visible=visible,page_load_timeout=25)
+            self.proxy_generator = ProxyGen(visible=visible,page_load_timeout=60)
             self.proxies = Queue(maxsize=0)
             # self.proxies.put((None,None)) #try with actual ip first time
             # self.gen_proxies() # logging problem if this runs before init. put this in run call
@@ -133,9 +133,11 @@ class LinkedinCompanyCrawlerThread(object):
                                 no_errors += 1
                         elif 'Notes' in res:
                             if res['Notes'] == 'Not Available Pubicly':
-                                self.out_queue.put(res)
+                                # self.out_queue.put(res)
+                                no_errors += 1
                             elif res['Notes'] == 'Java script code':
-                                self.out_queue.put(res)
+                                # self.out_queue.put(res)
+                                no_errors += 1
                         else:
                             no_errors += 1
                     else:
@@ -231,11 +233,15 @@ class LinkedinCompanyCrawlerThread(object):
         # finished_query = u"INSERT INTO linkedin_company_finished_urls VALUES ('{}') ON CONFLICT DO NOTHING".format(res['Linkedin URL'])
         self.con.cursor.execute("INSERT INTO linkedin_company_finished_urls VALUES (%s) ON CONFLICT DO NOTHING",(res['Linkedin URL'],))
         self.con.cursor.execute("DELETE FROM {} WHERE url = %s".format(self.urls_to_crawl_table),(res['Linkedin URL'],))
+        if res.get('Linkedin URL','') != res.get('Original URL',''):
+            self.con.cursor.execute("INSERT INTO linkedin_company_finished_urls VALUES (%s) ON CONFLICT DO NOTHING",(res['Original URL'],))
+            self.con.cursor.execute("DELETE FROM {} WHERE url = %s".format(self.urls_to_crawl_table),(res['Original URL'],))
         # get list of company urls to crawl and add them
         # urls = []
         # for com_dic in res['Also Viewed Companies']:
         #     urls.append(re.sub(linkedin_url_clean_regex,'',com_dic['company_linkedin_url']))
         if also_viewed_urls:
+            also_viewed_urls = [i.split('{}')[0] for i in also_viewed_urls]
             # tmp_query = "'" + "','".join(also_viewed_urls) + "'"
             # tmp_query = ",".join(also_viewed_urls)
             # query = 'select url from linkedin_company_finished_urls where url in ({})'.format(tmp_query)
@@ -259,6 +265,7 @@ class LinkedinCompanyCrawlerThread(object):
         # for com_dic in res['Employee Details']:
         #     urls.append(re.sub(linkedin_url_clean_regex,'',com_dic['linkedin_url']))
         if employee_urls:
+            employee_urls = [i.split('{}')[0] for i in employee_urls]
             # tmp_query = "'" + "','".join(employee_urls) + "'"
             # query = 'select url from linkedin_people_finished_urls where url in ({})'.format(tmp_query)
             # self.con.execute(query)
@@ -407,7 +414,7 @@ class LinkedinProfileCrawlerThread(object):
                                       'previous_companies','education','industry','summary','skills','experience',
                                       'related_people','same_name_people']
         if proxy:
-            self.proxy_generator = ProxyGen(browser=browser,visible=visible,page_load_timeout=25)
+            self.proxy_generator = ProxyGen(browser=browser,visible=visible,page_load_timeout=60)
             self.proxies = Queue(maxsize=0)
             # self.proxies.put((None,None)) #try with actual ip first time
             # self.gen_proxies() #moving this to run call due to logging problem
@@ -496,10 +503,10 @@ class LinkedinProfileCrawlerThread(object):
                         elif 'Notes' in res:
                             if res['Notes'] == 'Not Available Pubicly':
                                 # self.out_queue.put(res)
-                                pass
+                                no_errors += 1
                             elif res['Notes'] == 'Java script code':
                                 # self.out_queue.put(res)
-                                pass
+                                no_errors += 1
                         else:
                             no_errors += 1
                     else:
@@ -601,11 +608,18 @@ class LinkedinProfileCrawlerThread(object):
         # finished_query = u"INSERT INTO linkedin_company_finished_urls VALUES ('{}') ON CONFLICT DO NOTHING".format(res['Linkedin URL'])
         self.con.cursor.execute("INSERT INTO linkedin_people_finished_urls VALUES (%s) ON CONFLICT DO NOTHING",(res['Linkedin URL'],))
         self.con.cursor.execute("DELETE FROM {} WHERE url = %s".format(self.urls_to_crawl_table),(res['Linkedin URL'],))
+        if res.get('Linkedin URL','') != res.get('Original URL',''):
+            self.con.cursor.execute("INSERT INTO linkedin_people_finished_urls VALUES (%s) ON CONFLICT DO NOTHING",(res['Original URL'],))
+            self.con.cursor.execute("DELETE FROM {} WHERE url = %s".format(self.urls_to_crawl_table),(res['Original URL'],))
         # get list of company urls to crawl and add them
         # urls = []
         # for com_dic in res['Also Viewed Companies']:
         #     urls.append(re.sub(linkedin_url_clean_regex,'',com_dic['company_linkedin_url']))
         if related_people_urls or same_name_urls:
+            if related_people_urls:
+                related_people_urls = [i.split('{}')[0] for i in related_people_urls]
+            if same_name_urls:
+                same_name_urls = [i.split('{}')[0] for i in same_name_urls]
             # tmp_query = "'" + "','".join(also_viewed_urls) + "'"
             # tmp_query = ",".join(also_viewed_urls)
             # query = 'select url from linkedin_company_finished_urls where url in ({})'.format(tmp_query)
@@ -629,6 +643,7 @@ class LinkedinProfileCrawlerThread(object):
         # for com_dic in res['Employee Details']:
         #     urls.append(re.sub(linkedin_url_clean_regex,'',com_dic['linkedin_url']))
         if company_urls:
+            company_urls = [i.split('{}')[0] for i in company_urls]
             # tmp_query = "'" + "','".join(employee_urls) + "'"
             # query = 'select url from linkedin_people_finished_urls where url in ({})'.format(tmp_query)
             # self.con.execute(query)
