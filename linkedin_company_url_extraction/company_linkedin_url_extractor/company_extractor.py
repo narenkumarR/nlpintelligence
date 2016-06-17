@@ -26,15 +26,16 @@ class CompanyLinkedinURLExtractorSingle(object):
         :return:
         '''
         # logging.info('get_linkedin_url url:{}'.format(company_url))
-        soup = self.crawler.single_wp(company_url,timeout=time_out)
-        soup = self.crawler.get_url(company_url)
-        if str(soup):
-            urls = self.get_urls_soupinput(soup,company_url)
-            linkedin_url,confidence = self.get_linkedin_company_url_listinput(urls,company_url)
-            if confidence>0 and linkedin_url:
-                return linkedin_url,confidence
-        else: #else try from ddg. if could not find from main page also, try ddg
-            pass
+        if re.search('http',company_url) and re.search('www',company_url):
+            soup = self.crawler.single_wp(company_url,timeout=time_out)
+            soup = self.crawler.get_url(company_url)
+            if str(soup):
+                urls = self.get_urls_soupinput(soup,company_url)
+                linkedin_url,confidence = self.get_linkedin_company_url_listinput(urls,company_url)
+                if confidence>0 and linkedin_url:
+                    return linkedin_url,confidence
+            else: #else try from ddg. if could not find from main page also, try ddg
+                pass
         search_query = company_url+' linkedin'
         search_res = self.ddg_crawler.fetch_results(search_query,timeout=time_out)
         conf = 95
