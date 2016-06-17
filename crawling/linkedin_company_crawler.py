@@ -100,11 +100,15 @@ class LinkedinOrganizationService(object):
         :return:
         '''
         try:
-            self.details = {'Linkedin URL':url}
+            self.details = {'Linkedin URL':url,'Original URL':url}
             if use_selenium:
                 self.soup = self.link_parser.get_soup(url)
+                redirect_url = self.link_parser.browser.current_url
+                if '?trk=login_reg_redirect' in redirect_url:
+                    redirect_url = url
             else:
                 self.soup = self._crawler(url)
+                redirect_url = url
             try:
                 if 'Largest Professional Network' in self.soup.title.text:
                     self.details['Notes'] = 'Not Available Pubicly'
@@ -115,6 +119,7 @@ class LinkedinOrganizationService(object):
                 # logging.info(self.soup)
             # else:
             #     self.details['Notes'] = 'Publicaly available'
+            self.details['Linkedin URL'] = redirect_url
             self.get_name()
             self.get_description()
             self.get_details()
