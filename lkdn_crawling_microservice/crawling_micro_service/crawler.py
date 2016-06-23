@@ -1,6 +1,7 @@
 __author__ = 'joswin'
 
 import re
+import gc
 from Queue import Queue
 import threading
 import logging
@@ -33,9 +34,10 @@ class LinkedinCompanyCrawlerThread(object):
             self.con = PostgresConnect()
             self.table_fields = ['Linkedin URL','Company Name','Company Size','Industry','Type','Headquarters',
                                  'Description Text','Founded','Specialties','Website'
-                ,'Employee Details','Also Viewed Companies']
+                ,'Employee Details','Also Viewed Companies','list_id','list_items_url_id']
             self.table_field_names = ['linkedin_url','company_name','company_size','industry','company_type','headquarters',
-                                      'description','founded','specialties','website','employee_details','also_viewed_companies']
+                                      'description','founded','specialties','website','employee_details','also_viewed_companies',
+                                      'list_id','list_items_url_id']
         if proxy:
             self.proxy_generator = ProxyGen(visible=visible,page_load_timeout=60)
             self.proxies = Queue(maxsize=0)
@@ -50,10 +52,15 @@ class LinkedinCompanyCrawlerThread(object):
             return [(None,None)]
         else:
             try:
+                self.proxy_generator.activate_browser()
                 proxies = self.proxy_generator.generate_proxy()
             except Exception :
                 logging.exception('could not create proxies. using None')
                 proxies = [(None,None)]
+            try:
+                self.proxy_generator.browser.exit()
+            except:
+                pass
         logging.info('Proxies fetched {}'.format(proxies))
         for i in proxies:
             if i[0] is not None:
@@ -90,9 +97,10 @@ class LinkedinCompanyCrawlerThread(object):
         no_errors = 0
         ind = 0
         n_blocks =0
+        self.crawler_queue.put(crawler)
         while self.run_queue:
             ind += 1
-            url = self.in_queue.get()
+            url,list_items_url_id = self.in_queue.get()
             # if url in self.processed_queue.queue or url in self.error_queue.queue:
             #     continue
             logging.info('Input URL:{}, thread:{}'.format(url,threading.currentThread()))
@@ -106,8 +114,6 @@ class LinkedinCompanyCrawlerThread(object):
                 event.wait(timeout=60)
                 if res_1 is None: #if None means timeout happened, push to queue again. (this is causing the programe to
                     #                 not stop in some cases. So not pushing to in queue again)
-                    # crawler.exit()
-                    # self.in_queue.put(url)
                     logging.info('res_1 is None for url:{}, thread:{}'.format(url,threading.currentThread()))
                     no_errors += 1
                 elif 'result' in res_1:
@@ -115,22 +121,10 @@ class LinkedinCompanyCrawlerThread(object):
                     if res:
                         if 'Company Name' in res :
                             if res['Company Name'] and res['Company Name'] != 'LinkedIn':
-                                self.out_queue.put(res)
+                                self.out_queue.put((res,list_items_url_id))
                                 # self.processed_queue.put(url)
                                 no_errors = 0
                                 n_blocks = 0
-                                # if 'Also Viewed Companies' in res:
-                                    # for com_dic in res['Also Viewed Companies']:
-                                    #     if com_dic['company_linkedin_url'] not in self.processed_queue.queue:
-                                    #         self.in_queue.put(com_dic['company_linkedin_url'])
-                                # if res['Company Name'] not in self.processed_queue.queue:
-                                #     self.processed_queue.put(res['Company Name'])
-                                #     self.out_queue.put(res)
-                                #     no_errors = 0
-                                #     n_blocks = 0
-                                # else:
-                                #     logging.info('Duplicate name while processing url:'+url+'. Duplicate value:'+res['Company Name'])
-                                #     no_errors += 1
                             else:
                                 logging.info('res company name is linkedin (default page) for url:{}, thread:{}'.format(url,threading.currentThread()))
                                 no_errors += 1
@@ -195,8 +189,14 @@ class LinkedinCompanyCrawlerThread(object):
                         except:
                             logging.exception('Exception, can not restart crawler with already existing parameters, trying to restart, thread:{}'.format(threading.currentThread()))
                             try:
+                                try:
+                                    del crawler
+                                    gc.collect()
+                                except:
+                                    pass
                                 crawler = linkedin_company_crawler.LinkedinOrganizationService(self.browser,self.visible,proxy=self.proxy,
                                                                       proxy_ip=proxy_ip,proxy_port=proxy_port,use_tor=self.use_tor)
+                                self.crawler_queue.put(crawler)
                             except:
                                 logging.exception('could not start crawler, thread:{0}'.format(threading.currentThread()))
                                 # break #stop this thread??
@@ -208,7 +208,7 @@ class LinkedinCompanyCrawlerThread(object):
         crawler.exit()
         logging.info('crawler exited, thread:{}'.format(threading.currentThread()))
 
-    def save_to_table(self,res):
+    def save_to_table(self,res,list_items_url_id):
         '''
         :param res:
         :return:
@@ -231,76 +231,53 @@ class LinkedinCompanyCrawlerThread(object):
         else:
             also_viewed_urls = []
             res['Also Viewed Companies'] = ''
+        res['list_id'] = self.list_id
+        res['list_items_url_id'] = list_items_url_id
         res_fields = []
         for field in self.table_fields:
             field_val = res.get(field,'NULL')
             res_fields.append(field_val)
-        # res_query = "'" + "','".join(res_fields) + "'"  # 'value1','value2' format
-        # res_query = ",".join(res_fields)
-        # query = u'INSERT INTO linkedin_company_base VALUES ({}) ON CONFLICT DO NOTHING'.format(res_query)
-        # self.con.cursor.execute('''INSERT INTO linkedin_company_base
-        #                 VALUES ( %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s ) ON CONFLICT DO NOTHING''',
-        #                  (res_fields[0],res_fields[1],res_fields[2],res_fields[3],res_fields[4],res_fields[5],res_fields[6],
-        #                 res_fields[7],res_fields[8],res_fields[9],res_fields[10],res_fields[11]))
-        query = '''INSERT INTO {} ({}) VALUES ( %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s ) '''.format(self.base_table,','.join(self.table_field_names))
+        query = "INSERT INTO {} ({}) VALUES ( {} )".format(self.base_table,','.join(self.table_field_names),','.join(['%s']*len(self.table_fields)))
         self.con.cursor.execute(query,res_fields)
-        # add the url to finished url
-        # finished_query = u"INSERT INTO linkedin_company_finished_urls VALUES ('{}') ON CONFLICT DO NOTHING".format(res['Linkedin URL'])
-        # logging.info("INSERT INTO {} VALUES ({}) ON CONFLICT DO NOTHING".format(self.finished_urls_table_company,res['Linkedin URL']))
-        self.con.cursor.execute("INSERT INTO {} VALUES (%s) ON CONFLICT DO NOTHING".format(self.finished_urls_table_company),(res['Linkedin URL'],))
-        self.con.cursor.execute("DELETE FROM {} WHERE url = %s".format(self.urls_to_crawl_table),(res['Linkedin URL'],))
+        self.con.cursor.execute("INSERT INTO {} (url,list_id,list_items_url_id) VALUES (%s,%s,%s) ON "\
+                "CONFLICT DO NOTHING".format(self.finished_urls_table_company),(res['Linkedin URL'],self.list_id,list_items_url_id,))
+        self.con.cursor.execute("DELETE FROM {} WHERE url = %s and list_id = %s".format(self.urls_to_crawl_table),(res['Linkedin URL'],self.list_id,))
         if res.get('Linkedin URL','') != res.get('Original URL',''):
-            self.con.cursor.execute("INSERT INTO {} VALUES (%s) ON CONFLICT DO NOTHING".format(self.finished_urls_table_company),(res['Original URL'],))
-            self.con.cursor.execute("DELETE FROM {} WHERE url = %s".format(self.urls_to_crawl_table),(res['Original URL'],))
-        self.con.cursor.execute("INSERT INTO linkedin_company_redirect_url (url,redirect_url) VALUES (%s,%s),(%s,%s) ON CONFLICT DO NOTHING",
+            self.con.cursor.execute("INSERT INTO {} (url,list_id,list_items_url_id) VALUES (%s,%s,%s) "\
+                    "ON CONFLICT DO NOTHING".format(self.finished_urls_table_company),(res['Original URL'],self.list_id,list_items_url_id,))
+            self.con.cursor.execute("DELETE FROM {} WHERE url = %s and list_id = %s".format(self.urls_to_crawl_table),(res['Original URL'],self.list_id,))
+        self.con.cursor.execute("INSERT INTO crawler.linkedin_company_redirect_url (url,redirect_url) VALUES (%s,%s),(%s,%s) ON CONFLICT DO NOTHING",
                                 (res['Original URL'],res['Linkedin URL'],res['Linkedin URL'],res['Linkedin URL'],))
 
-        # get list of company urls to crawl and add them
-        # urls = []
-        # for com_dic in res['Also Viewed Companies']:
-        #     urls.append(re.sub(linkedin_url_clean_regex,'',com_dic['company_linkedin_url']))
         if also_viewed_urls:
             also_viewed_urls = [i.split('{}')[0] for i in also_viewed_urls]
-            # tmp_query = "'" + "','".join(also_viewed_urls) + "'"
-            # tmp_query = ",".join(also_viewed_urls)
-            # query = 'select url from linkedin_company_finished_urls where url in ({})'.format(tmp_query)
-            # self.con.execute(query)
-            self.con.cursor.execute(self.con.cursor.mogrify('SELECT url FROM {} WHERE url IN %s'.format(self.finished_urls_table_company), (tuple(also_viewed_urls),)))
+            also_viewed_urls = [i for i in also_viewed_urls if re.search(r'linkedin',i)]
+            self.con.cursor.execute(self.con.cursor.mogrify("SELECT url FROM {} WHERE "\
+                "list_id = %s and url IN %s".format(self.finished_urls_table_company), (self.list_id,tuple(also_viewed_urls),)))
             already_crawled_urls = self.con.cursor.fetchall()
             already_crawled_urls = [i[0] for i in already_crawled_urls]
             urls_to_crawl = list(set(also_viewed_urls)-set(already_crawled_urls))
             if urls_to_crawl:
-                # for url in urls_to_crawl:
-                #     if url:
-                #         # query = u"INSERT INTO linkedin_company_urls_to_crawl VALUES ('{}') ON CONFLICT DO NOTHING".format(url)
-                #         self.con.cursor.execute("INSERT INTO linkedin_company_urls_to_crawl VALUES (%s) ON CONFLICT DO NOTHING",(url,))
                 # insert all urls together
                 records_list_template = ','.join(['%s']*len(urls_to_crawl))
-                insert_query = 'INSERT INTO {} VALUES {} ON CONFLICT DO NOTHING'.format(self.urls_to_crawl_table,records_list_template)
-                urls_to_crawl1 = [(i,) for i in urls_to_crawl]
+                insert_query = "INSERT INTO {} (url,list_id,list_items_url_id) VALUES {} "\
+                        "ON CONFLICT DO NOTHING".format(self.urls_to_crawl_table,records_list_template)
+                urls_to_crawl1 = [(i,self.list_id,list_items_url_id,) for i in urls_to_crawl]
                 self.con.cursor.execute(insert_query, urls_to_crawl1)
-        # get list of people urls to crawl and add them
-        # urls = []
-        # for com_dic in res['Employee Details']:
-        #     urls.append(re.sub(linkedin_url_clean_regex,'',com_dic['linkedin_url']))
+
         if employee_urls:
             employee_urls = [i.split('{}')[0] for i in employee_urls]
-            # tmp_query = "'" + "','".join(employee_urls) + "'"
-            # query = 'select url from linkedin_people_finished_urls where url in ({})'.format(tmp_query)
-            # self.con.execute(query)
-            self.con.cursor.execute(self.con.cursor.mogrify('SELECT url FROM {} WHERE url IN %s'.format(self.finished_urls_table_people), (tuple(employee_urls),)))
+            employee_urls = [i for i in employee_urls if re.search(r'linkedin',i)]
+            self.con.cursor.execute(self.con.cursor.mogrify("SELECT url FROM {} WHERE "\
+                    "list_id = %s and url IN %s".format(self.finished_urls_table_people), (self.list_id,tuple(employee_urls),)))
             already_crawled_urls = self.con.cursor.fetchall()
             already_crawled_urls = [i[0] for i in already_crawled_urls]
             urls_to_crawl = list(set(employee_urls)-set(already_crawled_urls))
             if urls_to_crawl:
-                # for url in urls_to_crawl:
-                #     if url:
-                #         # query = u"INSERT INTO linkedin_people_urls_to_crawl VALUES ('{}') ON CONFLICT DO NOTHING".format(url)
-                #         self.con.cursor.execute("INSERT INTO linkedin_people_urls_to_crawl VALUES (%s) ON CONFLICT DO NOTHING",(url,))
-                # inserting all urls together
                 records_list_template = ','.join(['%s']*len(urls_to_crawl))
-                insert_query = 'INSERT INTO {} VALUES {} ON CONFLICT DO NOTHING'.format(self.urls_to_crawl_table_people,records_list_template)
-                urls_to_crawl1 = [(i,) for i in urls_to_crawl]
+                insert_query = "INSERT INTO {} (url,list_id,list_items_url_id) VALUES {} "\
+                 "ON CONFLICT DO NOTHING".format(self.urls_to_crawl_table_people,records_list_template)
+                urls_to_crawl1 = [(i,self.list_id,list_items_url_id,) for i in urls_to_crawl]
                 self.con.cursor.execute(insert_query, urls_to_crawl1)
         self.con.commit()
         self.con.close_cursor()
@@ -311,9 +288,9 @@ class LinkedinCompanyCrawlerThread(object):
         :return:
         '''
         while self.run_write_queue:
-            res = self.out_queue.get()
+            res,list_items_url_id = self.out_queue.get()
             if self.use_db:
-                self.save_to_table(res)
+                self.save_to_table(res,list_items_url_id)
             else:
                 if res is None:
                     break
@@ -321,17 +298,18 @@ class LinkedinCompanyCrawlerThread(object):
                     f.write(str(res)+'\n')
             self.out_queue.task_done()
 
-    def run(self,inp_list,out_loc,log_file_loc,n_threads=2,limit_no=2000,urls_to_crawl_table='linkedin_company_urls_to_crawl',
-            urls_to_crawl_priority='linkedin_company_urls_to_crawl_priority',base_table='linkedin_people_base',
-            urls_to_crawl_table_people = 'linkedin_people_urls_to_crawl',
-            finished_urls_table_company = 'linkedin_company_finished_urls',
-            finished_urls_table_people = 'linkedin_people_finished_urls'):
+    def run(self,inp_list,out_loc,log_file_loc,n_threads=2,limit_no=2000,urls_to_crawl_table='crawler.linkedin_company_urls_to_crawl',
+            urls_to_crawl_priority='crawler.linkedin_company_urls_to_crawl_priority',base_table='crawler.linkedin_people_base',
+            urls_to_crawl_table_people = 'crawler.linkedin_people_urls_to_crawl',
+            finished_urls_table_company = 'crawler.linkedin_company_finished_urls',
+            finished_urls_table_people = 'crawler.linkedin_people_finished_urls',
+            list_id = None):
         '''
         :param inp_list:
         :param out_loc:
         :return:
         '''
-        logging.basicConfig(filename=log_file_loc, level=logging.INFO,format='%(asctime)s %(message)s')
+        # logging.basicConfig(filename=log_file_loc, level=logging.INFO,format='%(asctime)s %(message)s')
         if self.use_db:
             self.urls_to_crawl_table = urls_to_crawl_table
             self.urls_to_crawl_priority = urls_to_crawl_priority
@@ -339,23 +317,35 @@ class LinkedinCompanyCrawlerThread(object):
             self.urls_to_crawl_table_people = urls_to_crawl_table_people
             self.finished_urls_table_company = finished_urls_table_company
             self.finished_urls_table_people = finished_urls_table_people
+            self.list_id = list_id
+            self.crawler_queue = Queue(maxsize=0)
             self.con.get_cursor()
             # first look at priority table
-            query = 'select url from {} limit {}'.format(self.urls_to_crawl_priority,limit_no)
-            self.con.cursor.execute(query)
+            query = "select a.url,a.list_items_url_id from {} a left join {} b on a.url = b.url and a.list_id = b.list_id "\
+                    "where a.list_id = %s and b.url is NULL limit {}".format(self.urls_to_crawl_priority,
+                                                                             self.finished_urls_table_company,limit_no)
+            self.con.cursor.execute(query,(self.list_id,))
             inp_list_priority = self.con.cursor.fetchall()
             limit_no = limit_no - len(inp_list_priority)
             # deleting the urls from priority table and inserting to base urls_to_crawl table
             if inp_list_priority:
                 records_list_template = ','.join(['%s']*len(inp_list_priority))
-                query = 'DELETE FROM {} WHERE url in ({})'.format(self.urls_to_crawl_priority,records_list_template)
-                self.con.cursor.execute(query, inp_list_priority)
+                query = "DELETE FROM {} WHERE url in ({}) and list_id = %s ".format(
+                    self.urls_to_crawl_priority,records_list_template)
+                self.con.cursor.execute(query, [i[0] for i in inp_list_priority]+[self.list_id])
                 # self.con.commit()
-                query = 'INSERT INTO {} VALUES {} ON CONFLICT DO NOTHING'.format(self.urls_to_crawl_table,records_list_template)
-                self.con.cursor.execute(query, inp_list_priority)
+                # following query is to make sure this url is not lost when a url in priority table is lost for some reason
+                query = "INSERT INTO {} (url,list_id,list_items_url_id) VALUES {} ON CONFLICT DO NOTHING".format(self.urls_to_crawl_table,
+                                                                                 records_list_template)
+                self.con.cursor.execute(query,[(i[0],self.list_id,i[1]) for i in inp_list_priority])
                 self.con.commit()
             if limit_no >0 :
-                query = 'select url from {} offset floor(random() * (select count(*) from {})) limit {}'.format(self.urls_to_crawl_table,self.urls_to_crawl_table,limit_no)
+                query = "delete from {} a using {} b where a.url=b.url "\
+                        " and a.list_id=b.list_id".format(self.urls_to_crawl_table,self.finished_urls_table_company)
+                # query = 'select url from linkedin_company_urls_to_crawl limit {}'.format(limit_no)
+                self.con.cursor.execute(query)
+                query = "select url,list_items_url_id from {} offset floor(random() * (select count(*) from {})) "\
+                        "limit {}".format(self.urls_to_crawl_table,self.urls_to_crawl_table,limit_no)
                 # query = 'select url from linkedin_company_urls_to_crawl limit {}'.format(limit_no)
                 self.con.cursor.execute(query)
                 inp_list = self.con.cursor.fetchall()
@@ -363,7 +353,8 @@ class LinkedinCompanyCrawlerThread(object):
                 inp_list = []
             # creating final list
             inp_list = inp_list_priority+inp_list
-            inp_list = [i[0] for i in inp_list]
+            inp_list = [(i[0],i[1]) for i in inp_list]
+            inp_list = list(set(inp_list))
             self.con.close_cursor()
         self.run_queue = True
         self.run_write_queue = True
@@ -383,31 +374,27 @@ class LinkedinCompanyCrawlerThread(object):
         for i in inp_list:
             self.in_queue.put(i)
         del inp_list
-        # self.in_queue.join()
-        #doing while loop instead of join to save all the results in the queue. not sure if this is working or not.
         while not self.in_queue.empty():
             try:
                 time.sleep(2)
             except :
                 # self.run_queue = False
                 break
-        # time.sleep(20) #giving 20 second wait for all existing tasks to finish
-        # if using db, put remaining urls back to table
-        # if self.use_db:
-        #     remaining_urls = list(self.in_queue.queue)
-        #     if remaining_urls:
-        #         logging.info('Crawling stopped. Put remaining urls back to table. No of urls remaining:'.format(len(remaining_urls)))
-        #         self.con.get_cursor()
-        #         records_list_template = ','.join(['%s']*len(remaining_urls))
-        #         query = 'INSERT INTO linkedin_company_urls_to_crawl VALUES {0} ON CONFLICT DO NOTHING'.format(records_list_template)
-        #         remaining_urls1 = [(i,) for i in remaining_urls]
-        #         self.con.cursor.execute(query, remaining_urls1)
-        #         self.con.close_cursor()
         logging.info('crawling stopped, trying to save already crawled results. No of results left in out queue : {}'.format(len(self.out_queue.queue)))
         self.out_queue.join()
         self.run_queue = False
         self.run_write_queue = False
         self.proxy_generator.exit()
+        while not self.crawler_queue.empty():
+            try:
+                crl = self.crawler_queue.get()
+                try:
+                    crl.exit()
+                except:
+                    pass
+                del crl
+            except:
+                continue
         logging.info('Finished. No of results left in out queue : {}'.format(len(self.out_queue.queue)))
         # logging._removeHandlerRef()
         time.sleep(5)
@@ -432,15 +419,13 @@ class LinkedinProfileCrawlerThread(object):
             self.con = PostgresConnect()
             self.table_fields = ['Linkedin URL','Name','Position','Location','Company','CompanyLinkedinPage',
                                  'PreviousCompanies','Education','Industry','Summary','Skills','Experience'
-                                 ,'Related People','Same Name People']
+                                 ,'Related People','Same Name People','list_id','list_items_url_id']
             self.table_field_names = ['linkedin_url','name','sub_text','location','company_name','company_linkedin_url',
                                       'previous_companies','education','industry','summary','skills','experience',
-                                      'related_people','same_name_people']
+                                      'related_people','same_name_people','list_id','list_items_url_id']
         if proxy:
             self.proxy_generator = ProxyGen(browser=browser,visible=visible,page_load_timeout=60)
             self.proxies = Queue(maxsize=0)
-            # self.proxies.put((None,None)) #try with actual ip first time
-            # self.gen_proxies() #moving this to run call due to logging problem
 
     def gen_proxies(self):
         '''
@@ -450,10 +435,15 @@ class LinkedinProfileCrawlerThread(object):
             return [(None,None)]
         else:
             try:
+                self.proxy_generator.activate_browser()
                 proxies = self.proxy_generator.generate_proxy()
             except Exception :
                 logging.exception('could not create proxies. using None')
                 proxies = [(None,None)]
+            try:
+                self.proxy_generator.browser.exit()
+            except:
+                pass
         logging.info('Proxies fetched {}'.format(proxies))
         for i in proxies:
             if i[0] is not None:
@@ -490,12 +480,13 @@ class LinkedinProfileCrawlerThread(object):
         no_errors = 0
         ind = 0
         n_blocks =0
+        self.crawler_queue.put(crawler)
         while self.run_queue:
             ind += 1
-            url = self.in_queue.get()
+            url,list_items_url_id = self.in_queue.get()
             logging.info('Input URL:{}, thread:{}'.format(url,threading.currentThread()))
             try:
-                time.sleep(randint(1,4))
+                time.sleep(randint(1,2))
                 res_1 = {}
                 event = threading.Event()
                 t1 = threading.Thread(target=get_output, args=(crawler,url,res_1,event,))
@@ -511,17 +502,9 @@ class LinkedinProfileCrawlerThread(object):
                     if res:
                         if 'Name' in res :
                             if res['Name'] and res['Name'] != 'LinkedIn':
-                                self.out_queue.put(res)
+                                self.out_queue.put((res,list_items_url_id))
                                 no_errors = 0
                                 n_blocks = 0
-                                # if res['Name'] not in self.processed_queue.queue:
-                                #     self.processed_queue.put(res['Name'])
-                                #     self.out_queue.put(res)
-                                #     no_errors = 0
-                                #     n_blocks = 0
-                                # else:
-                                #     logging.info('Duplicate name while processing url:'+url+'. Duplicate value:'+res['Name'])
-                                #     no_errors += 1
                             else:
                                 logging.info('res_1 company name is linkedin (default page) for url:{}, thread:{}'.format(url,threading.currentThread()))
                                 no_errors += 1
@@ -582,8 +565,14 @@ class LinkedinProfileCrawlerThread(object):
                         except:
                             logging.exception('Exception, can not restart crawler with already existing parameters, trying to restart, thread:{}'.format(threading.currentThread()))
                             try:
+                                try:
+                                    del crawler
+                                    gc.collect()
+                                except:
+                                    pass
                                 crawler = linkedin_profile_crawler.LinkedinProfileCrawler(self.browser,self.visible,proxy=self.proxy,
                                                                       proxy_ip=proxy_ip,proxy_port=proxy_port,use_tor=self.use_tor)
+                                self.crawler_queue.put(crawler)
                             except:
                                 logging.exception('could not start crawler')
             if no_errors>0:
@@ -593,13 +582,11 @@ class LinkedinProfileCrawlerThread(object):
         crawler.exit()
         logging.info('crawler exited, thread:{}'.format(threading.currentThread()))
 
-    def save_to_table(self,res):
+    def save_to_table(self,res,list_items_url_id):
         '''
         :param res:
         :return:
         '''
-        # company linkedin page needst to be added to urls to crawl
-        # first convert the connected fields into str. Otherwise the insert into table fails
         self.con.get_cursor()
         if res.get('Related People',[]):
             related_people_urls = [re.sub(linkedin_url_clean_regex,'',com_dic.get('Linkedin Page','')) + '{}' +
@@ -632,74 +619,51 @@ class LinkedinProfileCrawlerThread(object):
         for field in self.table_fields:
             field_val = res.get(field,'NULL')
             res_fields.append(field_val)
-        # res_query = "'" + "','".join(res_fields) + "'"  # 'value1','value2' format
-        # res_query = ",".join(res_fields)
-        # query = u'INSERT INTO linkedin_company_base VALUES ({}) ON CONFLICT DO NOTHING'.format(res_query)
-        # self.con.cursor.execute('''INSERT INTO linkedin_people_base
-        #                 VALUES ( %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s ) ON CONFLICT DO NOTHING''',
-        #                  (res_fields[0],res_fields[1],res_fields[2],res_fields[3],res_fields[4],res_fields[5],res_fields[6],
-        #                 res_fields[7],res_fields[8],res_fields[9],res_fields[10],res_fields[11]))
-        query = 'INSERT INTO {} ({}) VALUES ( %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s ) '.format(self.base_table,','.join(self.table_field_names))
+        query = "INSERT INTO {} ({}) VALUES ( {} )".format(self.base_table,','.join(self.table_field_names),','.join(['%s']*len(self.table_fields)))
         self.con.cursor.execute(query,res_fields)
         # add the url to finished url
-        # finished_query = u"INSERT INTO linkedin_company_finished_urls VALUES ('{}') ON CONFLICT DO NOTHING".format(res['Linkedin URL'])
-        # logging.info("INSERT INTO {} VALUES ({}) ON CONFLICT DO NOTHING".format(self.finished_urls_table_company,res['Linkedin URL']))
-        self.con.cursor.execute("INSERT INTO {} VALUES (%s) ON CONFLICT DO NOTHING".format(self.finished_urls_table_people),(res['Linkedin URL'],))
-        self.con.cursor.execute("DELETE FROM {} WHERE url = %s".format(self.urls_to_crawl_table),(res['Linkedin URL'],))
+        self.con.cursor.execute("INSERT INTO {} (url,list_id,list_items_url_id) VALUES (%s,%s,%s) ON "\
+                "CONFLICT DO NOTHING".format(self.finished_urls_table_people),(res['Linkedin URL'],self.list_id,list_items_url_id,))
+        self.con.cursor.execute("DELETE FROM {} WHERE url = %s and list_id = %s".format(self.urls_to_crawl_table),(res['Linkedin URL'],self.list_id,))
         if res.get('Linkedin URL','') != res.get('Original URL',''):
-            self.con.cursor.execute("INSERT INTO {} VALUES (%s) ON CONFLICT DO NOTHING".format(self.finished_urls_table_people),(res['Original URL'],))
-            self.con.cursor.execute("DELETE FROM {} WHERE url = %s".format(self.urls_to_crawl_table),(res['Original URL'],))
-        self.con.cursor.execute("INSERT INTO linkedin_people_redirect_url (url,redirect_url) VALUES (%s,%s),(%s,%s) ON CONFLICT DO NOTHING",
+            self.con.cursor.execute("INSERT INTO {} (url,list_id,list_items_url_id) VALUES (%s,%s,%s) "\
+                    "ON CONFLICT DO NOTHING".format(self.finished_urls_table_people),(res['Original URL'],self.list_id,list_items_url_id,))
+            self.con.cursor.execute("DELETE FROM {} WHERE url = %s and list_id = %s".format(self.urls_to_crawl_table),(res['Original URL'],self.list_id,))
+        self.con.cursor.execute("INSERT INTO crawler.linkedin_people_redirect_url (url,redirect_url) VALUES (%s,%s),(%s,%s) ON CONFLICT DO NOTHING",
                                 (res['Original URL'],res['Linkedin URL'],res['Linkedin URL'],res['Linkedin URL'],))
 
-        # get list of company urls to crawl and add them
-        # urls = []
-        # for com_dic in res['Also Viewed Companies']:
-        #     urls.append(re.sub(linkedin_url_clean_regex,'',com_dic['company_linkedin_url']))
         if related_people_urls or same_name_urls:
             if related_people_urls:
                 related_people_urls = [i.split('{}')[0] for i in related_people_urls]
             if same_name_urls:
                 same_name_urls = [i.split('{}')[0] for i in same_name_urls]
-            # tmp_query = "'" + "','".join(also_viewed_urls) + "'"
-            # tmp_query = ",".join(also_viewed_urls)
-            # query = 'select url from linkedin_company_finished_urls where url in ({})'.format(tmp_query)
-            # self.con.execute(query)
             people_urls = list(set(related_people_urls+same_name_urls))
-            self.con.cursor.execute(self.con.cursor.mogrify('SELECT url FROM {} WHERE url IN %s'.format(self.finished_urls_table_people), (tuple(people_urls),)))
+            people_urls = [i for i in people_urls if re.search(r'linkedin',i)]
+            self.con.cursor.execute(self.con.cursor.mogrify("SELECT url FROM {} WHERE "\
+                "list_id = %s and url IN %s".format(self.finished_urls_table_people), (self.list_id,tuple(people_urls),)))
             already_crawled_urls = self.con.cursor.fetchall()
             already_crawled_urls = [i[0] for i in already_crawled_urls]
             urls_to_crawl = list(set(people_urls)-set(already_crawled_urls))
             if urls_to_crawl:
-                # for url in urls_to_crawl:
-                #     if url:
-                #         # query = u"INSERT INTO linkedin_company_urls_to_crawl VALUES ('{}') ON CONFLICT DO NOTHING".format(url)
-                #         self.con.cursor.execute("INSERT INTO linkedin_people_urls_to_crawl VALUES (%s) ON CONFLICT DO NOTHING",(url,))
                 records_list_template = ','.join(['%s']*len(urls_to_crawl))
-                insert_query = 'INSERT INTO {} VALUES {} ON CONFLICT DO NOTHING'.format(self.urls_to_crawl_table,records_list_template)
-                urls_to_crawl1 = [(i,) for i in urls_to_crawl]
+                insert_query = "INSERT INTO {} (url,list_id,list_items_url_id) VALUES {} "\
+                        "ON CONFLICT DO NOTHING".format(self.urls_to_crawl_table,records_list_template)
+                urls_to_crawl1 = [(i,self.list_id,list_items_url_id,) for i in urls_to_crawl]
                 self.con.cursor.execute(insert_query, urls_to_crawl1)
-        # get list of people urls to crawl and add them
-        # urls = []
-        # for com_dic in res['Employee Details']:
-        #     urls.append(re.sub(linkedin_url_clean_regex,'',com_dic['linkedin_url']))
+
         if company_urls:
             company_urls = [i.split('{}')[0] for i in company_urls]
-            # tmp_query = "'" + "','".join(employee_urls) + "'"
-            # query = 'select url from linkedin_people_finished_urls where url in ({})'.format(tmp_query)
-            # self.con.execute(query)
-            self.con.cursor.execute(self.con.cursor.mogrify('SELECT url FROM {} WHERE url IN %s'.format(self.finished_urls_table_company), (tuple(company_urls),)))
+            company_urls = [i for i in company_urls if re.search(r'linkedin',i)]
+            self.con.cursor.execute(self.con.cursor.mogrify("SELECT url FROM {} WHERE "\
+                "list_id = %s and url IN %s".format(self.finished_urls_table_people), (self.list_id,tuple(company_urls),)))
             already_crawled_urls = self.con.cursor.fetchall()
             already_crawled_urls = [i[0] for i in already_crawled_urls]
             urls_to_crawl = list(set(company_urls)-set(already_crawled_urls))
             if urls_to_crawl:
-                # for url in urls_to_crawl:
-                #     if url:
-                #         # query = u"INSERT INTO linkedin_people_urls_to_crawl VALUES ('{}') ON CONFLICT DO NOTHING".format(url)
-                #         self.con.cursor.execute("INSERT INTO linkedin_company_urls_to_crawl VALUES (%s) ON CONFLICT DO NOTHING",(url,))
                 records_list_template = ','.join(['%s']*len(urls_to_crawl))
-                insert_query = 'INSERT INTO {} VALUES {} ON CONFLICT DO NOTHING'.format(self.urls_to_crawl_table_company,records_list_template)
-                urls_to_crawl1 = [(i,) for i in urls_to_crawl]
+                insert_query = "INSERT INTO {} (url,list_id,list_items_url_id) VALUES {} "\
+                        "ON CONFLICT DO NOTHING".format(self.urls_to_crawl_table,records_list_template)
+                urls_to_crawl1 = [(i,self.list_id,list_items_url_id,) for i in urls_to_crawl]
                 self.con.cursor.execute(insert_query, urls_to_crawl1)
         self.con.commit()
         self.con.close_cursor()
@@ -711,9 +675,9 @@ class LinkedinProfileCrawlerThread(object):
         :return:
         '''
         while self.run_write_queue:
-            res = self.out_queue.get()
+            res,list_items_url_id = self.out_queue.get()
             if self.use_db:
-                self.save_to_table(res)
+                self.save_to_table(res,list_items_url_id)
             else:
                 if res is None:
                     break
@@ -721,17 +685,18 @@ class LinkedinProfileCrawlerThread(object):
                     f.write(str(res)+'\n')
             self.out_queue.task_done()
 
-    def run(self,inp_list,out_loc,log_file_loc,n_threads=2,limit_no=2000,urls_to_crawl_table='linkedin_people_urls_to_crawl',
-            urls_to_crawl_priority='linkedin_people_urls_to_crawl_priority',base_table='linkedin_people_base',
-            urls_to_crawl_table_company = 'linkedin_company_urls_to_crawl',
-            finished_urls_table_company = 'linkedin_company_finished_urls',
-            finished_urls_table_people = 'linkedin_people_finished_urls'):
+    def run(self,inp_list,out_loc,log_file_loc,n_threads=2,limit_no=2000,urls_to_crawl_table='crawler.linkedin_people_urls_to_crawl',
+            urls_to_crawl_priority='crawler.linkedin_people_urls_to_crawl_priority',base_table='crawler.linkedin_people_base',
+            urls_to_crawl_table_company = 'crawler.linkedin_company_urls_to_crawl',
+            finished_urls_table_company = 'crawler.linkedin_company_finished_urls',
+            finished_urls_table_people = 'crawler.linkedin_people_finished_urls',
+            list_id = None):
         '''
         :param inp_list:
         :param out_loc:
         :return:
         '''
-        logging.basicConfig(filename=log_file_loc, level=logging.INFO,format='%(asctime)s %(message)s')
+        # logging.basicConfig(filename=log_file_loc, level=logging.INFO,format='%(asctime)s %(message)s')
         if self.use_db:
             self.urls_to_crawl_table = urls_to_crawl_table
             self.urls_to_crawl_priority = urls_to_crawl_priority
@@ -739,35 +704,38 @@ class LinkedinProfileCrawlerThread(object):
             self.urls_to_crawl_table_company = urls_to_crawl_table_company
             self.finished_urls_table_company = finished_urls_table_company
             self.finished_urls_table_people = finished_urls_table_people
+            self.list_id = list_id
+            self.crawler_queue = Queue(maxsize=0)
             self.con.get_cursor()
             # first look at priority table
-            query = 'select url from {} limit {}'.format(self.urls_to_crawl_priority,limit_no)
-            self.con.cursor.execute(query)
+            query = "select a.url,a.list_items_url_id from {} a left join {} b on a.url = b.url and a.list_id = b.list_id "\
+                    "where a.list_id = %s and b.url is NULL limit {}".format(self.urls_to_crawl_priority,
+                                                                             self.finished_urls_table_people,limit_no)
+            self.con.cursor.execute(query,(self.list_id,))
             inp_list_priority = self.con.cursor.fetchall()
             limit_no = limit_no - len(inp_list_priority)
             # deleting the urls from priority table and inserting to base urls_to_crawl table
             if inp_list_priority:
                 records_list_template = ','.join(['%s']*len(inp_list_priority))
-                query = 'DELETE FROM {} WHERE url in ({})'.format(self.urls_to_crawl_priority,records_list_template)
-                self.con.cursor.execute(query, inp_list_priority)
-                # self.con.commit()
-                query = 'INSERT INTO {} VALUES {} ON CONFLICT DO NOTHING'.format(self.urls_to_crawl_table,records_list_template)
-                self.con.cursor.execute(query, inp_list_priority)
+                query = "DELETE FROM {} WHERE url in ({}) and list_id = %s ".format(
+                    self.urls_to_crawl_priority,records_list_template,self.list_id)
+                self.con.cursor.execute(query, [i[0] for i in inp_list_priority]+[self.list_id])
+                # following query is to make sure this url is not lost when a url in priority table is lost for some reason
+                query = "INSERT INTO {} (url,list_id,list_items_url_id) VALUES {} ON CONFLICT DO NOTHING".format(self.urls_to_crawl_table,
+                                                                                 records_list_template)
+                self.con.cursor.execute(query, [(i[0],self.list_id,i[1]) for i in inp_list_priority])
                 self.con.commit()
             if limit_no>0:
-                # query = 'SELECT url FROM linkedin_people_urls_to_crawl LIMIT {}'.format(10)
-                query = 'select url from {} offset floor(random() * (select count(*) from {})) limit {}'.format(self.urls_to_crawl_table,self.urls_to_crawl_table,limit_no)
+                query = "select url,list_items_url_id from {} offset floor(random() * (select count(*) from {})) "\
+                        "limit {}".format(self.urls_to_crawl_table,self.urls_to_crawl_table,limit_no)
                 self.con.cursor.execute(query)
                 inp_list = self.con.cursor.fetchall()
             else:
                 inp_list = []
             # creating final list
             inp_list = inp_list_priority+inp_list
-            inp_list = [i[0] for i in inp_list]
-            # records_list_template = ','.join(['%s']*len(inp_list))
-            # query = 'DELETE FROM linkedin_people_urls_to_crawl WHERE url in ({})'.format(records_list_template)
-            # self.con.cursor.execute(query, inp_list)
-            # self.con.commit()
+            inp_list = [(i[0],i[1]) for i in inp_list]
+            inp_list = list(set(inp_list))
             self.con.close_cursor()
         self.run_queue = True
         self.run_write_queue = True
@@ -790,53 +758,25 @@ class LinkedinProfileCrawlerThread(object):
         while not self.in_queue.empty():
             try:
                 time.sleep(2)
-                # if self.use_db:
-                #     if len(self.in_queue.queue)<10:
-                #         self.con.get_cursor()
-                #         query = 'SELECT url FROM linkedin_people_urls_to_crawl LIMIT {}'.format(10)
-                #         self.con.cursor.execute(query)
-                #         inp_list = self.con.cursor.fetchall()
-                #         inp_list = [i[0] for i in inp_list]
-                #         records_list_template = ','.join(['%s']*len(inp_list))
-                #         query = 'DELETE FROM linkedin_people_urls_to_crawl WHERE url in ({})'.format(records_list_template)
-                #         self.con.cursor.execute(query, inp_list)
-                #         self.con.commit()
-                #         self.con.close_cursor()
-                #         for i in inp_list:
-                #             self.in_queue.put(i)
-                # else:
-                #     time.sleep(2)
             except :
                 # self.run_queue = False
                 break
         # time.sleep(20) #giving 20 second wait for all existing tasks to finish
         logging.info('crawling stopped, trying to save already crawled results. No of results left in out queue : {}'.format(len(self.out_queue.queue)))
         self.out_queue.join()
-        # if using db, we need to put the remaining urls in the in_queue back to table
-        # if self.use_db:
-        #     remaining_urls = list(self.in_queue.queue)
-        #     # logging.info('remaining urls:{}'.format(remaining_urls))
-        #     if remaining_urls:
-        #         logging.info('Crawling stopped.Put remaining urls back to table. No of urls remaining:{}'.format(len(remaining_urls)))
-        #         try:
-        #             self.con.get_cursor()
-        #         except:
-        #             logging.exception('error while getting cursor')
-        #         # logging.info('cursor got')
-        #         records_list_template = ','.join(['%s']*len(remaining_urls))
-        #         query = 'INSERT INTO linkedin_people_urls_to_crawl VALUES {0} ON CONFLICT DO NOTHING'.format(records_list_template)
-        #         remaining_urls1 = [(i,) for i in remaining_urls]
-        #         # logging.info('query:{},remaining_urls1:{}'.format(query,remaining_urls1))
-        #         try:
-        #             self.con.cursor.execute(query, remaining_urls1)
-        #         except:
-        #             logging.exception('error while inserting')
-        #         self.con.commit()
-        #         self.con.close_cursor()
-        #         logging.info('completed putting remaining urls')
         self.run_queue = False
         self.run_write_queue = False
         self.proxy_generator.exit()
+        while not self.crawler_queue.empty():
+            try:
+                crl = self.crawler_queue.get()
+                try:
+                    crl.exit()
+                except:
+                    pass
+                del crl
+            except:
+                continue
         logging.info('Finished. No of results left in out queue : {}'.format(len(self.out_queue.queue)))
         # logging._removeHandlerRef()
         time.sleep(5)

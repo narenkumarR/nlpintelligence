@@ -1,4 +1,9 @@
 '''
+from geopy import geocoders
+geocoder_web = geocoders.GoogleV3()
+location = geocoder_web.geocode('300 E. Sonterra San Antonio, TX 78258 United States')
+import pprint
+pprint.pprint(location.raw)
 #sample location from google
 {u'address_components': [{u'long_name': u'300',
                           u'short_name': u'300',
