@@ -106,7 +106,8 @@ class LinkedinCrawlerThread(object):
                                         visible=False,proxy=True,url_file='company_urls_to_crawl_18April.pkl',
                                         n_threads=6,use_tor=False,use_db=False,limit_no=2000,urls_to_crawl_table='linkedin_company_urls_to_crawl',
             urls_to_crawl_priority='linkedin_company_urls_to_crawl_priority',base_table='linkedin_people_base',
-            urls_to_crawl_table_people = 'linkedin_people_urls_to_crawl'):
+            urls_to_crawl_table_people = 'linkedin_people_urls_to_crawl',finished_urls_table_company = 'linkedin_company_finished_urls',
+            finished_urls_table_people = 'linkedin_people_finished_urls'):
         '''
         :param res_file:
         :param log_file:
@@ -124,13 +125,17 @@ class LinkedinCrawlerThread(object):
             res_file = crawled_loc+'company_crawled_'+re.sub(' ','_',str(datetime.datetime.now())[:-13])+'.txt'
         if log_file is None:
             log_file = crawled_loc+'logs/company_crawling'+re.sub(' ','_',str(datetime.datetime.now())[:-13])+'.log'
-        with open(url_file,'r') as f:
-            urls = pickle.load(f)
+        if use_db:
+            urls = []
+        else:
+            with open(url_file,'r') as f:
+                urls = pickle.load(f)
         cc = crawler.LinkedinCompanyCrawlerThread(browser,visible=visible,proxy=proxy,use_tor=use_tor,use_db=use_db)
         gc.collect()
         cc.run(urls,res_file,log_file,n_threads,limit_no=limit_no,urls_to_crawl_table=urls_to_crawl_table,
             urls_to_crawl_priority=urls_to_crawl_priority,base_table=base_table,
-            urls_to_crawl_table_people = urls_to_crawl_table_people)
+            urls_to_crawl_table_people = urls_to_crawl_table_people,finished_urls_table_company = finished_urls_table_company,
+            finished_urls_table_people = finished_urls_table_people)
 
     def run_organization_crawler_auto(self,crawled_loc='crawled_res/',browser = 'Firefox',visible=False,
                                  proxy=True,url_file='company_urls_to_crawl_18April.pkl',limit_no=30000,n_threads=6,
@@ -175,7 +180,8 @@ class LinkedinCrawlerThread(object):
                                         visible=False,proxy=True,url_file='people_urls_to_crawl_18April.pkl',
                                         n_threads=6,use_tor=False,use_db=False,limit_no=2000,urls_to_crawl_table='linkedin_people_urls_to_crawl',
             urls_to_crawl_priority='linkedin_people_urls_to_crawl_priority',base_table='linkedin_people_base',
-            urls_to_crawl_table_company = 'linkedin_company_urls_to_crawl'):
+            urls_to_crawl_table_company = 'linkedin_company_urls_to_crawl',finished_urls_table_company = 'linkedin_company_finished_urls',
+            finished_urls_table_people = 'linkedin_people_finished_urls'):
         '''
         :param res_file:
         :param log_file:
@@ -202,7 +208,8 @@ class LinkedinCrawlerThread(object):
         gc.collect()
         cc.run(urls,res_file,log_file,n_threads,limit_no=limit_no,urls_to_crawl_table=urls_to_crawl_table,
             urls_to_crawl_priority=urls_to_crawl_priority,base_table=base_table,
-            urls_to_crawl_table_company = urls_to_crawl_table_company)
+            urls_to_crawl_table_company = urls_to_crawl_table_company,finished_urls_table_company = finished_urls_table_company,
+            finished_urls_table_people = finished_urls_table_people)
 
     def run_people_crawler_auto(self,crawled_loc='crawled_res/',browser = 'Firefox',visible=False,
                                  proxy=True,url_file='people_urls_to_crawl_18April.pkl',limit_no=30000,n_threads=6,
@@ -363,7 +370,8 @@ class LinkedinCrawlerThread(object):
                                  urls_to_crawl_people='linkedin_people_urls_to_crawl',
             urls_to_crawl_people_priority='linkedin_people_urls_to_crawl_priority',people_base_table='linkedin_people_base',
             urls_to_crawl_company = 'linkedin_company_urls_to_crawl',urls_to_crawl_company_priority='linkedin_company_urls_to_crawl_priority',
-                                 company_base_table='linkedin_company_base'):
+                                 company_base_table='linkedin_company_base',finished_urls_table_company = 'linkedin_company_finished_urls',
+            finished_urls_table_people = 'linkedin_people_finished_urls'):
         if use_tor:
             proxy = False
         if use_db:
@@ -379,11 +387,13 @@ class LinkedinCrawlerThread(object):
         worker_people = multiprocessing.Process(target=self.run_people_crawler_single,
                                                 args=(None,None,crawled_loc,browser,visible,proxy,
                                                 'people_urls_to_crawl.pkl',n_threads,use_tor,use_db,limit_no,
-                                                urls_to_crawl_people,urls_to_crawl_people_priority,people_base_table,urls_to_crawl_company))
+                                                urls_to_crawl_people,urls_to_crawl_people_priority,people_base_table,urls_to_crawl_company,
+                                                finished_urls_table_company ,finished_urls_table_people ))
         worker_company = multiprocessing.Process(target=self.run_organization_crawler_single,
                                                  args=(None,None,crawled_loc,browser,visible,proxy,
                                                 'company_urls_to_crawl.pkl',n_threads,use_tor,use_db,limit_no,
-                                                 urls_to_crawl_company,urls_to_crawl_company_priority,company_base_table,urls_to_crawl_people))
+                                                 urls_to_crawl_company,urls_to_crawl_company_priority,company_base_table,urls_to_crawl_people,
+                                                 finished_urls_table_company ,finished_urls_table_people ))
         gc.collect()
         worker_people.daemon = True
         worker_company.daemon = True
@@ -429,10 +439,12 @@ if __name__ == '__main__':
         urls_to_crawl_company = sys.argv[7]
         urls_to_crawl_company_priority = sys.argv[8]
         company_base_table = sys.argv[9]
+        finished_urls_table_company = sys.argv[10]
+        finished_urls_table_people = sys.argv[11]
         cc.run_both_single(limit_no=limit_no,n_threads=n_threads,use_tor=use_tor,use_db=True,
-                           urls_to_crawl_people=urls_to_crawl_people,
-            urls_to_crawl_people_priority=urls_to_crawl_people_priority,people_base_table=people_base_table,
-            urls_to_crawl_company = urls_to_crawl_company,urls_to_crawl_company_priority=urls_to_crawl_company_priority,
-                                 company_base_table=company_base_table)
+            urls_to_crawl_people=urls_to_crawl_people,urls_to_crawl_people_priority=urls_to_crawl_people_priority,
+            people_base_table=people_base_table,urls_to_crawl_company = urls_to_crawl_company,
+            urls_to_crawl_company_priority=urls_to_crawl_company_priority,company_base_table=company_base_table,
+            finished_urls_table_company=finished_urls_table_company,finished_urls_table_people=finished_urls_table_people)
 
 

@@ -59,6 +59,15 @@ CREATE TABLE linkedin_company_urls_to_crawl_priority (
     url text UNIQUE
 );
 
+####capturing url redirection
+CREATE TABLE linkedin_company_redirect_url (
+    url text, redirect_url text
+);
+CREATE TABLE linkedin_people_redirect_url (
+    url text, redirect_url text
+);
+create unique index on linkedin_company_redirect_url(url,redirect_url);
+create unique index on linkedin_people_redirect_url(url,redirect_url);
 '''
 import pdb
 import re

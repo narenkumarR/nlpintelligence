@@ -1,7 +1,7 @@
 __author__ = 'joswin'
 region_name='ap-southeast-1'
-aws_access_key_id='AKIAJUDP7FRPRTLTANWA'
-aws_secret_access_key='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'
+aws_access_key_id='AKIAJ53GEQAAN6LWLTUQ'
+aws_secret_access_key='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'
 
-in_queue_name = 'intelligence_in_dev'
-out_queue_name = 'intelligence_out_dev'
+in_queue_name = 'pc-dev-intelligence-in'
+out_queue_name = 'pc-dev-intelligence-out'
