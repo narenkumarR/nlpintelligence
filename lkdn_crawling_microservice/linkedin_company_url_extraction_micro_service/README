@@ -1,0 +1,15 @@
+Install the following packages using pip
+eg: sudo pip install package-name
+flask,flask_restful,nltk,sklearn
+in nltk, download stopwords list and punkt model using nltk.download()
+
+To run:
+cd to the email_models_api folder
+edit the last line in api.py file:
+    app.run(host='0.0.0.0') #or whatever address we are going to run
+
+then start the app by doing:
+python api.py
+
+#eg to post a request on http://127.0.0.1:5000
+curl -H "Content-Type: application/json" -X POST -d '{"mail1":"not intereste","mail2":"stop spamming me"}' http://127.0.0.1:5000
