@@ -12,7 +12,7 @@ class NaiveBayesModel(object):
         '''
         :return:
         '''
-        pass
+        self.default_class_hardcode = np.array([u'random'],dtype='<U28')
 
     def fit_model(self,text_list,label_list,feature_loc='intent_class_models/naive_bayes/feature_names.txt',
                   default_class='',model_method = 'MultinomialNB',**kwargs):
@@ -79,6 +79,7 @@ class NaiveBayesModel(object):
             assert ll in self.model_classes
         self.model.partial_fit(self.vectorizer.transform(process_textlist(text_list)),pd.Series(label_list))
 
+
     def load_model(self,model_loc='intent_class_models/naive_bayes/model_object.pkl'):
         '''
         :param model_loc:
@@ -127,7 +128,11 @@ class NaiveBayesModel(object):
             probs = self.model.predict_proba(self.vectorizer.transform(process_textlist([text])))
             return pd.DataFrame({'Label':self.model_classes,'Probability':probs[0]})
         else:
-            return self.model.predict(self.vectorizer.transform(process_textlist([text])))
+            vec_rep = self.vectorizer.transform(process_textlist([text]))
+            if vec_rep.sum() == 0:
+                return self.default_class_hardcode
+            else:
+                return self.model.predict(vec_rep)
 
     def predict_listinput(self,text_list,prob=False):
         '''

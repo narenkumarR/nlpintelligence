@@ -17,17 +17,18 @@ from constants import company_common_reg
 class CompanyLinkedinURLExtractorSingle(object):
     '''Find url for a single company
     '''
-    def __init__(self):
+    def __init__(self,visible=False):
         # self.crawler = BeautifulsoupCrawl()
-        self.crawler = SeleniumParser(page_load_timeout=50)
-        self.ddg_crawler = DuckduckgoCrawler()
+        self.crawler = SeleniumParser(page_load_timeout=50,visible=visible)
+        self.ddg_crawler = DuckduckgoCrawler(visible=visible)
 
-    def get_linkedin_url(self,company_url,location='',time_out=30):
+    def get_linkedin_url(self,inp_tuple,time_out=30):
         '''
-        :param company_url:
+        :param inp_tuple:
         :param time_out:
         :return:
         '''
+        company_url,additional_text = inp_tuple
         # logging.info('get_linkedin_url url:{}'.format(company_url))
         if re.search('http',company_url) or re.search('www',company_url):
             # soup = self.crawler.single_wp(company_url,timeout=time_out)
@@ -39,14 +40,14 @@ class CompanyLinkedinURLExtractorSingle(object):
                     return linkedin_url,confidence
             else: #else try from ddg. if could not find from main page also, try ddg
                 pass
-        res = self.get_linkedin_url_ddg(company_url)
-        if res:
-            return res
+        res,conf = self.get_linkedin_url_ddg(company_url,additional_text)
+        if res and conf>0:
+            return res,conf
         else:
             logging.info('Could not find linkedin url for company : {}'.format(company_url))
-            return ''
+            return '',0
 
-    def get_linkedin_url_ddg(self,company_text):
+    def get_linkedin_url_ddg(self,company_text,additional_text=''):
         '''
         :param company_text: can be the website of the company or company name
         :return:
@@ -60,13 +61,25 @@ class CompanyLinkedinURLExtractorSingle(object):
             if re.search('linkedin.com/company',res_url):
                 res_list.append((res_url,text,conf))
             conf = min(conf-5,60)
-        final_res,final_conf = self.get_best_res_from_ddg_results(res_list,company_text)
+        final_res,final_conf = self.get_best_res_from_ddg_results(res_list,company_text,'')
         if final_conf >0 and final_res:
-            return final_res
-        else:
-            return ''
+            return final_res,final_conf
+        if additional_text:
+            search_query = company_text + ' ' + additional_text+' linkedin'
+            search_res = self.ddg_crawler.fetch_results(search_query)
+            conf = 90
+            res_list = []
+            for dic1 in search_res:
+                res_url,text = dic1['url'],dic1['text']
+                if re.search('linkedin.com/company',res_url):
+                    res_list.append((res_url,text,conf))
+                conf = min(conf-5,60)
+            final_res,final_conf = self.get_best_res_from_ddg_results(res_list,company_text+' '+additional_text,'')
+            if final_conf >0 and final_res:
+                return final_res,final_conf
+        return '',0
 
-    def get_best_res_from_ddg_results(self,res_list,company_text):
+    def get_best_res_from_ddg_results(self,res_list,company_text,additional_text=''):
         ''' match the results to get best result from ddg results. Will use string matching here
         :param res_list:
         :param company_text
@@ -79,6 +92,7 @@ class CompanyLinkedinURLExtractorSingle(object):
         company_text = re.sub(' +',' ',company_text)
         company_text = company_common_reg.sub(' ',company_text)
         company_text = re.sub(' +',' ',company_text)
+        company_text_wrds = company_text.split()
         res_list_new = []
         max_count = 0
         for url,text,conf in res_list:
@@ -93,7 +107,6 @@ class CompanyLinkedinURLExtractorSingle(object):
                 return url,100 #return url with confidence 100
             else:
                 match_cnt = 0
-                company_text_wrds = company_text.split()
                 for wrd in company_text_wrds:
                     if re.search(wrd,text_1):
                         match_cnt += 1
@@ -105,8 +118,8 @@ class CompanyLinkedinURLExtractorSingle(object):
                 else:
                     pass
         # return the url with max match_cnt. if more than 1 url, this will go into exception
-        if len(res_list) == 1:
-            return res_list[0],90 #
+        if len(res_list_new) == 1:
+            return res_list_new[0],90 #
         else:
             return '',0
 
@@ -146,7 +159,7 @@ class CompanyLinkedinURLExtractorSingle(object):
         :param base_url:
         :return:
         '''
-        soup = self.crawler.single_wp(base_url)
+        soup = self.crawler.get_soup(base_url)
         # soup = self.crawler.get_url(base_url)
         urls = self.get_urls_soupinput(soup,base_url)
         res_dic['Url direct result'] = self.get_linkedin_company_url_listinput(urls,base_url)
@@ -225,15 +238,15 @@ class CompanyLinkedinURLExtractorSingle(object):
         event.set()
 
 class CompanyLinkedinURLExtractorMulti(object):
-    def __init__(self):
-        logging.basicConfig(filename='log_file.log', level=logging.INFO,format='%(asctime)s %(message)s')
+    def __init__(self,visible=False):
+        # logging.basicConfig(filename='log_file.log', level=logging.INFO,format='%(asctime)s %(message)s')
+        self.visible = visible
 
-    def get_linkedin_url_single(self):
+    def get_linkedin_url_single(self,link_extractor):
         '''
         :param url:
         :return:
         '''
-        link_extractor = CompanyLinkedinURLExtractorSingle()
         # def get_output(link_extractor,url,res_1,event):
         #     start_time = time.time()
         #     try:
@@ -243,18 +256,16 @@ class CompanyLinkedinURLExtractorMulti(object):
         #     logging.info('completed run for url:{0} in {1} seconds, result: {2}'.format(url,time.time()-start_time,res_1))
         #     event.set()
         while self.run_queue:
-            key,url = self.in_queue.get()
-            logging.info('Trying to find linkedin url for : {0},{1}, thread:{2}'.format(key,url,threading.currentThread()))
+            key,inp_tuple = self.in_queue.get()
+            # logging.info('Trying to find linkedin url for : {0},{1}, thread:{2}'.format(key,inp_tuple,threading.currentThread()))
             try:
-                res = link_extractor.get_linkedin_url(url,time_out=self.time_out)
+                res = link_extractor.get_linkedin_url(inp_tuple,time_out=self.time_out)
                 if res:
                     self.out_queue.put((key,res))
-                logging.info('completed for : {0},{1}, res:{2},thread:{3}'.format(key,url,res,threading.currentThread()))
+                # logging.info('completed for : {0},{1}, res:{2},thread:{3}'.format(key,inp_tuple,res,threading.currentThread()))
             except:
                 pass
             self.in_queue.task_done()
-        link_extractor.crawler.browser.quit()
-        link_extractor.ddg_crawler.crawler.browser.quit()
 
     def get_outdic(self):
         '''
@@ -263,11 +274,11 @@ class CompanyLinkedinURLExtractorMulti(object):
         out_dic = {}
         while not self.out_queue.empty():
             key,linkedin_url = self.out_queue.get()
-            logging.info('fetched from out_queue: {0},{1}'.format(key,linkedin_url))
+            # logging.info('fetched from out_queue: {0},{1}'.format(key,linkedin_url))
             out_dic[key] = linkedin_url
         for key in self.url_dict.keys():
             if key not in out_dic:
-                logging.info('key not found for key:{0}, giving default'.format(key))
+                # logging.info('could not find linkedin ur for key:{0}'.format(key))
                 out_dic[key] = ('',0)
         return out_dic
 
@@ -282,14 +293,17 @@ class CompanyLinkedinURLExtractorMulti(object):
         self.run_queue = True
         self.in_queue = Queue(maxsize=0)
         self.out_queue = Queue(maxsize=0)
-        logging.info('threads started')
+        # logging.info('threads started')
         workers = []
+        worker_link_extractors = []
         for i in range(n_threads):
-            worker = threading.Thread(target=self.get_linkedin_url_single)
+            link_extractor = CompanyLinkedinURLExtractorSingle(visible=self.visible)
+            worker = threading.Thread(target=self.get_linkedin_url_single,args=(link_extractor,))
             worker.setDaemon(True)
             workers.append(worker)
+            worker_link_extractors.append(link_extractor)
             worker.start()
-        logging.info('putting urls into input queue')
+        # logging.info('putting urls into input queue')
         for i in url_dict:
             self.in_queue.put((i,url_dict[i]))
         start_time = time.time()
@@ -297,4 +311,7 @@ class CompanyLinkedinURLExtractorMulti(object):
         self.run_queue = False
         for worker in workers:
             worker.join(timeout=1)
+        for link_extractor in worker_link_extractors:
+            link_extractor.crawler.browser.quit()
+            link_extractor.ddg_crawler.crawler.browser.quit()
         return self.get_outdic()
