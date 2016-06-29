@@ -5,16 +5,19 @@ import pandas as pd
 import time
 import logging
 import os
+import threading
+
+from optparse import OptionParser
 
 from postgres_connect import PostgresConnect
-from optparse import OptionParser
 from linkedin_company_url_extraction_micro_service.linkedin_url_finder import LkdnUrlExtrMain
 from crawling_micro_service.crawler_generic import LinkedinCrawlerThread
 from crawling_micro_service.tables_updation import TableUpdater
 from gen_people_for_email import gen_people_details
 
+from constants import company_name_field,company_details_field,designations_column_name
 
-def run_main(list_name=None,company_csv_loc=None,desig_loc=None):
+def run_main(list_name=None,company_csv_loc=None,desig_loc=None,similar_companies=1,hours=1):
     '''
     :param list_name:
     :param company_csv_loc:
@@ -27,18 +30,18 @@ def run_main(list_name=None,company_csv_loc=None,desig_loc=None):
         raise ValueError('list name must be provided')
     if company_csv_loc:
         inp_df = pd.read_csv(company_csv_loc)
-        inp_list = [(inp_df.iloc[i]['name'],inp_df.iloc[i]['details']) for i in range(inp_df.shape[0])]
+        inp_list = [(inp_df.iloc[i][company_name_field],inp_df.iloc[i][company_details_field]) for i in range(inp_df.shape[0])]
     else:
         inp_list = []
     if desig_loc:
         inp_df = pd.read_csv(desig_loc)
-        desig_list = list(inp_df['designations'])
+        desig_list = list(inp_df[designations_column_name])
     else:
         desig_list = None
     list_table = 'crawler.list_table'
     list_items_table = 'crawler.list_items'
     con = PostgresConnect()
-    url_extractor = LkdnUrlExtrMain(visible=True)
+    url_extractor = LkdnUrlExtrMain(visible=False)
     crawler = LinkedinCrawlerThread()
     tables_updater = TableUpdater()
     query = 'select id from {} where list_name = %s'.format(list_table)
@@ -65,20 +68,28 @@ def run_main(list_name=None,company_csv_loc=None,desig_loc=None):
     con.commit()
     con.close_cursor()
     logging.info('going to find linkedin urls')
-    url_extractor.run_main(list_id)
+    event = threading.Event()
+    t1 = threading.Thread(target=url_extractor.run_main, args=(list_id,))
+    t1.daemon = True
+    t1.start()
+    event.wait(timeout=60)
+    # url_extractor.run_main(list_id)
     logging.info('completed linkedin url extraction process')
     del url_extractor
     gc.collect()
     start_time = time.time()
     while True:
-        if time.time() - start_time > 1*60*60:
+        if time.time() - start_time > hours*60*60:
             break
-        logging.info('starting an iteration of crawling')
-        crawler.run_both_single(list_id=list_id,visible=True)
         os.system("find /tmp/* -maxdepth 1 -type d -name 'tmp*' |  xargs rm -rf")
+        os.system("pkill -9 firefox")
+        logging.info('starting an iteration of crawling')
+        crawler.run_both_single(list_id=list_id,visible=False,limit_no=100)
+        os.system("find /tmp/* -maxdepth 1 -type d -name 'tmp*' |  xargs rm -rf")
+        os.system("pkill -9 firefox")
         logging.info('updating tables for next iteration')
-        tables_updater.update_tables(list_id,desig_list)
-        gen_people_details(list_id)
+        tables_updater.update_tables(list_id,desig_list,similar_companies)
+        gen_people_details(list_id,desig_list)
     del crawler,tables_updater
     gc.collect()
     logging.info('completed the main program')
@@ -97,11 +108,21 @@ if __name__ == "__main__":
                          dest='desig_loc',
                          help='location of csv containing target designations',
                          default=None)
+    optparser.add_option('-s', '--similar',
+                         dest='similar_companies',
+                         help='give 1 if similar companies need to be found.Else 0',
+                         default=1)
+    optparser.add_option('-h', '--hours',
+                         dest='no_hours',
+                         help='No of hours the process need to run. Default 1 hour',
+                         default=1)
     (options, args) = optparser.parse_args()
     csv_company = options.csv_company
     desig_loc = options.desig_loc
     list_name = options.list_name
+    similar_companies = options.similar_companies
+    hours = options.no_hours
 
-    run_main(list_name,csv_company,desig_loc)
+    run_main(list_name,csv_company,desig_loc,similar_companies,hours)
 
 

@@ -38,6 +38,7 @@ class LkdnUrlExtrMain(object):
         in_list = self.con.cursor.fetchall()
         if not in_list:
             return
+        logging.info('companies for which url needs to be find : {}'.format(in_list))
         tmp_dic = {}
         for list_items_id,list_input,list_input_additional in in_list:
             tmp_dic[list_items_id] = (list_input,list_input_additional)
