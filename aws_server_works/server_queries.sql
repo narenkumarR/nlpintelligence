@@ -313,3 +313,37 @@ create table linkedin_people_url_mapper as select distinct linkedin_base_url as 
 create table linkedin_people_url_mapper_extra as select a.base_url,b.base_url as alias_url 
     from linkedin_people_url_mapper a join linkedin_people_url_mapper b on a.alias_url=b.alias_url and a.base_url!= b.base_url and a.base_url<b.base_url 
     where linkedin_url_similarity(a.base_url,b.base_url) = 1 ;
+
+
+--creating mapper tables for builtwith and crunchbase
+create table builtwith_linkedin_mapper as select linkedin_url url_linkedin_table,"Domain" as domain_builtwith_table 
+    from linkedin_company_base a join companies_meta_data1 b on 
+    (split_part(linkedin_url,'www.',2) = "LinkedIn" and linkedin_url!='' and linkedin_url!='NULL' and "LinkedIn"!='' and "LinkedIn" is not null) or 
+    (split_part(website,'www.',2)="Domain" and "Domain"!='' and website != '' and website!='NULL' and "Domain" is not null and website is not null) ;
+
+
+
+create table tmp_table as select distinct linkedin_url,split_part(linkedin_url,'linkedin.com',2) linkedin_url_cleaned,homepage_domain,homepage_url 
+    from cb_companies_2014;
+create index on tmp_table (linkedin_url);
+create index on tmp_table (linkedin_url_cleaned);
+create index on tmp_table (homepage_domain);
+create index on tmp_table (homepage_url);
+
+-- below query too slow
+-- create table crunchbase_linkedin_mapper as select distinct a.linkedin_url url_linkedin_table,homepage_url as homepage_url_crunchbase_table 
+--     from linkedin_company_base a join tmp_table b on 
+--     (split_part(a.linkedin_url,'linkedin.com',2) = linkedin_url_cleaned  and a.linkedin_url!='' and a.linkedin_url!='NULL' and 
+--         b.linkedin_url_cleaned!='' and b.linkedin_url_cleaned is not null) or 
+--     (replace(split_part(split_part(website,'http',2),'//',2),'www.','') = homepage_domain and homepage_domain != '' and 
+--         replace(split_part(split_part(website,'http',2),'//',2),'www.','') != '' and homepage_domain is not null and website is not null) or 
+--     (replace(split_part(split_part(website,'http',2),'//',2),'www.','')=replace(split_part(split_part(homepage_url,'http',2),'//',2),'www.','') 
+--         and homepage_url is not null and replace(split_part(split_part(website,'http',2),'//',2),'www.','') != '' and 
+--         replace(split_part(split_part(homepage_url,'http',2),'//',2),'www.','') != '') ;
+
+create table crunchbase_linkedin_mapper as select distinct a.linkedin_url url_linkedin_table,homepage_url as homepage_url_crunchbase_table 
+   from linkedin_company_base a join tmp_table b on 
+   (split_part(a.linkedin_url,'linkedin.com',2) = linkedin_url_cleaned  and 
+       b.linkedin_url_cleaned!='' and b.linkedin_url_cleaned is not null) or 
+   (replace(split_part(split_part(website,'http',2),'//',2),'www.','') = homepage_domain and homepage_domain != '' and 
+     homepage_domain is not null );
