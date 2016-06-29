@@ -10,7 +10,7 @@ class TableUpdater(object):
     def __init__(self):
         self.con = postgres_connect.PostgresConnect()
 
-    def update_tables(self,list_id,desig_list=None):
+    def update_tables(self,list_id,desig_list=None,similar_companies=1):
         ''' run the sql file for updation here
         :return:
         '''
@@ -30,62 +30,63 @@ class TableUpdater(object):
         self.con.cursor.execute(query,(list_id,))
         self.con.commit()
 
-        # inserting also viewed companies into the priority table for the initial list
-        query = "drop table if exists crawler.tmp_table"
-        self.con.cursor.execute(query)
-        self.con.commit()
-        query = "create table crawler.tmp_table as "\
-            "select unnest(crawler.clean_linkedin_url_array(crawler.extract_related_info(string_to_array(a.also_viewed_companies,'|'),1))) as url, "\
-            " a.list_id,a.list_items_url_id "\
-            "from crawler.linkedin_company_base a join crawler.list_items_urls b on a.linkedin_url = b.url "\
-            "where  also_viewed_companies like '%%linkedin%%' and a.list_id = %s "
-        self.con.cursor.execute(query,(list_id,))
-        self.con.commit()
-        query = "insert into crawler.linkedin_company_urls_to_crawl_priority (url,list_id,list_items_url_id) "\
-            "select a.url,a.list_id,a.list_items_url_id from crawler.tmp_table a left join " \
-            "crawler.linkedin_company_redirect_url c on a.url = c.url or a.url = c.redirect_url left join "\
-            "crawler.linkedin_company_finished_urls b on (a.url = b.url or  b.url=c.url or b.url = c.redirect_url) and (b.list_id=a.list_id) "\
-            "where b.url is null and a.list_id = %s on conflict do nothing "
-        self.con.cursor.execute(query,(list_id,))
-        self.con.commit()
+        if similar_companies:
+            # inserting also viewed companies into the priority table for the initial list
+            query = "drop table if exists crawler.tmp_table"
+            self.con.cursor.execute(query)
+            self.con.commit()
+            query = "create table crawler.tmp_table as "\
+                "select unnest(crawler.clean_linkedin_url_array(crawler.extract_related_info(string_to_array(a.also_viewed_companies,'|'),1))) as url, "\
+                " a.list_id,a.list_items_url_id "\
+                "from crawler.linkedin_company_base a join crawler.list_items_urls b on a.linkedin_url = b.url "\
+                "where  also_viewed_companies like '%%linkedin%%' and a.list_id = %s "
+            self.con.cursor.execute(query,(list_id,))
+            self.con.commit()
+            query = "insert into crawler.linkedin_company_urls_to_crawl_priority (url,list_id,list_items_url_id) "\
+                "select a.url,a.list_id,a.list_items_url_id from crawler.tmp_table a left join " \
+                "crawler.linkedin_company_redirect_url c on a.url = c.url or a.url = c.redirect_url left join "\
+                "crawler.linkedin_company_finished_urls b on (a.url = b.url or  b.url=c.url or b.url = c.redirect_url) and (b.list_id=a.list_id) "\
+                "where b.url is null and a.list_id = %s on conflict do nothing "
+            self.con.cursor.execute(query,(list_id,))
+            self.con.commit()
 
-        # insert also viewed companies for rest of the companies in the table
-        query = "drop table if exists crawler.tmp_table"
-        self.con.cursor.execute(query)
-        self.con.commit()
-        query = "create table crawler.tmp_table as "\
-            "select  unnest(crawler.clean_linkedin_url_array(crawler.extract_related_info(string_to_array(a.also_viewed_companies,'|'),1))) as url, "\
-            " list_id,list_items_url_id "\
-            "from crawler.linkedin_company_base a where  also_viewed_companies like '%%linkedin%%' and list_id = %s "
-        self.con.cursor.execute(query,(list_id,))
-        self.con.commit()
-        query = "insert into crawler.linkedin_company_urls_to_crawl_priority (url,list_id,list_items_url_id) "\
-            "select a.url,a.list_id,a.list_items_url_id from crawler.tmp_table a left join "\
-            "crawler.linkedin_company_redirect_url c on a.url = c.url or a.url = c.redirect_url left join "\
-            "crawler.linkedin_company_finished_urls b on (a.url = b.url or  b.url=c.url or b.url = c.redirect_url) and (b.list_id=a.list_id) "\
-            "where b.url is null and a.list_id = %s on conflict do nothing "
-        self.con.cursor.execute(query,(list_id,))
-        self.con.commit()
+            # insert also viewed companies for rest of the companies in the table
+            query = "drop table if exists crawler.tmp_table"
+            self.con.cursor.execute(query)
+            self.con.commit()
+            query = "create table crawler.tmp_table as "\
+                "select  unnest(crawler.clean_linkedin_url_array(crawler.extract_related_info(string_to_array(a.also_viewed_companies,'|'),1))) as url, "\
+                " list_id,list_items_url_id "\
+                "from crawler.linkedin_company_base a where  also_viewed_companies like '%%linkedin%%' and list_id = %s "
+            self.con.cursor.execute(query,(list_id,))
+            self.con.commit()
+            query = "insert into crawler.linkedin_company_urls_to_crawl_priority (url,list_id,list_items_url_id) "\
+                "select a.url,a.list_id,a.list_items_url_id from crawler.tmp_table a left join "\
+                "crawler.linkedin_company_redirect_url c on a.url = c.url or a.url = c.redirect_url left join "\
+                "crawler.linkedin_company_finished_urls b on (a.url = b.url or  b.url=c.url or b.url = c.redirect_url) and (b.list_id=a.list_id) "\
+                "where b.url is null and a.list_id = %s on conflict do nothing "
+            self.con.cursor.execute(query,(list_id,))
+            self.con.commit()
 
-        # for people who have the target designations ,put the company urls if they are not crawled already
-        query = "drop table if exists crawler.tmp_table"
-        self.con.cursor.execute(query)
-        self.con.commit()
-        query = "create table crawler.tmp_table as "\
-            "select distinct unnest(crawler.clean_linkedin_url_array(crawler.extract_related_info(string_to_array(a.company_linkedin_url,'|'),1))) as url, "\
-            " list_id,list_items_url_id "\
-            "from crawler.linkedin_people_base a "\
-            "where  a.company_linkedin_url like '%%linkedin%%' and list_id = %s and "\
-            "regexp_replace(sub_text,'\yin\y|\yof\y|\yat\y',' ') ~* '" +  desig_list_reg + "' "
-        self.con.cursor.execute(query,(list_id,))
-        self.con.commit()
-        query = "insert into crawler.linkedin_company_urls_to_crawl_priority (url,list_id,list_items_url_id) "\
-            "select a.url,a.list_id,a.list_items_url_id from crawler.tmp_table a left join "\
-            "crawler.linkedin_company_redirect_url c on a.url = c.url or a.url = c.redirect_url left join "\
-            "crawler.linkedin_company_finished_urls b on (a.url = b.url or  b.url=c.url or b.url = c.redirect_url) and (a.list_id=b.list_id) "\
-            "where b.url is null and a.list_id = %s on conflict do nothing "
-        self.con.cursor.execute(query,(list_id,))
-        self.con.commit()
+            # for people who have the target designations ,put the company urls if they are not crawled already
+            query = "drop table if exists crawler.tmp_table"
+            self.con.cursor.execute(query)
+            self.con.commit()
+            query = "create table crawler.tmp_table as "\
+                "select distinct unnest(crawler.clean_linkedin_url_array(crawler.extract_related_info(string_to_array(a.company_linkedin_url,'|'),1))) as url, "\
+                " list_id,list_items_url_id "\
+                "from crawler.linkedin_people_base a "\
+                "where  a.company_linkedin_url like '%%linkedin%%' and list_id = %s and "\
+                "regexp_replace(sub_text,'\yin\y|\yof\y|\yat\y',' ') ~* '" +  desig_list_reg + "' "
+            self.con.cursor.execute(query,(list_id,))
+            self.con.commit()
+            query = "insert into crawler.linkedin_company_urls_to_crawl_priority (url,list_id,list_items_url_id) "\
+                "select a.url,a.list_id,a.list_items_url_id from crawler.tmp_table a left join "\
+                "crawler.linkedin_company_redirect_url c on a.url = c.url or a.url = c.redirect_url left join "\
+                "crawler.linkedin_company_finished_urls b on (a.url = b.url or  b.url=c.url or b.url = c.redirect_url) and (a.list_id=b.list_id) "\
+                "where b.url is null and a.list_id = %s on conflict do nothing "
+            self.con.cursor.execute(query,(list_id,))
+            self.con.commit()
 
         # inserting people details into people priority table (who have valid designation)
         query = "drop table if exists crawler.tmp_table "
@@ -107,25 +108,26 @@ class TableUpdater(object):
         self.con.cursor.execute(query,(list_id,))
         self.con.commit()
 
-        # inserting people details from related people field (who have valid designation)
-        query = "drop table if exists crawler.tmp_table "
-        self.con.cursor.execute(query)
-        self.con.commit()
-        query = "create table crawler.tmp_table as "\
-                "select distinct unnest(crawler.clean_linkedin_url_array(crawler.extract_related_info(string_to_array(related_people,'|'),1))) as url, "\
-                "unnest(crawler.clean_linkedin_url_array(crawler.extract_related_info(string_to_array(related_people,'|'),3))) as position, "\
-                " list_id,list_items_url_id "\
-                "from crawler.linkedin_people_base where related_people like '%%linkedin%%' and list_id = %s"
-        self.con.cursor.execute(query,(list_id,))
-        self.con.commit()
-        query = "insert into crawler.linkedin_people_urls_to_crawl_priority (url,list_id,list_items_url_id) "\
-                "select a.url,a.list_id,a.list_items_url_id from crawler.tmp_table a "\
-                "left join  crawler.linkedin_people_redirect_url c on a.url = c.url or a.url = c.redirect_url "\
-                " left join crawler.linkedin_people_finished_urls b on (b.url=c.url or b.url = c.redirect_url or a.url=b.url) and (a.list_id=b.list_id) "\
-                "where b.url is null and regexp_replace(position,'\yin\y|\yof\y|\yat\y',' ') ~* '" +  desig_list_reg +"' "\
-                " and a.list_id = %s on conflict do nothing "
-        self.con.cursor.execute(query,(list_id,))
-        self.con.commit()
+        if similar_companies:
+            # inserting people details from related people field (who have valid designation)
+            query = "drop table if exists crawler.tmp_table "
+            self.con.cursor.execute(query)
+            self.con.commit()
+            query = "create table crawler.tmp_table as "\
+                    "select distinct unnest(crawler.clean_linkedin_url_array(crawler.extract_related_info(string_to_array(related_people,'|'),1))) as url, "\
+                    "unnest(crawler.clean_linkedin_url_array(crawler.extract_related_info(string_to_array(related_people,'|'),3))) as position, "\
+                    " list_id,list_items_url_id "\
+                    "from crawler.linkedin_people_base where related_people like '%%linkedin%%' and list_id = %s"
+            self.con.cursor.execute(query,(list_id,))
+            self.con.commit()
+            query = "insert into crawler.linkedin_people_urls_to_crawl_priority (url,list_id,list_items_url_id) "\
+                    "select a.url,a.list_id,a.list_items_url_id from crawler.tmp_table a "\
+                    "left join  crawler.linkedin_people_redirect_url c on a.url = c.url or a.url = c.redirect_url "\
+                    " left join crawler.linkedin_people_finished_urls b on (b.url=c.url or b.url = c.redirect_url or a.url=b.url) and (a.list_id=b.list_id) "\
+                    "where b.url is null and regexp_replace(position,'\yin\y|\yof\y|\yat\y',' ') ~* '" +  desig_list_reg +"' "\
+                    " and a.list_id = %s on conflict do nothing "
+            self.con.cursor.execute(query,(list_id,))
+            self.con.commit()
 
         # deleting invalid urls
         query = "delete from crawler.linkedin_company_urls_to_crawl_priority "\

@@ -1,6 +1,7 @@
 __author__ = 'joswin'
 
 import psycopg2
+from constants import database,user,password,host
 
 class PostgresConnect(object):
     '''
@@ -15,7 +16,7 @@ class PostgresConnect(object):
         '''
         :return:
         '''
-        self.con = psycopg2.connect(database='linkedin_data', user='postgres',password='postgres',host='localhost')
+        self.con = psycopg2.connect(database=database, user=user,password=password,host=host)
         # self.get_cursor()
 
     def get_cursor(self):
