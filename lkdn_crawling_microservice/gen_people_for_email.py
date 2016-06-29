@@ -1,8 +1,21 @@
 __author__ = 'joswin'
 
-from postgres_connect import PostgresConnect
+import pandas as pd
+from optparse import OptionParser
 
-def gen_people_details(list_id):
+from postgres_connect import PostgresConnect
+from constants import desig_list_regex,designations_column_name
+
+def gen_people_details(list_id,desig_list=None):
+    '''
+    :param list_id:
+    :param desig_list:
+    :return:
+    '''
+    if not desig_list:
+        desig_list_reg = desig_list_regex
+    else:
+        desig_list_reg = '\y' + '\y|\y'.join(desig_list) + '\y'
     con = PostgresConnect()
     con.get_cursor()
     # all people urls and current company
@@ -28,30 +41,63 @@ def gen_people_details(list_id):
     con.cursor.execute('drop table if exists crawler.tmp_table1')
     con.commit()
     query = "create table crawler.tmp_table1 as "\
-            "select a.name,a.sub_text,b.website,d.list_id,d.list_items_url_id from "\
-            " linkedin_people_base a join linkedin_people_redirect_url c on a.linkedin_url = c.redirect_url "\
-            "join tmp_table d on (c.redirect_url=d.people_linkedin_url or c.url = d.people_linkedin_url) "\
-            "join linkedin_company_redirect_url e on (d.company_linkedin_url = e.url or d.company_linkedin_url = e.redirect_url) "\
-            " join linkedin_company_base b on e.redirect_url = b.linkedin_url where d.list_id = %s "
-    con.cursor.execute(query,(list_id))
+            "select a.name,a.sub_text,b.website,b.company_name,d.list_id,d.list_items_url_id from "\
+            " crawler.linkedin_people_base a join crawler.linkedin_people_redirect_url c on a.linkedin_url = c.redirect_url "\
+            "join crawler.tmp_table d on (c.redirect_url=d.people_linkedin_url or c.url = d.people_linkedin_url) "\
+            "join crawler.linkedin_company_redirect_url e on (d.company_linkedin_url = e.url or d.company_linkedin_url = e.redirect_url) "\
+            " join crawler.linkedin_company_base b on e.redirect_url = b.linkedin_url where d.list_id = %s "
+    con.cursor.execute(query,(list_id,))
     con.commit()
     # create first name, middle name and last name
     con.cursor.execute('alter table crawler.tmp_table1 add column name_cleaned text[], add column domain text')
     con.commit()
-    query = "update crawler.tmp_table1 set name_array = name_cleaner(name), "\
+    query = "update crawler.tmp_table1 set name_cleaned = crawler.name_cleaner(name), "\
             "domain = replace(substring(website  from '.*://([^/]*)'),'www.','') "
     con.cursor.execute(query)
     con.commit()
-    query = "insert into crawler.people_details_for_email_verifier (list_id,list_items_url_id,first_name,middle_name,last_name,domain) values "\
+    query = "insert into crawler.people_details_for_email_verifier "\
+            " (list_id,list_items_url_id,first_name,middle_name,last_name,domain,designation,company_name,company_website)  "\
             "select distinct list_id,list_items_url_id, name_cleaned[2] as first_name, name_cleaned[3] as middle_name, "\
-            "name_cleaned[4] as last_name, domain from crawler.tmp_table1 where "\
+            "name_cleaned[4] as last_name, domain, sub_text as designation,company_name, website as company_website "\
+            " from crawler.tmp_table1 where "\
             "domain not in ('http://','http://-','http://.','http://...','http://1','') and  "\
             "name_cleaned[2] is not null and name_cleaned[4] is not null and name_cleaned[2] not in('','.','..') "\
             " and name_cleaned[4] not in ('','.','..') and domain is not null and domain != 'NULL' "\
+            " and regexp_replace(sub_text,'\yin\y|\yof\y|\yat\y',' ') ~* '" +  desig_list_reg + "' "\
             "and list_id =%s "\
             " on conflict do nothing"
     con.cursor.execute(query,(list_id,))
     con.commit()
+    con.close_cursor()
     # drop tables
     # con.cursor.execute('drop table crawler.tmp_table1')
 
+if __name__ == "__main__":
+    optparser = OptionParser()
+    optparser.add_option('-n', '--name',
+                         dest='list_name',
+                         help='name of the list',
+                         default=None)
+    optparser.add_option('-d', '--designations',
+                         dest='desig_loc',
+                         help='location of csv containing target designations',
+                         default=None)
+    (options, args) = optparser.parse_args()
+    list_name = options.list_name
+    if not list_name:
+        raise ValueError('need list name to run')
+    desig_loc = options.desig_loc
+    if desig_loc:
+        inp_df = pd.read_csv(desig_loc)
+        desig_list = list(inp_df[designations_column_name])
+    else:
+        desig_list = None
+    con = PostgresConnect()
+    con.get_cursor()
+    con.execute("select id from crawler.list_table where list_name = %s",(list_name,))
+    res = con.cursor.fetchall()
+    con.close_cursor()
+    if not res:
+        raise ValueError('the list name given do not have any records')
+    list_id = res[0][0]
+    gen_people_details(list_id,desig_list)

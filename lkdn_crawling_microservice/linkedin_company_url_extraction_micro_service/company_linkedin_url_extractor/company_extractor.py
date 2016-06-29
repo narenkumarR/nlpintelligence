@@ -306,7 +306,6 @@ class CompanyLinkedinURLExtractorMulti(object):
         # logging.info('putting urls into input queue')
         for i in url_dict:
             self.in_queue.put((i,url_dict[i]))
-        start_time = time.time()
         self.in_queue.join()
         self.run_queue = False
         for worker in workers:
