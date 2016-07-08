@@ -103,6 +103,9 @@ class LinkedinOrganizationService(object):
             self.details = {'Linkedin URL':url,'Original URL':url}
             if use_selenium:
                 self.soup = self.link_parser.get_soup(url)
+                if re.search(r'the company you are looking for is not active|the company you are looking for does not exist',self.soup.text):
+                    self.details['Notes'] = 'Company page not found'
+                    return self.details
                 redirect_url = self.link_parser.browser.current_url
                 if '?trk=login_reg_redirect' in redirect_url:
                     redirect_url = url

@@ -33,10 +33,11 @@ desig_list = ['AVP Engineering', 'AVP Marketing', 'AVP Mobile', 'AVP Product', '
               'Product Manager Mobile', 'Product Manager Web', 'SVP Engineering', 'SVP Marketing', 'SVP Mobile',
               'SVP Product', 'SVP Technology', 'Senior Director Engineering', 'Senior Director Mobile',
               'Senior Director Technology', 'Senior Product Manager', 'Senior Product Manager Mobile',
-              'Senior Product Manager Web', 'VP Engineering', 'VP Marketing', 'VP Mobile', 'VP Product', 'VP Technology']
+              'Senior Product Manager Web', 'VP Engineering', 'VP Marketing', 'VP Mobile', 'VP Product', 'VP Technology',
+              'VP','AVP','EVP','Head','President','Chief','Global']
 
-# desig_list_regex ='\y' + '\y|\y'.join(desig_list) + '\y'
-desig_list_regex = '\yDirector HR\y|\ySenior Director\y|\ySenior VP\y|\yVice President\y|\yHead\y|\yGlobal\y|\yChief\y|\yPresident\y|\yVP\y|\yAVP\y|\yEVP\y'
+desig_list_regex ='\y' + '\y|\y'.join(desig_list) + '\y'
+# desig_list_regex = 'Director.+HR|Director.+Human Resources|Director.+Human Resource|Director.+Learning|Director.+Skill development|Director.+Training|Director.+Talent Management|VP.+HR|VP.+Human Resources|VP.+Human Resource|VP.+Learning|VP.+Skill development|VP.+Training|VP.+Talent Management|AVP.+HR|AVP.+Human Resources|AVP.+Human Resource|AVP.+Learning|AVP.+Skill development|AVP.+Training|AVP.+Talent Management|EVP.+HR|EVP.+Human Resources|EVP.+Human Resource|EVP.+Learning|EVP.+Skill development|EVP.+Training|EVP.+Talent Management|Head.+HR|Head.+Human Resources|Head.+Human Resource|Head.+Learning|Head.+Skill development|Head.+Training|Head.+Talent Management|Global.+HR|Global.+Human Resources|Global.+Human Resource|Global.+Learning|Global.+Skill development|Global.+Training|Global.+Talent Management|Chief.+HR|Chief.+Human Resources|Chief.+Human Resource|Chief.+Learning|Chief.+Skill development|Chief.+Training|Chief.+Talent Management|President.+HR|President.+Human Resources|President.+Human Resource|President.+Learning|President.+Skill development|President.+Training|President.+Talent Management'
 
 # con_string = 'postgresql://postgres:postgres@localhost:5432/builtwith_data'
 problematic_urls_file = 'prob_files.txt'

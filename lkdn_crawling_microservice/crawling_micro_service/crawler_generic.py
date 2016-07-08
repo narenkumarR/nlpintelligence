@@ -36,6 +36,7 @@ class LinkedinCrawlerThread(object):
         :param use_db:
         :return:
         '''
+        logging.info('crawler_generic: company process starting')
         if res_file is None:
             res_file = crawled_loc+'company_crawled_'+re.sub(' ','_',str(datetime.datetime.now())[:-13])+'.txt'
         if log_file is None:
@@ -71,6 +72,7 @@ class LinkedinCrawlerThread(object):
         :param use_db:
         :return:
         '''
+        logging.info('crawler_generic: people process starting')
         if res_file is None:
             res_file = crawled_loc+'people_crawled_'+re.sub(' ','_',str(datetime.datetime.now())[:-13])+'.txt'
         if log_file is None:
@@ -102,7 +104,7 @@ class LinkedinCrawlerThread(object):
                          company_base_table='crawler.linkedin_company_base',
                          finished_urls_table_company = 'crawler.linkedin_company_finished_urls',
                          finished_urls_table_people = 'crawler.linkedin_people_finished_urls',
-                         list_id = None):
+                         list_id = None,time_out = 1):
         '''
         :param crawled_loc: location of result (used when crawling done using files). If crawling is db based, the logs
                             will go to logs folder in crawled_loc. This folder needs to be created before starting run
@@ -155,7 +157,7 @@ class LinkedinCrawlerThread(object):
         worker_people.start()
         worker_company.start()
         gc.collect()
-        worker_people.join()
+        worker_people.join(timeout=time_out*60*60)
         worker_company.join(timeout=600)
         logging.info('finished crawling process')
         if worker_people.is_alive():

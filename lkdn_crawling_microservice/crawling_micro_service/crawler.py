@@ -97,7 +97,7 @@ class LinkedinCompanyCrawlerThread(object):
         no_errors = 0
         ind = 0
         n_blocks =0
-        self.crawler_queue.put(crawler)
+        # self.crawler_queue.put(crawler)
         while self.run_queue:
             ind += 1
             url,list_items_url_id = self.in_queue.get()
@@ -111,7 +111,7 @@ class LinkedinCompanyCrawlerThread(object):
                 t1 = threading.Thread(target=get_output, args=(crawler,url,res_1,event,))
                 t1.daemon = True
                 t1.start()
-                event.wait(timeout=60)
+                event.wait(timeout=80)
                 if res_1 is None: #if None means timeout happened, push to queue again. (this is causing the programe to
                     #                 not stop in some cases. So not pushing to in queue again)
                     logging.info('res_1 is None for url:{}, thread:{}'.format(url,threading.currentThread()))
@@ -137,6 +137,11 @@ class LinkedinCompanyCrawlerThread(object):
                                 logging.info('Not proper page, probably javascript for url:{}, thread:{}'.format(url,threading.currentThread()))
                                 # self.out_queue.put(res)
                                 no_errors += 1
+                            elif res['Notes'] == 'Company page not found':
+                                logging.info('Company page not found for url: {} ,thread: {}'.format(url,threading.currentThread()))
+                                self.out_queue.put((res,list_items_url_id))
+                                no_errors = 0
+                                n_blocks = 0
                             else:
                                 logging.info('Notes present, but some unknown error for url:{}, thread:{}'.format(url,threading.currentThread()))
                                 # self.out_queue.put(res)
@@ -196,7 +201,7 @@ class LinkedinCompanyCrawlerThread(object):
                                     pass
                                 crawler = linkedin_company_crawler.LinkedinOrganizationService(self.browser,self.visible,proxy=self.proxy,
                                                                       proxy_ip=proxy_ip,proxy_port=proxy_port,use_tor=self.use_tor)
-                                self.crawler_queue.put(crawler)
+                                # self.crawler_queue.put(crawler)
                             except:
                                 logging.exception('could not start crawler, thread:{0}'.format(threading.currentThread()))
                                 # break #stop this thread??
@@ -213,8 +218,15 @@ class LinkedinCompanyCrawlerThread(object):
         :param res:
         :return:
         '''
-        # first convert the connected fields into str. Otherwise the insert into table fails
         self.con.get_cursor()
+        # check if there is Notes. If true, remove the url from url to crawl list
+        if res.get('Notes',''):
+            self.con.cursor.execute("DELETE FROM {} WHERE url = %s and list_id = %s".format(self.urls_to_crawl_table),(res['Linkedin URL'],self.list_id,))
+            if res.get('Linkedin URL','') != res.get('Original URL',''):
+                self.con.cursor.execute("DELETE FROM {} WHERE url = %s and list_id = %s".format(self.urls_to_crawl_table),(res['Original URL'],self.list_id,))
+            self.con.commit()
+            return
+        # first convert the connected fields into str. Otherwise the insert into table fails
         if res.get('Employee Details',[]):
             employee_urls = [re.sub(linkedin_url_clean_regex,'',com_dic.get('linkedin_url','')) + '{}' +
                              com_dic.get('Name','') + '{}' + com_dic.get('Designation','')
@@ -236,7 +248,10 @@ class LinkedinCompanyCrawlerThread(object):
         res_fields = []
         for field in self.table_fields:
             field_val = res.get(field,'NULL')
-            res_fields.append(field_val)
+            try:
+                res_fields.append(field_val.strip())
+            except:
+                res_fields.append('')
         query = "INSERT INTO {} ({}) VALUES ( {} )".format(self.base_table,','.join(self.table_field_names),','.join(['%s']*len(self.table_fields)))
         self.con.cursor.execute(query,res_fields)
         self.con.cursor.execute("INSERT INTO {} (url,list_id,list_items_url_id) VALUES (%s,%s,%s) ON "\
@@ -320,7 +335,7 @@ class LinkedinCompanyCrawlerThread(object):
             self.finished_urls_table_company = finished_urls_table_company
             self.finished_urls_table_people = finished_urls_table_people
             self.list_id = list_id
-            self.crawler_queue = Queue(maxsize=0)
+            # self.crawler_queue = Queue(maxsize=0)
             self.con.get_cursor()
             # first look at priority table
             query = "select a.url,a.list_items_url_id from {} a left join {} b on a.url = b.url and a.list_id = b.list_id "\
@@ -392,16 +407,16 @@ class LinkedinCompanyCrawlerThread(object):
         self.run_queue = False
         self.run_write_queue = False
         self.proxy_generator.exit()
-        while not self.crawler_queue.empty():
-            try:
-                crl = self.crawler_queue.get()
-                try:
-                    crl.exit()
-                except:
-                    pass
-                del crl
-            except:
-                continue
+        # while not self.crawler_queue.empty():
+        #     try:
+        #         crl = self.crawler_queue.get()
+        #         try:
+        #             crl.exit()
+        #         except:
+        #             pass
+        #         del crl
+        #     except:
+        #         continue
         logging.info('Finished company part. No of results left in out queue : {}'.format(len(self.out_queue.queue)))
         # logging._removeHandlerRef()
         time.sleep(5)
@@ -487,7 +502,7 @@ class LinkedinProfileCrawlerThread(object):
         no_errors = 0
         ind = 0
         n_blocks =0
-        self.crawler_queue.put(crawler)
+        # self.crawler_queue.put(crawler)
         while self.run_queue:
             ind += 1
             url,list_items_url_id = self.in_queue.get()
@@ -499,7 +514,7 @@ class LinkedinProfileCrawlerThread(object):
                 t1 = threading.Thread(target=get_output, args=(crawler,url,res_1,event,))
                 t1.daemon = True
                 t1.start()
-                event.wait(timeout=60)
+                event.wait(timeout=80)
                 if res_1 is None: #if None means timeout happened, push to queue again
                     logging.info('res_1 None, probably timeout, for url:{}, thread:{}'.format(url,threading.currentThread()))
                     # self.in_queue.put(url)
@@ -579,7 +594,7 @@ class LinkedinProfileCrawlerThread(object):
                                     pass
                                 crawler = linkedin_profile_crawler.LinkedinProfileCrawler(self.browser,self.visible,proxy=self.proxy,
                                                                       proxy_ip=proxy_ip,proxy_port=proxy_port,use_tor=self.use_tor)
-                                self.crawler_queue.put(crawler)
+                                # self.crawler_queue.put(crawler)
                             except:
                                 logging.exception('could not start crawler')
             if no_errors>0:
@@ -627,7 +642,10 @@ class LinkedinProfileCrawlerThread(object):
         res_fields = []
         for field in self.table_fields:
             field_val = res.get(field,'NULL')
-            res_fields.append(field_val)
+            try:
+                res_fields.append(field_val.strip())
+            except:
+                res_fields.append('')
         query = "INSERT INTO {} ({}) VALUES ( {} )".format(self.base_table,','.join(self.table_field_names),','.join(['%s']*len(self.table_fields)))
         self.con.cursor.execute(query,res_fields)
         # add the url to finished url
@@ -716,7 +734,7 @@ class LinkedinProfileCrawlerThread(object):
             self.finished_urls_table_company = finished_urls_table_company
             self.finished_urls_table_people = finished_urls_table_people
             self.list_id = list_id
-            self.crawler_queue = Queue(maxsize=0)
+            # self.crawler_queue = Queue(maxsize=0)
             self.con.get_cursor()
             # first look at priority table
             query = "select a.url,a.list_items_url_id from {} a left join {} b on a.url = b.url and a.list_id = b.list_id "\
@@ -783,16 +801,16 @@ class LinkedinProfileCrawlerThread(object):
         self.run_queue = False
         self.run_write_queue = False
         self.proxy_generator.exit()
-        while not self.crawler_queue.empty():
-            try:
-                crl = self.crawler_queue.get()
-                try:
-                    crl.exit()
-                except:
-                    pass
-                del crl
-            except:
-                continue
+        # while not self.crawler_queue.empty():
+        #     try:
+        #         crl = self.crawler_queue.get()
+        #         try:
+        #             crl.exit()
+        #         except:
+        #             pass
+        #         del crl
+        #     except:
+        #         continue
         logging.info('Finished people part. No of results left in out queue : {}'.format(len(self.out_queue.queue)))
         # logging._removeHandlerRef()
         time.sleep(5)

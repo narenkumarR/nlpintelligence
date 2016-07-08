@@ -198,6 +198,37 @@ uname_text = re.sub('[^a-zA-Z0-9]','',uname_text)
 return uname_text
 $$;
 
+###name cleaner
+CREATE OR REPLACE FUNCTION name_cleaner(name text) RETURNS text[]
+LANGUAGE plpythonu
+AS $$
+if 'name_tools' in SD:
+    name_tools = SD['name_tools']
+else:
+    import name_tools
+    SD['name_tools'] = name_tools
+if 're' in SD:
+    re = SD['re']
+else:
+    import re
+    SD['re'] = re
+name1 = name.split(',')[0]
+name1 = re.sub('[!@#$%^&*()}{></~+_]|\[|\]',' ',name1)
+name1 = re.sub(' +',' ',name1)
+name_cleaned = name_tools.split(name1)
+f_part = name_cleaned[1].split()
+if len(f_part) == 1:
+    f_name,m_name = f_part[0],''
+elif len(f_part) > 1:
+    f_name,m_name = f_part[0],' '.join(f_part[1:])
+else:
+    f_name,m_name = '',''
+name_list = [name_cleaned[0],f_name,m_name,name_cleaned[2],name_cleaned[3]]
+return name_list
+$$;
+
+
+
 ####url correction
 --COMPANY TO PEOPLE URLS FROM COMPANY TABLE
 drop table if exists company_people_matcher_tmp;
