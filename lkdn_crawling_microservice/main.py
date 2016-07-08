@@ -6,6 +6,7 @@ import time
 import logging
 import os
 import threading
+import multiprocessing
 
 from optparse import OptionParser
 
@@ -17,7 +18,7 @@ from gen_people_for_email import gen_people_details
 
 from constants import company_name_field,company_details_field,designations_column_name
 
-def run_main(list_name=None,company_csv_loc=None,desig_loc=None,similar_companies=1,hours=1):
+def run_main(list_name=None,company_csv_loc=None,desig_loc=None,similar_companies=1,hours=1,extract_urls=1,visible=False):
     '''
     :param list_name:
     :param company_csv_loc:
@@ -28,12 +29,12 @@ def run_main(list_name=None,company_csv_loc=None,desig_loc=None,similar_companie
     logging.info('started main program')
     if not list_name:
         raise ValueError('list name must be provided')
-    if company_csv_loc:
+    if company_csv_loc and company_csv_loc != 'None':
         inp_df = pd.read_csv(company_csv_loc)
         inp_list = [(inp_df.iloc[i][company_name_field],inp_df.iloc[i][company_details_field]) for i in range(inp_df.shape[0])]
     else:
         inp_list = []
-    if desig_loc:
+    if desig_loc and desig_loc != 'None':
         inp_df = pd.read_csv(desig_loc)
         desig_list = list(inp_df[designations_column_name])
     else:
@@ -41,7 +42,6 @@ def run_main(list_name=None,company_csv_loc=None,desig_loc=None,similar_companie
     list_table = 'crawler.list_table'
     list_items_table = 'crawler.list_items'
     con = PostgresConnect()
-    url_extractor = LkdnUrlExtrMain(visible=False)
     crawler = LinkedinCrawlerThread()
     tables_updater = TableUpdater()
     query = 'select id from {} where list_name = %s'.format(list_table)
@@ -67,30 +67,37 @@ def run_main(list_name=None,company_csv_loc=None,desig_loc=None,similar_companie
         con.cursor.execute(insert_query, inp_list1)
     con.commit()
     con.close_cursor()
-    logging.info('going to find linkedin urls')
-    event = threading.Event()
-    t1 = threading.Thread(target=url_extractor.run_main, args=(list_id,))
-    t1.daemon = True
-    t1.start()
-    event.wait(timeout=60)
-    # url_extractor.run_main(list_id)
-    logging.info('completed linkedin url extraction process')
-    del url_extractor
+    os.system("find /tmp/* -maxdepth 1 -type d -name 'tmp*' |  xargs rm -rf")
+    if extract_urls:
+        url_extractor = LkdnUrlExtrMain(visible=visible)
+        logging.info('going to find linkedin urls')
+        # os.system("pkill -9 firefox")
+        t1 = multiprocessing.Process(target=url_extractor.run_main, args=(list_id,))
+        t1.daemon = True
+        t1.start()
+        time.sleep(120)
     gc.collect()
     start_time = time.time()
+    # if similar_companies is 0, remove all in urls to crawl table
     while True:
         if time.time() - start_time > hours*60*60:
             break
-        os.system("find /tmp/* -maxdepth 1 -type d -name 'tmp*' |  xargs rm -rf")
-        os.system("pkill -9 firefox")
+        # os.system("find /tmp/* -maxdepth 1 -type d -name 'tmp*' |  xargs rm -rf")
+        # os.system("pkill -9 firefox")
         logging.info('starting an iteration of crawling')
-        crawler.run_both_single(list_id=list_id,visible=False,limit_no=100)
-        os.system("find /tmp/* -maxdepth 1 -type d -name 'tmp*' |  xargs rm -rf")
-        os.system("pkill -9 firefox")
-        logging.info('updating tables for next iteration')
+        logging.info('updating tables for iteration')
         tables_updater.update_tables(list_id,desig_list,similar_companies)
+        crawler.run_both_single(list_id=list_id,visible=visible,limit_no=100,time_out = hours)
+        # os.system("find /tmp/* -maxdepth 1 -type d -name 'tmp*' |  xargs rm -rf")
+        # os.system("pkill -9 firefox")
         gen_people_details(list_id,desig_list)
     del crawler,tables_updater
+    if extract_urls:
+        if t1.is_alive():
+            t1.terminate()
+        del url_extractor
+    # os.system("pkill -9 firefox")
+    os.system("find /tmp/* -maxdepth 1 -type d -name 'tmp*' |  xargs rm -rf")
     gc.collect()
     logging.info('completed the main program')
 
@@ -111,18 +118,23 @@ if __name__ == "__main__":
     optparser.add_option('-s', '--similar',
                          dest='similar_companies',
                          help='give 1 if similar companies need to be found.Else 0',
-                         default=1)
-    optparser.add_option('-h', '--hours',
+                         default=1,type='float')
+    optparser.add_option('-t', '--hours',
                          dest='no_hours',
                          help='No of hours the process need to run. Default 1 hour',
-                         default=1)
+                         default=1,type='float')
+    optparser.add_option('-u', '--urlextr',
+                         dest='extract_urls',
+                         help='Extract urls', #if not, directly go to crawling
+                         default=1,type='float')
     (options, args) = optparser.parse_args()
     csv_company = options.csv_company
     desig_loc = options.desig_loc
     list_name = options.list_name
     similar_companies = options.similar_companies
     hours = options.no_hours
+    extract_urls = options.extract_urls
 
-    run_main(list_name,csv_company,desig_loc,similar_companies,hours)
+    run_main(list_name,csv_company,desig_loc,similar_companies,hours,extract_urls)
 
 
