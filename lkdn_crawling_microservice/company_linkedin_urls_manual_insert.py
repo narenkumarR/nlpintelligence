@@ -37,20 +37,28 @@ def upload_url_list(csv_loc=None,list_name=None):
         con.commit()
         # now insert urls directly into the list_items_urls table
         for url,name_val in zip(url_list,company_dets):
-            name = name_val[0]
-            value = name_val[1]
-            query = "insert into crawler.list_items_urls (list_id,list_items_id,url) "\
-                    " select  list_id,id as list_items_id,'"+url+"' as url "\
-                    " from {} where list_input = %s and list_input_additional = %s "\
-                    " on conflict do nothing ".format('crawler.list_items')
-            con.cursor.execute(query,(name,value,))
-            con.commit()
-            query = "insert into {} (url,list_id,list_items_url_id) select a.url,a.list_id,a.id as list_items_url_id "\
-                " from {} a left join {} b on a.list_id=b.list_id and a.id = b.list_items_url_id where a.list_id = %s "\
-                " and b.list_id is NULL "\
-                " on conflict do nothing".format(company_urls_to_crawl_priority_table,'crawler.list_items_urls',company_finished_urls_table)
-            con.cursor.execute(query,(list_id,))
-            con.commit()
+            try:
+                name = name_val[0]
+                value = name_val[1]
+                query = "insert into crawler.list_items_urls (list_id,list_items_id,url) "\
+                        " select  list_id,id as list_items_id,%s as url "\
+                        " from {} where list_input = %s and list_input_additional = %s "\
+                        " on conflict do nothing ".format('crawler.list_items')
+                con.cursor.execute(query,(url,name,value,))
+                con.commit()
+            except:
+                print('error happened for url:{},name_val:{}'.format(url,name_val))
+                try:
+                    con.close_cursor()
+                except:
+                    pass
+                con.get_cursor()
+        query = "insert into {} (url,list_id,list_items_url_id) select a.url,a.list_id,a.id as list_items_url_id "\
+                    " from {} a left join {} b on a.list_id=b.list_id and a.id = b.list_items_url_id where a.list_id = %s "\
+                    " and b.list_id is NULL "\
+                    " on conflict do nothing".format(company_urls_to_crawl_priority_table,'crawler.list_items_urls',company_finished_urls_table)
+        con.cursor.execute(query,(list_id,))
+        con.commit()
     con.close_cursor()
 
 if __name__ == "__main__":
