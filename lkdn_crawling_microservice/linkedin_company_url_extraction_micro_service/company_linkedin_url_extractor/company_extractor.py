@@ -260,8 +260,8 @@ class CompanyLinkedinURLExtractorMulti(object):
             # logging.info('Trying to find linkedin url for : {0},{1}, thread:{2}'.format(key,inp_tuple,threading.currentThread()))
             try:
                 res = link_extractor.get_linkedin_url(inp_tuple,time_out=self.time_out)
-                if res:
-                    self.out_queue.put((key,res))
+                # if res:
+                self.out_queue.put((key,res))
                 # logging.info('completed for : {0},{1}, res:{2},thread:{3}'.format(key,inp_tuple,res,threading.currentThread()))
             except:
                 pass
@@ -273,7 +273,7 @@ class CompanyLinkedinURLExtractorMulti(object):
         '''
         out_dic = {}
         while not self.out_queue.empty():
-            key,linkedin_url = self.out_queue.get()
+            key,linkedin_url = self.out_queue.get() #what we get here is not linkedin url. it is a tuple
             # logging.info('fetched from out_queue: {0},{1}'.format(key,linkedin_url))
             out_dic[key] = linkedin_url
         for key in self.url_dict.keys():
@@ -281,6 +281,11 @@ class CompanyLinkedinURLExtractorMulti(object):
                 # logging.info('could not find linkedin ur for key:{0}'.format(key))
                 out_dic[key] = ('',0)
         return out_dic
+
+    def yield_outs(self):
+        while not self.out_queue.empty():
+            key,linkedin_url = self.out_queue.get()
+            yield key,linkedin_url
 
     def get_linkedin_url_multi(self,url_dict,n_threads=2,time_out=30):
         '''
@@ -306,6 +311,23 @@ class CompanyLinkedinURLExtractorMulti(object):
         # logging.info('putting urls into input queue')
         for i in url_dict:
             self.in_queue.put((i,url_dict[i]))
+        logging.info('company extraction: 120 second wait started ')
+        time.sleep(120)
+        logging.info('company extraction: 120 second wait ended ')
+        # start yielding results
+        found_list = []
+        logging.info('company extraction: looking at out_queue for urls')
+        while True:
+            try:
+                key,res = self.out_queue.get(timeout=60)
+            except:
+                break
+            linkedin_url,conf = res[0],res[1]
+            logging.info('company extraction: url extracted :{}, conf:{}'.format(linkedin_url,conf))
+            yield key,linkedin_url,conf # yield key, url and flag_found(1). if not found return 0
+            found_list.append(key)
+            # time.sleep(1)
+        logging.info('company extraction: out_queue is empty ')
         self.in_queue.join()
         self.run_queue = False
         for worker in workers:
@@ -313,4 +335,15 @@ class CompanyLinkedinURLExtractorMulti(object):
         for link_extractor in worker_link_extractors:
             link_extractor.crawler.browser.quit()
             link_extractor.ddg_crawler.crawler.browser.quit()
-        return self.get_outdic()
+        # try to yield from out_queue again if anything is remaining in the queue
+        logging.info('company extraction: trying to fetch from out queue again')
+        while not self.out_queue.empty():
+            key,linkedin_url = self.out_queue.get()
+            yield key,linkedin_url
+            found_list.append(key)
+            # time.sleep(30)
+        logging.info('company extraction: out queue empty. send remaining as not able to find ')
+        for key in self.url_dict.keys():
+            if key not in found_list:
+                # logging.info('could not find linkedin ur for key:{0}'.format(key))
+                yield key,'',0

@@ -8,6 +8,7 @@ import httplib
 import socket
 
 from selenium.webdriver.remote.command import Command
+from selenium.common.exceptions import TimeoutException
 
 def get_status(driver):
     try:
@@ -65,7 +66,11 @@ class SeleniumParser(object):
         :param url:
         :return:
         '''
-        self.browser.get(url)
+
+        try:
+            self.browser.get(url)
+        except TimeoutException:
+            self.browser.execute_script("window.stop();")
         html = self.browser.page_source
         html = str(html.encode('utf-8'))
         return html

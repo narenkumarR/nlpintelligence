@@ -8,7 +8,7 @@ from company_linkedin_url_extractor.company_extractor import CompanyLinkedinURLE
 
 from constants import problematic_urls_file
 
-list_items_table = 'crawler.list_items_urls'
+list_items_urls_table = 'crawler.list_items_urls'
 urls_to_crawl_priority_table = 'crawler.linkedin_company_urls_to_crawl_priority'
 
 class LkdnUrlExtrMain(object):
@@ -38,43 +38,34 @@ class LkdnUrlExtrMain(object):
         in_list = self.con.cursor.fetchall()
         if not in_list:
             return
-        logging.info('companies for which url needs to be find : {}'.format(in_list))
+        # logging.info('companies for which url needs to be find : {}'.format(in_list))
         tmp_dic = {}
         for list_items_id,list_input,list_input_additional in in_list:
             tmp_dic[list_items_id] = (list_input,list_input_additional)
         logging.info('started process for finding linkedin url for {} companies'.format(len(tmp_dic.keys())))
-        out_dict = self.cc.get_linkedin_url_multi(tmp_dic,n_threads=1,time_out=100)
-        out_dict1 = {}
-        prob_dict = {}
-        for i in out_dict:
-            if out_dict[i][1] ==0 or not out_dict[i][0]:
-                prob_dict[i] = tmp_dic[i]
+        # with open(problematic_urls_file,'w') as f:
+        #     f.write('Following Company names had problems:\n')
+        # iterating through results
+        for key,linkedin_url,conf in self.cc.get_linkedin_url_multi(tmp_dic,n_threads=1,time_out=100):
+            logging.info('linkedin_url_finder: data from url extractor, key:{},linkedin_url:{},conf:{}'.format(key,linkedin_url,conf))
+            if linkedin_url:
+                # insert into list_items_urls table
+                insert_query = "INSERT INTO {} (list_id,list_items_id,url) VALUES (%s,%s,%s) "\
+                    "ON CONFLICT DO NOTHING".format(list_items_urls_table)
+                self.con.cursor.execute(insert_query, (list_id,key,linkedin_url,))
+                self.con.commit()
+                query = "insert into {} (url,list_id,list_items_url_id) select url,list_id,id as list_items_url_id "\
+                " from {} where list_id = %s on conflict do nothing".format(urls_to_crawl_priority_table,list_items_urls_table)
+                self.con.cursor.execute(query,(list_id,))
+                self.con.commit()
             else:
-                out_dict1[i] = out_dict[i][0]
-        # save out_dict1 into urls to list_items_urls
-        # save prob_dict as csv
-        logging.info('found linkedin urls for {} items. No of items with problem: {}'.format(len(out_dict1.keys()),len(prob_dict.keys())))
-        out_list = []
-        for i in out_dict1:
-            out_list.append((list_id,i,out_dict1[i],))
-        if out_list:
-            records_list_template = ','.join(['%s']*len(out_list))
-            insert_query = "INSERT INTO {} (list_id,list_items_id,url) VALUES {} "\
-                    "ON CONFLICT DO NOTHING".format(list_items_table,records_list_template)
-            self.con.cursor.execute(insert_query, out_list)
-            self.con.commit()
-            # insert data into priority table so the crawling process will start running
-            query = "insert into {} (url,list_id,list_items_url_id) select url,list_id,id as list_items_url_id "\
-                " from {} where list_id = %s on conflict do nothing".format(urls_to_crawl_priority_table,list_items_table)
-            self.con.cursor.execute(query,(list_id,))
-            self.con.commit()
+                delete_query = "DELETE FROM {} WHERE list_id = %s AND id = %s".format('crawler.list_items')
+                self.con.execute(delete_query,(list_id,key,))
+                self.con.commit()
+                with open(problematic_urls_file,'a') as f:
+                    f.write('{}\n'.format(tmp_dic[key]))
         self.con.close_cursor()
-        if prob_dict:
-            with open(problematic_urls_file,'w') as f:
-                f.write('Following Company names had problems:\n')
-                for i in prob_dict:
-                    f.write('{}\n'.format(prob_dict[i]))
-        logging.info('completed linkedin url extraction process')
+        logging.info('completed url extraction process')
 
 if __name__ == "__main__":
     optparser = OptionParser()
