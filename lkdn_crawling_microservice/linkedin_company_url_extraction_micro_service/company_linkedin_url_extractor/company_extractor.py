@@ -15,12 +15,13 @@ from Queue import Queue
 from constants import company_common_reg
 
 class CompanyLinkedinURLExtractorSingle(object):
-    '''Find url for a single company
+    '''Find url for a single company/this will detect people linkedin urls also
     '''
     def __init__(self,visible=False):
         # self.crawler = BeautifulsoupCrawl()
         self.crawler = SeleniumParser(page_load_timeout=50,visible=visible)
         self.ddg_crawler = DuckduckgoCrawler(visible=visible)
+        self.search_string = 'linkedin.com' #earlier linkedin.com/company
 
     def get_linkedin_url(self,inp_tuple,time_out=30):
         '''
@@ -52,18 +53,19 @@ class CompanyLinkedinURLExtractorSingle(object):
         :param company_text: can be the website of the company or company name
         :return:
         '''
-        search_query = company_text+' linkedin'
-        search_res = self.ddg_crawler.fetch_results(search_query)
-        conf = 95
-        res_list = []
-        for dic1 in search_res:
-            res_url,text = dic1['url'],dic1['text']
-            if re.search('linkedin.com/company',res_url):
-                res_list.append((res_url,text,conf))
-            conf = min(conf-5,60)
-        final_res,final_conf = self.get_best_res_from_ddg_results(res_list,company_text,'')
-        if final_conf >0 and final_res:
-            return final_res,final_conf
+        if company_text:
+            search_query = company_text+' linkedin'
+            search_res = self.ddg_crawler.fetch_results(search_query)
+            conf = 95
+            res_list = []
+            for dic1 in search_res:
+                res_url,text = dic1['url'],dic1['text']
+                if re.search(self.search_string,res_url):
+                    res_list.append((res_url,text,conf))
+                conf = min(conf-5,60)
+            final_res,final_conf = self.get_best_res_from_ddg_results(res_list,company_text,'')
+            if final_conf >0 and final_res:
+                return final_res,final_conf
         if additional_text:
             search_query = company_text + ' ' + additional_text+' linkedin'
             search_res = self.ddg_crawler.fetch_results(search_query)
@@ -71,7 +73,7 @@ class CompanyLinkedinURLExtractorSingle(object):
             res_list = []
             for dic1 in search_res:
                 res_url,text = dic1['url'],dic1['text']
-                if re.search('linkedin.com/company',res_url):
+                if re.search(self.search_string,res_url):
                     res_list.append((res_url,text,conf))
                 conf = min(conf-5,60)
             final_res,final_conf = self.get_best_res_from_ddg_results(res_list,company_text+' '+additional_text,'')
@@ -196,7 +198,7 @@ class CompanyLinkedinURLExtractorSingle(object):
         :return:
         '''
         for url in urls:
-            if re.search('linkedin.com/company',url): #if a linkedin company link found, return it
+            if re.search(self.search_string,url): #if a linkedin company link found, return it
                 return (url,100)
         #if the code comes here, it means no linkedin url present.
         #Now either we can look at other links like contact/about us page or do a ddg search

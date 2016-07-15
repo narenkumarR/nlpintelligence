@@ -264,7 +264,10 @@ class LinkedinProfileCrawler(object):
 
     def get_related_people(self,soup):
         try:
-            lis = soup.find('section',{'class':'insights profile-section'}).find('div',{'class':'browse-map'}).findAll('li')
+            try:
+                lis = soup.find('section',{'class':'insights profile-section'}).find('div',{'class':'browse-map'}).findAll('li')
+            except: #new structure
+                lis = soup.find('section',{'class':'insights'}).find('div',{'class':'browse-map'}).findAll('li')
             out_list = []
             for li in lis:
                 li_dic = {}
@@ -288,7 +291,10 @@ class LinkedinProfileCrawler(object):
 
     def get_same_name_people(self,soup):
         try:
-            lis = soup.find('section',{'class':'insights profile-section'}).find('div',{'class':'name-search'}).findAll('li')
+            try:
+                lis = soup.find('section',{'class':'insights profile-section'}).find('div',{'class':'name-search'}).findAll('li')
+            except:
+                lis = soup.find('section',{'class':'insights'}).find('div',{'class':'name-search'}).findAll('li')
             out_list = []
             for li in lis:
                 li_dic = {}

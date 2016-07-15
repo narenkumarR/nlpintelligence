@@ -90,9 +90,11 @@ class TableUpdater(object):
                 " list_id,list_items_url_id "\
                 "from crawler.linkedin_people_base a "\
                 "where  a.company_linkedin_url like '%%linkedin%%' and list_id = %s and "\
-                "regexp_replace(sub_text,'\yin\y|\yof\y|\yat\y',' ') ~* '" +  desig_list_reg + "' "
-            self.con.cursor.execute(query,(list_id,))
+                "regexp_replace(sub_text,'\yin\y|\yof\y|\yat\y',' ') ~* %s "
+            self.con.cursor.execute(query,(list_id,desig_list_reg,))
             self.con.commit()
+            # import pdb
+            # pdb.set_trace()
             query = "insert into crawler.linkedin_company_urls_to_crawl_priority (url,list_id,list_items_url_id) "\
                 "select a.url,a.list_id,a.list_items_url_id from crawler.tmp_table a left join "\
                 "crawler.linkedin_company_redirect_url c on a.url = c.url or a.url = c.redirect_url left join "\
@@ -139,7 +141,28 @@ class TableUpdater(object):
                 "select a.url,a.list_id,a.list_items_url_id from crawler.tmp_table a "\
                 "left join  crawler.linkedin_people_redirect_url c on a.url = c.url or a.url = c.redirect_url "\
                 " left join crawler.linkedin_people_finished_urls b on (b.url=c.url or b.url = c.redirect_url or a.url=b.url) and (a.list_id=b.list_id) "\
-                "where b.url is null and regexp_replace(position,'\yin\y|\yof\y|\yat\y',' ') ~* '" +  desig_list_reg +"' "\
+                "where b.url is null and regexp_replace(position,'\yin\y|\yof\y|\yat\y',' ') ~* %s "\
+                " and a.list_id = %s on conflict do nothing "
+        self.con.cursor.execute(query,(desig_list_reg,list_id,))
+        self.con.commit()
+
+        # next insert all people to the urls to crawl list (not priority). This is to get the related people for these guys
+        # in cases where there is not enough urls to crawl
+        query = "drop table if exists crawler.tmp_table "
+        self.con.cursor.execute(query)
+        self.con.commit()
+        query = "create table crawler.tmp_table as "\
+                "select distinct unnest(crawler.clean_linkedin_url_array(crawler.extract_related_info(string_to_array(related_people,'|'),1))) as url, "\
+                "unnest(crawler.clean_linkedin_url_array(crawler.extract_related_info(string_to_array(related_people,'|'),3))) as position, "\
+                " list_id,list_items_url_id "\
+                "from crawler.linkedin_people_base where related_people like '%%linkedin%%' and list_id = %s"
+        self.con.cursor.execute(query,(list_id,))
+        self.con.commit()
+        query = "insert into crawler.linkedin_people_urls_to_crawl (url,list_id,list_items_url_id) "\
+                "select a.url,a.list_id,a.list_items_url_id from crawler.tmp_table a "\
+                "left join  crawler.linkedin_people_redirect_url c on a.url = c.url or a.url = c.redirect_url "\
+                " left join crawler.linkedin_people_finished_urls b on (b.url=c.url or b.url = c.redirect_url or a.url=b.url) and (a.list_id=b.list_id) "\
+                "where b.url is null  "\
                 " and a.list_id = %s on conflict do nothing "
         self.con.cursor.execute(query,(list_id,))
         self.con.commit()
@@ -152,6 +175,23 @@ class TableUpdater(object):
         query = "delete from crawler.linkedin_people_urls_to_crawl_priority "\
                 "where url not like '%%linkedin%%' or url like '%%,%%' or url like '%%|%%' or url like '%%{}%%' "
         self.con.cursor.execute(query)
+        query = "delete from crawler.linkedin_people_urls_to_crawl "\
+                "where url not like '%%linkedin%%' or url like '%%,%%' or url like '%%|%%' or url like '%%{}%%' "
+        self.con.cursor.execute(query)
+        # final updation
+        # logging.info('updating urls ')
+        # query = "update crawler.linkedin_company_urls_to_crawl_priority "\
+        #         "set url = split_part(split_part(url,'/careers',1),'?trk',1) "
+        # self.con.cursor.execute(query)
+        # query = "update crawler.linkedin_people_urls_to_crawl_priority "\
+        #         "set url = split_part(url,'?trk',1) "
+        # self.con.cursor.execute(query)
+        # query = "update crawler.linkedin_company_urls_to_crawl "\
+        #         "set url = split_part(split_part(url,'/careers',1),'?trk',1) "
+        # self.con.cursor.execute(query)
+        # query = "update crawler.linkedin_people_urls_to_crawl "\
+        #         "set url = split_part(url,'?trk',1) "
+        # self.con.cursor.execute(query)
 
         # commiting the results
         self.con.commit()

@@ -31,6 +31,7 @@ def run_main(list_name=None,company_csv_loc=None,desig_loc=None,similar_companie
         raise ValueError('list name must be provided')
     if company_csv_loc and company_csv_loc != 'None':
         inp_df = pd.read_csv(company_csv_loc)
+        inp_df = inp_df.fillna('')
         inp_list = [(inp_df.iloc[i][company_name_field],inp_df.iloc[i][company_details_field]) for i in range(inp_df.shape[0])]
     else:
         inp_list = []

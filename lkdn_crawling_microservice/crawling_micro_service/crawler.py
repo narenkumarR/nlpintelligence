@@ -120,7 +120,7 @@ class LinkedinCompanyCrawlerThread(object):
                     res = res_1['result']
                     if res:
                         if 'Company Name' in res :
-                            if res['Company Name'] and res['Company Name'] != 'LinkedIn':
+                            if res['Company Name'] and (res['Company Name'] != 'LinkedIn' or url.startswith('https://www.linkedin.com/company/1337') or url.startswith('https://www.linkedin.com/company/linkedin')):
                                 self.out_queue.put((res,list_items_url_id))
                                 # self.processed_queue.put(url)
                                 no_errors = 0
@@ -402,6 +402,7 @@ class LinkedinCompanyCrawlerThread(object):
             except :
                 # self.run_queue = False
                 break
+        time.sleep(60)
         logging.info('company part crawling stopped, trying to save already crawled results. No of results left in out queue : {}'.format(len(self.out_queue.queue)))
         self.out_queue.join()
         self.run_queue = False
@@ -795,7 +796,7 @@ class LinkedinProfileCrawlerThread(object):
             except :
                 # self.run_queue = False
                 break
-        # time.sleep(20) #giving 20 second wait for all existing tasks to finish
+        time.sleep(60) #giving 20 second wait for all existing tasks to finish
         logging.info('people part: crawling stopped, trying to save already crawled results. No of results left in out queue : {}'.format(len(self.out_queue.queue)))
         self.out_queue.join()
         self.run_queue = False
