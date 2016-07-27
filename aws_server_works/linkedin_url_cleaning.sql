@@ -18,6 +18,7 @@ select * from linkedin_company_domains where linkedin_name is null and linkedin_
 	and linkedin_url not like '%/profile/%' and linkedin_url not like '%/in/%' and linkedin_url not like '%/pub/%' limit 100;
 
 
+--following queries need to be run periodically
 update linkedin_company_domains set domain = '' where domain like '%google.com%' and linkedin_name != 'google';
 update   linkedin_company_domains set domain = '' where domain like '%facebook.com%' and linkedin_name !=  'facebook';
 update linkedin_company_domains set domain = '' where domain like '%linkedin.com%' and linkedin_name != 'linkedin';
@@ -39,3 +40,8 @@ update linkedin_company_domains set domain = '' where domain like '%vimeo.com%' 
 update linkedin_company_domains set domain = '' where domain like '%instagram.com%' and linkedin_name != 'instagram';
 update linkedin_company_domains set domain = '' where domain like '%companycheck.co.uk%' and linkedin_name != 'company-check-ltd';
 update linkedin_company_domains set domain = '' where domain like '%tinyurl.com%' and linkedin_name != 'tinyurl';
+
+update linkedin_company_domains set linkedin_name = split_part(linkedin_url,'linkedin.com/company/',2) where  linkedin_url like '%linkedin.com/company/%' and linkedin_name is null;
+update linkedin_company_domains set linkedin_name = split_part(linkedin_url,'linkedin.com/companies/',2) where  linkedin_url like '%linkedin.com/companies/%' and linkedin_name is null;
+update linkedin_company_domains set linkedin_name = split_part(linkedin_url,'linkedin.com/company/',2) where  linkedin_url like '%linkedin.com/company/%' and linkedin_name is null;
+update linkedin_company_domains set linkedin_name = split_part(linkedin_url,'linkedin.com/companies/',2) where  linkedin_url like '%linkedin.com/companies/%' and linkedin_name is null;

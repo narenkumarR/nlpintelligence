@@ -47,10 +47,11 @@ class ProxyGen(object):
 
     def exit(self):
         if self.parser == 'selenium':
-            logging.info('exiting proxy browser')
-            self.browser.exit()
-            self.browser_active = False
-            logging.info('finished exiting proxy browser')
+            if self.browser_active:
+                logging.info('exiting proxy browser')
+                self.browser.exit()
+                self.browser_active = False
+                logging.info('finished exiting proxy browser')
 
     def gen_proxy_samair(self):
         ''' look at proxy from http://www.samair.ru/proxy/ip-address-01.htm

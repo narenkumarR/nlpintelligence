@@ -48,6 +48,7 @@ class LinkedinCrawlerThread(object):
                 urls = pickle.load(f)
         cc = crawler.LinkedinCompanyCrawlerThread(browser,visible=visible,proxy=proxy,use_tor=use_tor,use_db=use_db)
         gc.collect()
+        logging.info('starting the main run call for company process')
         cc.run(urls,res_file,log_file,n_threads,limit_no=limit_no,urls_to_crawl_table=urls_to_crawl_table,
             urls_to_crawl_priority=urls_to_crawl_priority,base_table=base_table,
             urls_to_crawl_table_people = urls_to_crawl_table_people,finished_urls_table_company = finished_urls_table_company,
@@ -84,6 +85,7 @@ class LinkedinCrawlerThread(object):
                 urls = pickle.load(f)
         cc = crawler.LinkedinProfileCrawlerThread(browser,visible=visible,proxy=proxy,use_tor=use_tor,use_db=use_db)
         gc.collect()
+        logging.info('starting the main run call for people process')
         cc.run(urls,res_file,log_file,n_threads,limit_no=limit_no,urls_to_crawl_table=urls_to_crawl_table,
             urls_to_crawl_priority=urls_to_crawl_priority,base_table=base_table,
             urls_to_crawl_table_company = urls_to_crawl_table_company,finished_urls_table_company = finished_urls_table_company,
@@ -104,7 +106,7 @@ class LinkedinCrawlerThread(object):
                          company_base_table='crawler.linkedin_company_base',
                          finished_urls_table_company = 'crawler.linkedin_company_finished_urls',
                          finished_urls_table_people = 'crawler.linkedin_people_finished_urls',
-                         list_id = None,time_out = 1):
+                         list_id = None,time_out = 1,what=0):
         '''
         :param crawled_loc: location of result (used when crawling done using files). If crawling is db based, the logs
                             will go to logs folder in crawled_loc. This folder needs to be created before starting run
@@ -141,29 +143,37 @@ class LinkedinCrawlerThread(object):
         # urls_to_crawl_table='linkedin_people_urls_to_crawl',
         #     urls_to_crawl_priority='linkedin_people_urls_to_crawl_priority',base_table='linkedin_people_base',
         #     urls_to_crawl_table_company = 'linkedin_company_urls_to_crawl'
-        worker_people = multiprocessing.Process(target=self.run_people_crawler_single,
-                                                args=(None,None,crawled_loc,browser,visible,proxy,
-                                                'people_urls_to_crawl.pkl',n_threads,use_tor,use_db,limit_no,
-                                                urls_to_crawl_people,urls_to_crawl_people_priority,people_base_table,urls_to_crawl_company,
-                                                finished_urls_table_company ,finished_urls_table_people,list_id ))
-        worker_company = multiprocessing.Process(target=self.run_organization_crawler_single,
-                                                 args=(None,None,crawled_loc,browser,visible,proxy,
-                                                'company_urls_to_crawl.pkl',n_threads,use_tor,use_db,limit_no,
-                                                 urls_to_crawl_company,urls_to_crawl_company_priority,company_base_table,urls_to_crawl_people,
-                                                 finished_urls_table_company ,finished_urls_table_people,list_id ))
+        if what == 0 or what == 2:
+            worker_people = multiprocessing.Process(target=self.run_people_crawler_single,
+                                                    args=(None,None,crawled_loc,browser,visible,proxy,
+                                                    'people_urls_to_crawl.pkl',n_threads,use_tor,use_db,limit_no,
+                                                    urls_to_crawl_people,urls_to_crawl_people_priority,people_base_table,urls_to_crawl_company,
+                                                    finished_urls_table_company ,finished_urls_table_people,list_id ))
+            worker_people.daemon = True
+            worker_people.start()
+        if what == 0 or what == 1:
+            worker_company = multiprocessing.Process(target=self.run_organization_crawler_single,
+                                                     args=(None,None,crawled_loc,browser,visible,proxy,
+                                                    'company_urls_to_crawl.pkl',n_threads,use_tor,use_db,limit_no,
+                                                     urls_to_crawl_company,urls_to_crawl_company_priority,company_base_table,urls_to_crawl_people,
+                                                     finished_urls_table_company ,finished_urls_table_people,list_id ))
+            worker_company.daemon = True
+            worker_company.start()
         gc.collect()
-        worker_people.daemon = True
-        worker_company.daemon = True
-        worker_people.start()
-        worker_company.start()
-        gc.collect()
-        worker_people.join(timeout=time_out*60*60)
-        worker_company.join(timeout=600)
+        if what == 0 :
+            worker_people.join(timeout=time_out*60*60)
+            worker_company.join(timeout=600)
+        elif what == 1:
+            worker_company.join(timeout=time_out*60*60)
+        else:
+            worker_people.join(timeout=time_out*60*60)
         logging.info('finished crawling process')
-        if worker_people.is_alive():
-            worker_people.terminate()
-        if worker_company.is_alive():
-            worker_company.terminate()
+        if what == 0 or what == 2:
+            if worker_people.is_alive():
+                worker_people.terminate()
+        if what == 0 or what == 1:
+            if worker_company.is_alive():
+                worker_company.terminate()
         time.sleep(10)
         logging.info('exiting from the crawling process')
 
@@ -185,7 +195,7 @@ if __name__ == '__main__':
         use_tor = sys.argv[3]
         use_tor = (use_tor == 'True')
         cc.run_both_single(limit_no=limit_no,n_threads=n_threads,use_tor=use_tor,use_db=True)
-    else: # from fifth argument is the table names
+    else: # from fifth argument is the table names # need to fix this
         limit_no = sys.argv[1]
         limit_no = int(limit_no)
         n_threads = sys.argv[2]

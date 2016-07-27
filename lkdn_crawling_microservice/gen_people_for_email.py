@@ -2,6 +2,7 @@ __author__ = 'joswin'
 
 import pandas as pd
 from optparse import OptionParser
+import logging
 
 from postgres_connect import PostgresConnect
 from constants import desig_list_regex,designations_column_name
@@ -12,6 +13,7 @@ def gen_people_details(list_id,desig_list=None):
     :param desig_list:
     :return:
     '''
+    logging.info('started generating people details for email generation')
     if not desig_list:
         desig_list_reg = desig_list_regex
     else:
@@ -63,7 +65,7 @@ def gen_people_details(list_id,desig_list=None):
             "domain not in ('http://','http://-','http://.','http://...','http://1','') and  "\
             "name_cleaned[2] is not null and name_cleaned[4] is not null and name_cleaned[2] not in('','.','..') "\
             " and name_cleaned[4] not in ('','.','..') and domain is not null and domain != 'NULL' "\
-            " and regexp_replace(sub_text,'\yin\y|\yof\y|\yat\y',' ') ~* '" +  desig_list_reg + "' "\
+            " and sub_text ~* '" +  desig_list_reg + "' "\
             "and list_id =%s "\
             " on conflict do nothing"
     con.cursor.execute(query,(list_id,))
@@ -71,6 +73,7 @@ def gen_people_details(list_id,desig_list=None):
     con.close_cursor()
     # drop tables
     # con.cursor.execute('drop table crawler.tmp_table1')
+    logging.info('generated people details for email generation')
 
 if __name__ == "__main__":
     optparser = OptionParser()

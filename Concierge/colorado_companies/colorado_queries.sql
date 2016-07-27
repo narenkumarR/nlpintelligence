@@ -13,7 +13,7 @@ create table colorado_cb_lkdn_people_all as
 select distinct a.company_name,a.domain,a.category_list,a.category_group_list,a.funding_rounds,a.funding_total_usd,a.founded_on,a.employee_count,
 a.email company_email,a.phone company_phone,a.facebook_url company_facebook,a.city company_city,
 b.industry,
-e.name,e.sub_text as designation,e.location  as location_person
+e.name,trim(e.sub_text) as designation,e.location  as location_person
  from crunchbase_data.organizations a  join linkedin_company_domains x on a.domain = x.domain 
   join linkedin_company_base b on x.linkedin_url = b.linkedin_url
   join company_urls_mapper c on b.linkedin_url = c.alias_url left join people_company_mapper d on c.base_url = d.company_url
@@ -197,9 +197,50 @@ UNION
  (name_cleaner(name))[4] as last_name,
  trim(sub_text) as designation,b.company_name as  company_person
  from
- concierge_table_colorado_2 a join people_company_mapper c on a.linkedin_url = c.company_url
+ concierge_table_colorado_2 a join company_urls_mapper x on a.linkedin_url=x.alias_url
+ people_company_mapper c on x.base_url = c.company_url
  join linkedin_people_base b on c.people_url = b.linkedin_url
  WHERE
  sub_text ~* '\yAVP Engineering\y|\yAVP Mobile\y|\yAVP Product\y|\yAVP Technology\y|\yProduct Manager\y|\yProduct Manager Mobile\y|\yAssociate Product Manager Web\y|\yCEO\y|\yCIO\y|\yCMO\y|\yCTO\y|\yChief Executive Officer\y|\yChief Information Officer\y|\yChief Product Officer\y|\yChief Technology Officer\y|\yCo Founder\y|\yCo-founder\y|\yCoFounder\y|\yDirector Engineering\y|\yDirector Mobile\y|\yDirector Technology\y|\yFounder\y|\yHead.+Mobility\y|\yHead.+Mobile\y|\yHead.+Engineering\y|\yHead.+Product\y|\yDirector.+Engineering\y|\yDirector.+Mobile\y|\yDirector.+Technology\y|\yProduct Manager.+Mobile\y|\yProduct Manager Web\y|\ySVP.+Engineering\y|\ySVP.+Mobile\y|\ySVP.+Product\y|\ySVP.+Technology\y|\yDirector.+Engineering\y|\yDirector.+Mobile\y|\yDirector.+Technology\y|\ySenior Product Manager\y|\ySenior Product Manager.+Mobile\y|\ySenior Product Manager Web\y|\yVP.+Engineering\y|\yVP.+Mobile\y|\yVP.+Product\y|\yVP.+Technology\y'
 )
 )x;
+
+
+
+--only people from linkedin with designations in the new list
+create table concierge_linkedin_company_people_colorado as
+  select distinct a.company_name,company_size,a.industry,headquarters,founded,b.domain,
+    name,trim(sub_text) as designation,location as location_person
+  from
+  concierge_linkedin_company_base_colorado a join linkedin_company_domains b on a.linkedin_url=b.linkedin_url
+  join company_urls_mapper c on a.linkedin_url = c.alias_url  join people_company_mapper d on c.base_url = d.company_url
+   join linkedin_people_base e on d.people_url = e.linkedin_url
+  where
+ sub_text ~* '\yProduct Manager.+Web\y|\yProduct Manager.+Technology\y|\yProduct Manager.+Engineering\y|\yProduct Manager.+Mobile\y|\yProduct Manager.+Product\y|\yProduct Manager.+products\y|\yDirector.+Web\y|\yDirector.+Technology\y|\yDirector.+Engineering\y|\yDirector.+Mobile\y|\yDirector.+Product\y|\yDirector.+products\y|\yVP.+Web\y|\yVP.+Technology\y|\yVP.+Engineering\y|\yVP.+Mobile\y|\yVP.+Product\y|\yVP.+products\y|\yVice president.+Web\y|\yVice president.+Technology\y|\yVice president.+Engineering\y|\yVice president.+Mobile\y|\yVice president.+Product\y|\yVice president.+products\y|\yHead of.+Web\y|\yHead of.+Technology\y|\yHead of.+Engineering\y|\yHead of.+Mobile\y|\yHead of.+Product\y|\yHead of.+products\y|\yChief Product Officer\y|\yCTO\y|\yChief Technology Officer\y'
+;
+
+
+
+----fetching results after crawling
+select * from
+(select distinct on (first_name,middle_name,last_name,domain,designation) * from (
+(select distinct first_name,middle_name,last_name,domain,trim(designation) as designation,
+a.company_name,company_website,headquarters,founded,company_size,industry,trim(specialties) as specialties,trim(description) description
+from crawler.people_details_for_email_verifier a join crawler.linkedin_company_base lk_c on a.company_website = lk_c.website 
+where
+designation ~* '\yProduct Manager.+Web\y|\yProduct Manager.+Technology\y|\yProduct Manager.+Engineering\y|\yProduct Manager.+Mobile\y|\yProduct Manager.+Product\y|\yProduct Manager.+products\y|\yDirector.+Web\y|\yDirector.+Technology\y|\yDirector.+Engineering\y|\yDirector.+Mobile\y|\yDirector.+Product\y|\yDirector.+products\y|\yVP.+Web\y|\yVP.+Technology\y|\yVP.+Engineering\y|\yVP.+Mobile\y|\yVP.+Product\y|\yVP.+products\y|\yVice president.+Web\y|\yVice president.+Technology\y|\yVice president.+Engineering\y|\yVice president.+Mobile\y|\yVice president.+Product\y|\yVice president.+products\y|\yHead of.+Web\y|\yHead of.+Technology\y|\yHead of.+Engineering\y|\yHead of.+Mobile\y|\yHead of.+Product\y|\yHead of.+products\y|\yChief Product Officer\y|\yCTO\y|\yChief Technology Officer\y'
+and
+ (lk_c.headquarters ~* 'colorado' or lk_c.headquarters ~* ' CO ') and (lk_c.headquarters ~* 'united states' or lk_c.headquarters ~ ' USA') 
+)
+union
+(
+select distinct first_name,middle_name,last_name,domain,trim(designation) as designation,a.company_name,company_website,headquarters,founded,
+company_size,industry,trim(specialties) as specialties,trim(description) description
+from crawler.people_details_for_email_verifier a join crawler.linkedin_company_base lk_c on a.company_website = lk_c.website 
+join crawler.list_items_urls c on lk_c.linkedin_url=c.url
+where 
+ designation ~* '\yProduct Manager.+Web\y|\yProduct Manager.+Technology\y|\yProduct Manager.+Engineering\y|\yProduct Manager.+Mobile\y|\yProduct Manager.+Product\y|\yProduct Manager.+products\y|\yDirector.+Web\y|\yDirector.+Technology\y|\yDirector.+Engineering\y|\yDirector.+Mobile\y|\yDirector.+Product\y|\yDirector.+products\y|\yVP.+Web\y|\yVP.+Technology\y|\yVP.+Engineering\y|\yVP.+Mobile\y|\yVP.+Product\y|\yVP.+products\y|\yVice president.+Web\y|\yVice president.+Technology\y|\yVice president.+Engineering\y|\yVice president.+Mobile\y|\yVice president.+Product\y|\yVice president.+products\y|\yHead of.+Web\y|\yHead of.+Technology\y|\yHead of.+Engineering\y|\yHead of.+Mobile\y|\yHead of.+Product\y|\yHead of.+products\y|\yChief Product Officer\y|\yCTO\y|\yChief Technology Officer\y'
+and c.list_id = '3dacd6dc-4ffd-11e6-ad3a-df63592beb60'
+)
+)lk_c where designation !~* '\yHR\y|human resource|sales and marketing'
+)x

@@ -26,7 +26,7 @@ create table rails_startups_people_from_linkedin as
 
 --creating tables with matching conditions directly from base tables
 drop table if exists concierge_linkedin_company_base_rails;
-create table concierge_concierge_linkedin_company_base_rails_rails as
+create table concierge_linkedin_company_base_rails_rails as
 select * from concierge_linkedin_company_base_rails lk_c
 where
  (lk_c.specialties ~* 'ruby on rails');
@@ -84,7 +84,7 @@ SELECT DISTINCT ON (cb_c.domain)
   bw_c."Telephones" telephones_bw, 
   bw_c."Emails" emails_bw, 
   bw_c."People" people_bw,  
-  bw_c_t.techs technologies,
+  bw_c.techs technologies,
   cb_c.uuid
 FROM 
   public.concierge_linkedin_company_base_rails lk_c join 
@@ -96,10 +96,10 @@ WHERE
     (lk_cd_m.domain != '' and cb_c.domain != '') or 
     (cb_c.domain != '' and bw_c."Domain" != '') or
     (bw_c."Domain" != '' and lk_cd_m.domain != '')
-  ) and 
-  ('Ruby on Rails' = any(bw_c_t.techs) or lk_c.specialties ~* 'ruby on rails' or cb_c.short_description ~* 'ruby on rails');
+  )
+  ;
 
---insert from linkedin table
+--insert from linkedin table###not right, we have to use company_domains table here
 INSERT INTO concierge_table_rubyonrails_1 
 (domain,company_name,employee_count,homepage_url,headquarters,industry,company_type,
   description,specialties,founded_on,linkedin_url)
@@ -139,10 +139,10 @@ SELECT DISTINCT ON (lower("Company")) "Domain",lower("Company") as company_name,
   "Location on Site","Country","State","City",
   "Zip","Vertical","Facebook","Twitter","Alexa","LinkedIn","Telephones","Emails","People",techs
 FROM
-  builtwith_companies_meta_data bw_c 
+  concierge_builtwith_companies_meta_data_rails bw_c 
 WHERE
   "Domain" not in (select distinct domain from concierge_table_rubyonrails_1) and
-  'Ruby on Rails' = any(bw_c_t.techs);
+  'Ruby on Rails' = any(bw_c.techs);
 
 -- create table without duplicates
 drop table if exists concierge_table_rubyonrails_2;
@@ -161,7 +161,7 @@ select distinct * from (
   concierge_table_rubyonrails_2 a join crunchbase_data.people b on
   a.uuid = b.primary_organization_uuid
 WHERE
-b.primary_affiliation_title  ~* '\yAVP Engineering\y|\yAVP Marketing\y|\yAVP Mobile\y|\yAVP Product\y|\yAVP Technology\y|\yProduct Manager\y|\yProduct Manager Mobile\y|\yAssociate Product Manager Web\y|\yCEO\y|\yCIO\y|\yCMO\y|\yCTO\y|\yChief Executive Officer\y|\yChief Information Officer\y|\yChief Product Officer\y|\yChief Technology Officer\y|\yCo Founder\y|\yCo-founder\y|\yCoFounder\y|\yDirector Engineering\y|\yDirector Mobile\y|\yDirector Technology\y|\yFounder\y|\yHead.+Mobility\y|\yHead.+Engineering\y|\yHead.+Product\y|\yDirector Engineering\y|\yDirector Mobile\y|\yManaging Director Technology\y|\yProduct Manager Mobile\y|\yProduct Manager Web\y|\ySVP Engineering\y|\ySVP Marketing\y|\ySVP Mobile\y|\ySVP Product\y|\ySVP Technology\y|\yDirector Engineering\y|\yDirector Mobile\y|\yDirector Technology\y|\ySenior Product Manager\y|\ySenior Product Manager Mobile\y|\ySenior Product Manager Web\y|\yVP Engineering\y|\yVP Marketing\y|\yVP Mobile\y|\yVP Product\y|\yVP Technology\y'
+b.primary_affiliation_title  ~* '\yAVP Engineering\y|\yAVP Mobile\y|\yAVP Product\y|\yAVP Technology\y|\yProduct Manager\y|\yProduct Manager Mobile\y|\yAssociate Product Manager Web\y|\yCEO\y|\yCIO\y|\yCMO\y|\yCTO\y|\yChief Executive Officer\y|\yChief Information Officer\y|\yChief Product Officer\y|\yChief Technology Officer\y|\yCo Founder\y|\yCo-founder\y|\yCoFounder\y|\yDirector Engineering\y|\yDirector Mobile\y|\yDirector Technology\y|\yFounder\y|\yHead.+Mobility\y|\yHead.+Mobile\y|\yHead.+Engineering\y|\yHead.+Product\y|\yDirector.+Engineering\y|\yDirector.+Mobile\y|\yDirector.+Technology\y|\yProduct Manager.+Mobile\y|\yProduct Manager Web\y|\ySVP.+Engineering\y|\ySVP.+Mobile\y|\ySVP.+Product\y|\ySVP.+Technology\y|\yDirector.+Engineering\y|\yDirector.+Mobile\y|\yDirector.+Technology\y|\ySenior Product Manager\y|\ySenior Product Manager.+Mobile\y|\ySenior Product Manager Web\y|\yVP.+Engineering\y|\yVP.+Mobile\y|\yVP.+Product\y|\yVP.+Technology\y'
   )
 UNION
  (select a.*,(name_cleaner(name))[2] as first_name,
@@ -172,6 +172,6 @@ UNION
  concierge_table_rubyonrails_2 a join people_company_mapper c on a.linkedin_url = c.company_url
  join linkedin_people_base b on c.people_url = b.linkedin_url
  WHERE
- sub_text ~* '\yAVP Engineering\y|\yAVP Marketing\y|\yAVP Mobile\y|\yAVP Product\y|\yAVP Technology\y|\yProduct Manager\y|\yProduct Manager Mobile\y|\yAssociate Product Manager Web\y|\yCEO\y|\yCIO\y|\yCMO\y|\yCTO\y|\yChief Executive Officer\y|\yChief Information Officer\y|\yChief Product Officer\y|\yChief Technology Officer\y|\yCo Founder\y|\yCo-founder\y|\yCoFounder\y|\yDirector Engineering\y|\yDirector Mobile\y|\yDirector Technology\y|\yFounder\y|\yHead.+Mobility\y|\yHead.+Engineering\y|\yHead.+Product\y|\yDirector Engineering\y|\yDirector Mobile\y|\yManaging Director Technology\y|\yProduct Manager Mobile\y|\yProduct Manager Web\y|\ySVP Engineering\y|\ySVP Marketing\y|\ySVP Mobile\y|\ySVP Product\y|\ySVP Technology\y|\yDirector Engineering\y|\yDirector Mobile\y|\yDirector Technology\y|\ySenior Product Manager\y|\ySenior Product Manager Mobile\y|\ySenior Product Manager Web\y|\yVP Engineering\y|\yVP Marketing\y|\yVP Mobile\y|\yVP Product\y|\yVP Technology\y'
+ sub_text ~* '\yAVP Engineering\y|\yAVP Mobile\y|\yAVP Product\y|\yAVP Technology\y|\yProduct Manager\y|\yProduct Manager Mobile\y|\yAssociate Product Manager Web\y|\yCEO\y|\yCIO\y|\yCMO\y|\yCTO\y|\yChief Executive Officer\y|\yChief Information Officer\y|\yChief Product Officer\y|\yChief Technology Officer\y|\yCo Founder\y|\yCo-founder\y|\yCoFounder\y|\yDirector Engineering\y|\yDirector Mobile\y|\yDirector Technology\y|\yFounder\y|\yHead.+Mobility\y|\yHead.+Mobile\y|\yHead.+Engineering\y|\yHead.+Product\y|\yDirector.+Engineering\y|\yDirector.+Mobile\y|\yDirector.+Technology\y|\yProduct Manager.+Mobile\y|\yProduct Manager Web\y|\ySVP.+Engineering\y|\ySVP.+Mobile\y|\ySVP.+Product\y|\ySVP.+Technology\y|\yDirector.+Engineering\y|\yDirector.+Mobile\y|\yDirector.+Technology\y|\ySenior Product Manager\y|\ySenior Product Manager.+Mobile\y|\ySenior Product Manager Web\y|\yVP.+Engineering\y|\yVP.+Mobile\y|\yVP.+Product\y|\yVP.+Technology\y'
  )
 )x;

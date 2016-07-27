@@ -48,6 +48,7 @@ class LinkedinCompanyCrawlerThread(object):
         '''
         :return:
         '''
+        logging.info('company part: trying to get proxies')
         if not self.proxy:
             return [(None,None)]
         else:
@@ -58,10 +59,10 @@ class LinkedinCompanyCrawlerThread(object):
                 logging.exception('could not create proxies. using None')
                 proxies = [(None,None)]
             try:
-                self.proxy_generator.browser.exit()
+                self.proxy_generator.exit()
             except:
                 pass
-        logging.info('Proxies fetched {}'.format(proxies))
+        logging.info('company part: Proxies fetched {}'.format(proxies))
         for i in proxies:
             if i[0] is not None:
                 if self.ip_matcher.match(i[0]):
@@ -103,7 +104,7 @@ class LinkedinCompanyCrawlerThread(object):
             url,list_items_url_id = self.in_queue.get()
             # if url in self.processed_queue.queue or url in self.error_queue.queue:
             #     continue
-            logging.info('Input URL:{}, thread:{}'.format(url,threading.currentThread()))
+            logging.info('company part: Input URL:{}, thread:{}'.format(url,threading.currentThread()))
             try:
                 time.sleep(randint(1,2))
                 res_1 = {}
@@ -111,7 +112,7 @@ class LinkedinCompanyCrawlerThread(object):
                 t1 = threading.Thread(target=get_output, args=(crawler,url,res_1,event,))
                 t1.daemon = True
                 t1.start()
-                event.wait(timeout=80)
+                event.wait(timeout=120)
                 if res_1 is None: #if None means timeout happened, push to queue again. (this is causing the programe to
                     #                 not stop in some cases. So not pushing to in queue again)
                     logging.info('res_1 is None for url:{}, thread:{}'.format(url,threading.currentThread()))
@@ -298,7 +299,7 @@ class LinkedinCompanyCrawlerThread(object):
                     self.con.cursor.execute(insert_query, urls_to_crawl1)
         self.con.commit()
         self.con.close_cursor()
-        logging.info('saved to database for url:{}'.format(res['Linkedin URL']))
+        logging.info('company part: saved to database for url:{}'.format(res['Linkedin URL']))
 
     def worker_save_res(self):
         '''
@@ -306,6 +307,9 @@ class LinkedinCompanyCrawlerThread(object):
         '''
         while self.run_write_queue:
             res,list_items_url_id = self.out_queue.get()
+            if not list_items_url_id:
+                logging.info('company part: list_items_url_id is not present for res: {}'.format(res))
+                continue
             if self.use_db:
                 self.save_to_table(res,list_items_url_id)
             else:
@@ -377,6 +381,7 @@ class LinkedinCompanyCrawlerThread(object):
         if not inp_list:
             logging.info('no company urls to crawl')
             return
+        logging.info('No of company urls for which crawling to be done : {}'.format(len(inp_list)))
         self.run_queue = True
         self.run_write_queue = True
         self.out_loc = out_loc
@@ -385,6 +390,7 @@ class LinkedinCompanyCrawlerThread(object):
         # self.processed_queue = Queue(maxsize=0)
         # self.error_queue = Queue(maxsize=0)
         self.gen_proxies()
+        logging.info('Company part : Starting indivudual threads. No of threads : {}'.format(n_threads))
         for i in range(n_threads):
             worker = threading.Thread(target=self.worker_fetch_url)
             worker.setDaemon(True)
@@ -392,7 +398,7 @@ class LinkedinCompanyCrawlerThread(object):
         worker = threading.Thread(target=self.worker_save_res)
         worker.setDaemon(True)
         worker.start()
-        logging.info('No of company urls for which crawling to be done : {}'.format(len(inp_list)))
+        logging.info('Company part : Putting urls to queue')
         for i in inp_list:
             self.in_queue.put(i)
         del inp_list
@@ -402,12 +408,12 @@ class LinkedinCompanyCrawlerThread(object):
             except :
                 # self.run_queue = False
                 break
+        self.run_queue = False
         time.sleep(60)
         logging.info('company part crawling stopped, trying to save already crawled results. No of results left in out queue : {}'.format(len(self.out_queue.queue)))
         self.out_queue.join()
-        self.run_queue = False
         self.run_write_queue = False
-        self.proxy_generator.exit()
+        # self.proxy_generator.exit()
         # while not self.crawler_queue.empty():
         #     try:
         #         crl = self.crawler_queue.get()
@@ -421,6 +427,7 @@ class LinkedinCompanyCrawlerThread(object):
         logging.info('Finished company part. No of results left in out queue : {}'.format(len(self.out_queue.queue)))
         # logging._removeHandlerRef()
         time.sleep(5)
+        return
 
 
 class LinkedinProfileCrawlerThread(object):
@@ -454,6 +461,7 @@ class LinkedinProfileCrawlerThread(object):
         '''
         :return:
         '''
+        logging.info('people part: trying to get proxies')
         if not self.proxy:
             return [(None,None)]
         else:
@@ -464,10 +472,10 @@ class LinkedinProfileCrawlerThread(object):
                 logging.exception('could not create proxies. using None')
                 proxies = [(None,None)]
             try:
-                self.proxy_generator.browser.exit()
+                self.proxy_generator.exit()
             except:
                 pass
-        logging.info('Proxies fetched {}'.format(proxies))
+        logging.info('people part: Proxies fetched {}'.format(proxies))
         for i in proxies:
             if i[0] is not None:
                 if self.ip_matcher.match(i[0]):
@@ -487,6 +495,7 @@ class LinkedinProfileCrawlerThread(object):
         :return:
         '''
         try: #some error happens while getting proxy sometimes. putting it in try
+            logging.info('No proxies in queue,trying to get proxies')
             proxy_dets = self.get_proxy()
             logging.info('proxy to be used : {}'.format(proxy_dets))
             proxy_ip,proxy_port = proxy_dets[0],proxy_dets[1]
@@ -507,7 +516,7 @@ class LinkedinProfileCrawlerThread(object):
         while self.run_queue:
             ind += 1
             url,list_items_url_id = self.in_queue.get()
-            logging.info('Input URL:{}, thread:{}'.format(url,threading.currentThread()))
+            logging.info('people part: Input URL:{}, thread:{}'.format(url,threading.currentThread()))
             try:
                 time.sleep(randint(1,2))
                 res_1 = {}
@@ -515,7 +524,7 @@ class LinkedinProfileCrawlerThread(object):
                 t1 = threading.Thread(target=get_output, args=(crawler,url,res_1,event,))
                 t1.daemon = True
                 t1.start()
-                event.wait(timeout=80)
+                event.wait(timeout=120)
                 if res_1 is None: #if None means timeout happened, push to queue again
                     logging.info('res_1 None, probably timeout, for url:{}, thread:{}'.format(url,threading.currentThread()))
                     # self.in_queue.put(url)
@@ -658,8 +667,7 @@ class LinkedinProfileCrawlerThread(object):
                     "ON CONFLICT DO NOTHING".format(self.finished_urls_table_people),(res['Original URL'],self.list_id,list_items_url_id,))
             self.con.cursor.execute("DELETE FROM {} WHERE url = %s and list_id = %s".format(self.urls_to_crawl_table),(res['Original URL'],self.list_id,))
         self.con.cursor.execute("INSERT INTO crawler.linkedin_people_redirect_url (url,redirect_url) VALUES (%s,%s),(%s,%s) ON CONFLICT DO NOTHING",
-                                (res['Original URL'],res['Linkedin URL'],res['Linkedin URL'],res['Linkedin URL'],))
-
+                               (res['Original URL'],res['Linkedin URL'],res['Linkedin URL'],res['Linkedin URL'],))
         if related_people_urls or same_name_urls:
             if related_people_urls:
                 related_people_urls = [i.split('{}')[0] for i in related_people_urls]
@@ -697,7 +705,7 @@ class LinkedinProfileCrawlerThread(object):
                     self.con.cursor.execute(insert_query, urls_to_crawl1)
         self.con.commit()
         self.con.close_cursor()
-        logging.info('saved to database for url:{}'.format(res['Linkedin URL']))
+        logging.info('people part: saved to database for url:{}'.format(res['Linkedin URL']))
 
 
     def worker_save_res(self):
@@ -706,6 +714,9 @@ class LinkedinProfileCrawlerThread(object):
         '''
         while self.run_write_queue:
             res,list_items_url_id = self.out_queue.get()
+            if not list_items_url_id:
+                logging.info('people part: list_items_url_id is not present for res: {}'.format(res))
+                continue
             if self.use_db:
                 self.save_to_table(res,list_items_url_id)
             else:
@@ -771,6 +782,7 @@ class LinkedinProfileCrawlerThread(object):
         if not inp_list:
             logging.info('no people urls to crawl')
             return
+        logging.info('No of people urls for which crawling to be done : {}'.format(len(inp_list)))
         self.run_queue = True
         self.run_write_queue = True
         self.out_loc = out_loc
@@ -778,6 +790,7 @@ class LinkedinProfileCrawlerThread(object):
         self.out_queue = Queue(maxsize=0)
         # self.processed_queue = Queue(maxsize=0)
         self.gen_proxies()
+        logging.info('People part : starting threads, no of threads: {}'.format(n_threads))
         for i in range(n_threads):
             worker = threading.Thread(target=self.worker_fetch_url)
             worker.setDaemon(True)
@@ -785,7 +798,7 @@ class LinkedinProfileCrawlerThread(object):
         worker = threading.Thread(target=self.worker_save_res)
         worker.setDaemon(True)
         worker.start()
-        logging.info('No of people urls for which crawling to be done : {}'.format(len(inp_list)))
+        logging.info('People part : putting urls into queue')
         for i in inp_list:
             self.in_queue.put(i)
         # self.in_queue.join()
@@ -796,12 +809,12 @@ class LinkedinProfileCrawlerThread(object):
             except :
                 # self.run_queue = False
                 break
+        self.run_queue = False
         time.sleep(60) #giving 20 second wait for all existing tasks to finish
         logging.info('people part: crawling stopped, trying to save already crawled results. No of results left in out queue : {}'.format(len(self.out_queue.queue)))
         self.out_queue.join()
-        self.run_queue = False
         self.run_write_queue = False
-        self.proxy_generator.exit()
+        # self.proxy_generator.exit()
         # while not self.crawler_queue.empty():
         #     try:
         #         crl = self.crawler_queue.get()
@@ -815,4 +828,5 @@ class LinkedinProfileCrawlerThread(object):
         logging.info('Finished people part. No of results left in out queue : {}'.format(len(self.out_queue.queue)))
         # logging._removeHandlerRef()
         time.sleep(5)
+        return
 

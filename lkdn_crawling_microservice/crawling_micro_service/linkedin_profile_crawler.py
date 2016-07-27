@@ -18,6 +18,15 @@ class LinkedinProfileCrawler(object):
     '''Crawl a linkedin profie page
     '''
     def __init__(self,browser='Firefox',visible = True,proxy=False,proxy_ip = None,proxy_port = None,use_tor=None):
+        ''' support for methods other than selenium needs fixes
+        :param browser:
+        :param visible:
+        :param proxy:
+        :param proxy_ip:
+        :param proxy_port:
+        :param use_tor:
+        :return:
+        '''
         # print('class intializing')
         self._crawler = BeautifulsoupCrawl.single_wp
         self.browser = browser
