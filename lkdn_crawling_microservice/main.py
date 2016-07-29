@@ -60,7 +60,7 @@ def run_main(list_name=None,company_csv_loc=None,desig_loc=None,similar_companie
     con.cursor.execute(query,(list_name,))
     res_list = con.cursor.fetchall()
     if len(res_list) == 0 :
-        if not company_csv_loc:
+        if not company_csv_loc and not prospect_db:
             raise Exception('No data with the list name present in database. Need to provide csv file with data')
         query = 'insert into {} (list_name) values (%s)'.format(list_table)
         con.cursor.execute(query,(list_name,))

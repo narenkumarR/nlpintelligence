@@ -34,6 +34,10 @@ if __name__ == "__main__":
                          dest='prospect_db',
                          help='Fetch data from prospect db', #if not, directly go to crawling
                          default=0,type='float')
+    optparser.add_option('-q', '--prospQuery',
+                         dest='prospect_query',
+                         help='Query for fetching data from prospect db', #if not, directly go to crawling
+                         default='')
     optparser.add_option('-v', '--visible',
                          dest='visible',
                          help='visible if 1',
@@ -59,21 +63,23 @@ if __name__ == "__main__":
     hours = options.no_hours
     extract_urls = options.extract_urls
     prospect_db = options.prospect_db
+    prospect_query = options.prospect_query
     visible = options.visible
     what = options.what
     main_thread = options.main_thread
-    n_threads = options.n_threads
+    n_threads = int(options.n_threads)
 
     while True:
         # try:
             os.system('pkill -9 firefox')
             os.system('pkill -9 Xvfb')
             os.system("find /tmp/* -maxdepth 1 -type d -name 'tmp*' |  xargs rm -rf")
-            os.system('python main.py -n {} -f {} -d {} -s {} -t {} -u {} -p {} -v {} -w {} -m {} -r {}'.format(list_name,csv_company,
+            os.system('python main.py -n {} -f {} -d {} -s {} -t {} -u {} -p {} -q "{}" -v {} -w {} -m {} -r {}'.format(list_name,csv_company,
                                                                                         desig_loc,similar_companies,
-                                                                                        hours,extract_urls,prospect_db,
+                                                                                        hours,extract_urls,prospect_db,prospect_query,
                                                                                         visible,what,main_thread,
                                                                                         n_threads))
             time.sleep(10)
+            prospect_query = ''
         # except:
         #     continue

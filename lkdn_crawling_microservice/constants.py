@@ -7,14 +7,14 @@ password='postgres'
 host='localhost'
 
 # aws server credentials (this is done to take existing results from prospect table)
-# prospect_database='linkedin_data'
-# prospect_user='postgres'
-# prospect_password='$P$BptPVyArwpjzWXe1wz1cafxlpmVlGE'
-# prospect_host='52.221.230.64'
-prospect_database='crawler_service_test'
+prospect_database='linkedin_data'
 prospect_user='postgres'
-prospect_password='postgres'
-prospect_host='localhost'
+prospect_password='$P$BptPVyArwpjzWXe1wz1cafxlpmVlGE'
+prospect_host='52.221.230.64'
+# prospect_database='crawler_service_test'
+# prospect_user='postgres'
+# prospect_password='postgres'
+# prospect_host='localhost'
 
 # column names in the csv file
 company_name_field = 'name'

@@ -30,6 +30,7 @@ class FetchProspectDB(object):
         :param similar_companies:
         :return:
         '''
+
         # first get all urls in the list_items_urls table
         self.con.get_cursor()
         self.prospect_con.get_cursor()
@@ -58,7 +59,7 @@ class FetchProspectDB(object):
                 domains_dict[domain] = list_items_id
             self.prospect_insert_company_website_input(domains,domains_dict,list_id)
         # querying using prospect query
-        self.prospect_insert_from_query(prospect_query)
+        self.prospect_insert_from_query(prospect_query,list_id)
         self.con.close_cursor()
         self.prospect_con.close_cursor()
 
@@ -236,6 +237,7 @@ class FetchProspectDB(object):
                 eg:a."a.location ~* 'united states' and a.industry in ('Information Technology and Services','Computer Software') "
         :return:
         '''
+
         query = "select linkedin_url,company_name,company_size,industry,company_type,headquarters,description,"\
                     "founded,specialties,website,array_to_string(employee_details_array,'|') employee_details,"\
                     "array_to_string(also_viewed_companies_array,'|') also_viewed_companies "\
