@@ -18,6 +18,15 @@ class LinkedinProfileCrawler(object):
     '''Crawl a linkedin profie page
     '''
     def __init__(self,browser='Firefox',visible = True,proxy=False,proxy_ip = None,proxy_port = None,use_tor=None):
+        ''' support for methods other than selenium needs fixes
+        :param browser:
+        :param visible:
+        :param proxy:
+        :param proxy_ip:
+        :param proxy_port:
+        :param use_tor:
+        :return:
+        '''
         # print('class intializing')
         self._crawler = BeautifulsoupCrawl.single_wp
         self.browser = browser
@@ -264,7 +273,10 @@ class LinkedinProfileCrawler(object):
 
     def get_related_people(self,soup):
         try:
-            lis = soup.find('section',{'class':'insights profile-section'}).find('div',{'class':'browse-map'}).findAll('li')
+            try:
+                lis = soup.find('section',{'class':'insights profile-section'}).find('div',{'class':'browse-map'}).findAll('li')
+            except: #new structure
+                lis = soup.find('section',{'class':'insights'}).find('div',{'class':'browse-map'}).findAll('li')
             out_list = []
             for li in lis:
                 li_dic = {}
@@ -288,7 +300,10 @@ class LinkedinProfileCrawler(object):
 
     def get_same_name_people(self,soup):
         try:
-            lis = soup.find('section',{'class':'insights profile-section'}).find('div',{'class':'name-search'}).findAll('li')
+            try:
+                lis = soup.find('section',{'class':'insights profile-section'}).find('div',{'class':'name-search'}).findAll('li')
+            except:
+                lis = soup.find('section',{'class':'insights'}).find('div',{'class':'name-search'}).findAll('li')
             out_list = []
             for li in lis:
                 li_dic = {}

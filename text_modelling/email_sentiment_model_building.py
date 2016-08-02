@@ -3,24 +3,24 @@
 __author__ = 'joswin'
 import pandas as pd
 
-tmp = pd.read_excel('/home/madan/Desktop/joswin_bck/toPendrive/works/nlp-intelligence/shrikanth_docs/email_text_classes.xls')
-# tmp = pd.read_excel('/home/madan/Desktop/joswin_bck/toPendrive/works/pipecandy_bck/shrikanth_docs/Email_classification.xls')
+# reading the data file
+tmp = pd.read_excel('email_text_classes.xls')
 tmp = tmp.dropna(subset=['unquoted_part_endremoved'])
 tmp.groupby('Email Class').agg({'Email Class':len})
 
-# Interested, Interested, schedule meeting -> interested
-# Not interested,do not contact -> not interested
-# need details,out of office -> not sure
-# random,mail chain -> other
 
-# Interested :Very much interested, Very much interested and schedule meeting/call,
+#####################################################################
+############## creating sentiment column #########################################
+############# merging different Email Class into three major classes: Positive, Neutral and Negative#######
+
+# Positive :Very much interested, Very much interested and schedule meeting/call,
 # Neutral : Already contacted,Email Address not in use/ Use some other address,Email spam identifier - need action from sender,
 #             Not the right person ,Out of office/Vacation,Random mail/Automatic reply/Neutral mail,Reverse Sales Pitch
 #             Right guy but no longer there,company shut down, mail chain mails,Need more details to take decision,
 #           Slight Interest/ will contact if interested
-# Not interested : Do not contact/Remove from list,No need now ,Not interested - No scope,Not interested because using an alternative
+# Negative : Do not contact/Remove from list,No need now ,Not interested - No scope,Not interested because using an alternative
 
-# creating sentiment column
+
 tmp['Sentiment Class'] = 'Neutral'
 tmp.ix[tmp['Email Class'].isin(['Very much interested and schedule meeting/call','Very much interested']),'Sentiment Class'] = 'Positive'
 tmp.ix[tmp['Email Class'].isin(['Do not contact/Remove from list',
@@ -28,34 +28,66 @@ tmp.ix[tmp['Email Class'].isin(['Do not contact/Remove from list',
                              'No need right now - will contact if requirement comes','Not interested - No scope / fit to explore further',
                              'Not interested because using an alternative']),['Sentiment Class']] = 'Negative'
 
-# only selecting first mails
+# only selecting first mails 
 mails = tmp.ix[tmp['first_mail']==1,['unquoted_part_endremoved','Sentiment Class']]
 
 
 
 ###################################################################
-############################first level model
-from naive_bayes.naive_bayes_model import NaiveBayesModel
-replace_phr_input = {'not': 'no',"n't":'no','dont':'no','wont':'no','cant':'no','non':'no','your':'you'
-                                                    ,'yours':'you'}
-stop_phrases = ["curated essays","enterprise tech"]
-merge_phr_list_remove_original = []
-merge_phr_list_keep_original = []
-merge_words_with_next_remove_original = ['no']
-merge_words_with_next_keep_original = ['stop']
+############################first level model #######################
+#################### 3 classes : Positive, Neutral and Negative ##########
+
+###### Pre-processing ######
+
+#### Stopwords #####
 from nltk.corpus import stopwords
 stop_words=stopwords.words('english')
+## the following words are added to the stopwords list
 stops_add_list = [u'!', u"'", u"'d", u"'ll", u"'m", u"'re", u"'s", u"'ve", u',', u'-','_','www','facebook','ashwin'
     ,'youtube','linkedin','twitter','http','contractiq','techcrunch','suriyah','suriyahk','krishnan','https','hey'
     ,'iphon','hello','hi','chuck','really','probably','regards','founder','co','cofounder','de','cheers','please','been'
     ]
+## the following words are removed from the stopwords list
 stops_del_list = ['not','no','take','off','appreciate','non','look','need','believe','see','','what','when','where','why','how'
     ,'which','who','out','now', u'you', u'your', u'yours','more']
 stop_words = list(set(stop_words+stops_add_list))
 stop_words = list(set(stop_words)-set(stops_del_list))
+
+# these words also added to the stopwords list
 stop_words_vectorizer = list(set(stop_words+['thank','iphon','hello','hi','chuck','you','in']))
 
+# these phrases also are removed in the final data.
+stop_phrases = ["curated essays","enterprise tech"]
+
+##################################
+###### Creating phrases ##########
+##################################
+
+## This dictionary is used for replacing the phrases in the data. 
+# {key:value} # key will be replace with value
+# eg: in the text, 'not' will be replaced with 'no'
+replace_phr_input = {'not': 'no',"n't":'no','dont':'no','wont':'no','cant':'no','non':'no','your':'you'
+                                                    ,'yours':'you'}
+
+## list of phrases which can be merged (the original words in the phrase will be removed) 
+## eg: 'no interest' -> will be converted to 'no_interest'
+merge_phr_list_remove_original = []
+
+## list of phrases which can be merged (the original words will be kept) 
+## eg: 'no interest' -> will be converted to 'no_interest no interest'
+merge_phr_list_keep_original = []
+
+## list words which will be merged with the next word to create a phrase (original workds will be removed)
+## eg: 'no need','no chance' etc -> will be converted to 'no_need','no_chance' etc
+merge_words_with_next_remove_original = ['no']
+
+## list words which will be merged with the next word to create a phrase (original workds will be kept)
+## eg: 'stop send','stop spam' etc -> will be converted to 'stop_send stop send','stop_spam stop spam' etc
+merge_words_with_next_keep_original = ['stop']
+
+from naive_bayes.naive_bayes_model import NaiveBayesModel
 nb = NaiveBayesModel()
+# fitting the naive bayes model
 nb.fit_model(list(mails['unquoted_part_endremoved']),list(mails['Sentiment Class']),stem=True,replace_phr_input=replace_phr_input,
              stop_words=stop_words,stop_phrases=stop_phrases,merge_phr_list_keep_original=merge_phr_list_keep_original,
              merge_phr_list_remove_original=merge_phr_list_remove_original,merge_words_with_next_keep_original=merge_words_with_next_keep_original,
@@ -63,9 +95,13 @@ nb.fit_model(list(mails['unquoted_part_endremoved']),list(mails['Sentiment Class
              feature_loc=None,default_class='Neutral'
              )
 
-# measuring accuracy
+################################################
+################ measuring accuracy ############
+################################################
 
-# stemming is done
+##############################################
+############## stemming is done ##############
+##############################################
 X_train = nb._get_dtm_textlist(list(mails['unquoted_part_endremoved']))
 y_train = pd.Series(list(mails['Sentiment Class']))
 from sklearn.naive_bayes import MultinomialNB
@@ -81,7 +117,9 @@ metrics.confusion_matrix(y_train, predicted)
 #        [ 66, 239,  69],
 #        [  7,  14, 128]])
 
-# try without stemming
+#########################################
+######### try without stemming ##########
+#########################################
 X_train = nb._get_dtm_textlist(list(mails['unquoted_part_endremoved']))
 y_train = pd.Series(list(mails['Sentiment Class']))
 from sklearn.naive_bayes import MultinomialNB

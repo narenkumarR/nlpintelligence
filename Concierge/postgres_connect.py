@@ -10,17 +10,16 @@ class PostgresConnect(object):
         '''
         :return:
         '''
-        if user_in and host_in and password_in and database_in:
-            self.user,self.host,self.password,self.database = user_in,host_in,password_in,database_in
-        else:
-            self.user,self.host,self.password,self.database = user,host,password,database
-        self.connect()
+        self.connect(database_in,user_in,password_in,host_in)
 
-    def connect(self):
+    def connect(self,database_in=None,user_in=None,password_in=None,host_in=None):
         '''
         :return:
         '''
-        self.con = psycopg2.connect(database=self.database, user=self.user,password=self.password,host=self.host)
+        if user_in and host_in and password_in:
+            self.con = psycopg2.connect(database=database_in, user=user_in,password=password_in,host=host_in)
+        else:
+            self.con = psycopg2.connect(database=database, user=user,password=password,host=host)
         # self.get_cursor()
 
     def get_cursor(self):

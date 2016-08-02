@@ -18,6 +18,7 @@ all_org_cases = ['Specialties','Website','Industry','Type','Headquarters','Compa
 
 def dec_fun(fn):
     '''
+    not used
     if fn executions into error, None is returned
     :param fn:
     :return:
@@ -32,6 +33,7 @@ def dec_fun(fn):
 
 def complete_cases_org(fn):
     '''
+    not used
     :param fn:
     :return:
     '''
@@ -54,6 +56,15 @@ def complete_cases_org(fn):
 
 class LinkedinOrganizationService(object):
     def __init__(self,browser='Firefox',visible = True,proxy=False,proxy_ip = None,proxy_port = None,use_tor=None):
+        ''' support for methods other than selenium needs fixes
+        :param browser:
+        :param visible:
+        :param proxy:
+        :param proxy_ip:
+        :param proxy_port:
+        :param use_tor:
+        :return:
+        '''
         # print('class intializing')
         self._crawler = BeautifulsoupCrawl.single_wp
         self.browser = browser

@@ -6,17 +6,21 @@ from constants import database,user,password,host
 class PostgresConnect(object):
     '''
     '''
-    def __init__(self):
+    def __init__(self,database_in=None,user_in=None,password_in=None,host_in=None):
         '''
         :return:
         '''
+        if user_in and host_in and password_in and database_in:
+            self.user,self.host,self.password,self.database = user_in,host_in,password_in,database_in
+        else:
+            self.user,self.host,self.password,self.database = user,host,password,database
         self.connect()
 
     def connect(self):
         '''
         :return:
         '''
-        self.con = psycopg2.connect(database=database, user=user,password=password,host=host)
+        self.con = psycopg2.connect(database=self.database, user=self.user,password=self.password,host=self.host)
         # self.get_cursor()
 
     def get_cursor(self):
