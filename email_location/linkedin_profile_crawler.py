@@ -32,7 +32,11 @@ class LinkedinProfileCrawler(object):
         :return: dictionary with the fetched details
         '''
         if not outs_needed:
+<<<<<<< HEAD
             outs_needed = ['Name','Position','Company','CompanyLinkedinPage','Location','PreviousCompanies','Education']
+=======
+            outs_needed = ['Name','Position','Company','CompanyLinkedinPage','Location','PreviousCompanies']
+>>>>>>> first commit
         outs = {}
         if 'Name' in outs_needed:
             outs['Name'] = self.get_name(soup)
@@ -46,8 +50,11 @@ class LinkedinProfileCrawler(object):
             outs['CompanyLinkedinPage'] = self.get_company_linkedin_page(soup)
         if 'PreviousCompanies' in outs_needed:
             outs['PreviousCompanies'] = self.get_previous_companies(soup)
+<<<<<<< HEAD
         if 'Education' in outs_needed:
             outs['Education'] = self.get_education(soup)
+=======
+>>>>>>> first commit
         return outs
 
     def get_name(self,soup):
@@ -88,10 +95,15 @@ class LinkedinProfileCrawler(object):
         :return:
         '''
         try:
+<<<<<<< HEAD
             tmp = soup.find('div',{'id':'profile'}).find('div',{'class':'profile-overview-content'}).\
                 find('table',{'class':'extra-info'}).find('tr').findAll('a')
             links = [i['href'] for i in tmp]
             return ','.join(links)
+=======
+            return soup.find('div',{'id':'profile'}).find('div',{'class':'profile-overview-content'})\
+                .find('table',{'class':'extra-info'}).find('span',{'class':'org'}).find('a')['href']
+>>>>>>> first commit
         except:
             return ''
 
@@ -113,6 +125,7 @@ class LinkedinProfileCrawler(object):
         '''
         try:
             return soup.find('div',{'id':'profile'}).find('div',{'class':'profile-overview-content'})\
+<<<<<<< HEAD
                 .find('table',{'class':'extra-info'}).find('tr',{'data-section':'pastPositionsDetails'}).find('td').text
         except:
             return ''
@@ -125,5 +138,8 @@ class LinkedinProfileCrawler(object):
         try:
             return soup.find('div',{'id':'profile'}).find('div',{'class':'profile-overview-content'}).\
                 find('table',{'class':'extra-info'}).find('tr',{'data-section':'educationsDetails'}).find('td').text
+=======
+                .find('table',{'class':'extra-info'}).find('tr',{'data-section':'pastPositions'}).find('td').text
+>>>>>>> first commit
         except:
             return ''

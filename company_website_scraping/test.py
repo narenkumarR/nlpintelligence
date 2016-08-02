@@ -27,8 +27,12 @@ company_crawler = company_link_crawl.CompanyPageCrawler()
 
 companies = pd.read_csv('companies.csv')
 res_list = []
+<<<<<<< HEAD
 companies_urllist = companies['Website']
 for url in companies_urllist:
+=======
+for url in companies['Website']:
+>>>>>>> first commit
     print(url)
     try:
         contact_urls = company_crawler.get_all_contactlinks_urlinput(url,which_match=3)

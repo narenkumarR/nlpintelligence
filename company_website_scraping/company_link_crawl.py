@@ -2,6 +2,7 @@ __author__ = 'madan'
 
 import re
 import pdb
+<<<<<<< HEAD
 from urlparse import urljoin
 
 from bs_crawl import BeautifulsoupCrawl
@@ -13,6 +14,14 @@ class CompanyLinkCrawler(object):
     def __init__(self):
         self.url_cleaner = url_cleaner.UrlCleaner()
         self.soup_generator = BeautifulsoupCrawl
+=======
+
+from bs_crawl import BeautifulsoupCrawl
+
+class CompanyPageCrawler(object):
+    def __init__(self):
+        pass
+>>>>>>> first commit
 
     def get_pagetext_soupinput(self,soup):
         '''
@@ -37,7 +46,11 @@ class CompanyLinkCrawler(object):
         :param url:
         :return:
         '''
+<<<<<<< HEAD
         soup = self.soup_generator.single_wp(url)
+=======
+        soup = BeautifulsoupCrawl.single_wp(url)
+>>>>>>> first commit
         return self.get_pagetext_soupinput(soup)
 
     def get_all_links_urlinput(self,url):
@@ -45,15 +58,24 @@ class CompanyLinkCrawler(object):
         :param url:
         :return:
         '''
+<<<<<<< HEAD
         soup = self.soup_generator.single_wp(url)
         res_list = self.get_all_links_soupinput(soup,url)
         return res_list
 
     def get_all_links_soupinput(self,soup,base_url):
+=======
+        soup = BeautifulsoupCrawl.single_wp(url)
+        res_list = self.get_all_links_soupinput(soup)
+        return res_list
+
+    def get_all_links_soupinput(self,soup):
+>>>>>>> first commit
         ''' Get all links from a soup input
         :param soup:
         :return:
         '''
+<<<<<<< HEAD
         # pdb.set_trace()
         res_list = []
         for a in soup.find_all('a', href=True):
@@ -63,6 +85,11 @@ class CompanyLinkCrawler(object):
             url = urljoin(base_url,url)
             url = self.url_cleaner.clean_url(url)
             res_list.append({"url":url,'url_text':a.text})
+=======
+        res_list = []
+        for a in soup.find_all('a', href=True):
+            res_list.append({"url":a['href'],'url_text':a.text})
+>>>>>>> first commit
         return res_list
 
     def check_link_text(self,url,url_text,url_match_string,url_text_match_string):
@@ -99,12 +126,17 @@ class CompanyLinkCrawler(object):
                 out_list.append(dic)
         return out_list
 
+<<<<<<< HEAD
     def get_all_contactlinks_soupinput(self,soup,base_url,url_match_string=None,url_text_match_string=None,which_match=3):
+=======
+    def get_all_contactlinks_soupinput(self,soup,base_url,url_match_string=None,url_text_match_string=None,which_match=2):
+>>>>>>> first commit
         '''
         :param soup:
         :return:
         '''
         if not url_match_string:
+<<<<<<< HEAD
             url_match_string = '|'.join(management_contact_keywords)
         if not url_text_match_string:
             url_text_match_string = '|'.join(management_contact_keywords)
@@ -113,16 +145,45 @@ class CompanyLinkCrawler(object):
         return contact_linktexts
 
     def get_all_contactlinks_urlinput(self,url,url_match_string=None,url_text_match_string=None,which_match=3):
+=======
+            url_match_string = 'about|contact|team'
+        if not url_text_match_string:
+            url_text_match_string = 'about|contact|team'
+        linktexts = self.get_all_links_soupinput(soup)
+        contact_linktexts = self.search_links_textmatch(linktexts,url_match_string,url_text_match_string,which_match=which_match)
+        out_list = []
+        for dic in contact_linktexts:
+            url, url_text = dic['url'],dic['url_text']
+            if not re.search(base_url,url,re.IGNORECASE):
+                if base_url[-1] != '/' and url[0] != '/':
+                    url = '/'+url
+                url = base_url+url
+            out_list.append({'url':url,'url_text':url_text})
+        return out_list
+
+    def get_all_contactlinks_urlinput(self,url,url_match_string=None,url_text_match_string=None,which_match=2):
+>>>>>>> first commit
         '''
         :param url:
         :param url_match_string:
         :param url_text_match_string:
         :return:
         '''
+<<<<<<< HEAD
         soup = self.soup_generator.single_wp(url)
         return self.get_all_contactlinks_soupinput(soup,url,url_match_string,url_text_match_string,which_match)
 
     def get_social_links_soupinput(self,soup,base_url,match_list=None):
+=======
+        if not url_match_string:
+            url_match_string = 'about|contact|team'
+        if not url_text_match_string:
+            url_text_match_string = 'about|contact|team'
+        soup = BeautifulsoupCrawl.single_wp(url)
+        return self.get_all_contactlinks_soupinput(soup,url,url_match_string,url_text_match_string,which_match=which_match)
+
+    def get_social_links_soupinput(self,soup,match_list=None):
+>>>>>>> first commit
         '''Fetch links like facebook, linkedin etc
         :param soup:
         :param match_list:
@@ -130,9 +191,15 @@ class CompanyLinkCrawler(object):
         '''
         # pdb.set_trace()
         if not match_list:
+<<<<<<< HEAD
             match_list = social_link_keywords
         match_string = '('+')|('.join(match_list)+')'
         linktexts = self.get_all_links_soupinput(soup,base_url)
+=======
+            match_list = ['facebook','twitter','linkedin','crunchbase','angel.co','plus.google']
+        match_string = '('+')|('.join(match_list)+')'
+        linktexts = self.get_all_links_soupinput(soup)
+>>>>>>> first commit
         return self.search_links_textmatch(linktexts,match_string,'fdajsfsgadhhsdkeaw',which_match=0)
 
     def get_social_links_urlinput(self,url,match_list=None):
@@ -141,8 +208,13 @@ class CompanyLinkCrawler(object):
         :param match_list:
         :return:
         '''
+<<<<<<< HEAD
         soup = self.soup_generator.single_wp(url)
         return self.get_social_links_soupinput(soup,match_list,url)
+=======
+        soup = BeautifulsoupCrawl.single_wp(url)
+        return self.get_social_links_soupinput(soup,match_list)
+>>>>>>> first commit
 
     def get_emails_in_page_soupinput(self,soup):
         '''
@@ -150,6 +222,7 @@ class CompanyLinkCrawler(object):
         :return:
         '''
         ph_reg = r'[\w\.-]+@[\w\.-]+'
+<<<<<<< HEAD
         emails = []
         page_text = soup.text
         for match in re.finditer(ph_reg,page_text):
@@ -162,6 +235,13 @@ class CompanyLinkCrawler(object):
             match_text = page_text[match.start():match.end()]
             if '.' in match_text[match_text.find('@'):]\
                     and len(match_text[match_text.rfind('.'):])<6:
+=======
+        page_text = self.get_pagetext_soupinput(soup)
+        emails = []
+        for match in re.finditer(ph_reg,page_text):
+            match_text = page_text[match.start():match.end()]
+            if '.' in match_text[match_text.find('@'):]:
+>>>>>>> first commit
                 emails.append(match_text)
         return list(set(emails))
 
@@ -180,6 +260,7 @@ class CompanyLinkCrawler(object):
             if len(match_text)>=10:
                 matches.append(match_text)
         return list(set(matches))
+<<<<<<< HEAD
 
 class CompanyLinkCrawlerWrapper(object):
     ''' wrapper fro CompanyLinkCrawler
@@ -214,3 +295,5 @@ class CompanyLinkCrawlerWrapper(object):
             except:
                 continue
         return list(set(urls)),list(set(emails)),list(set(phones))
+=======
+>>>>>>> first commit

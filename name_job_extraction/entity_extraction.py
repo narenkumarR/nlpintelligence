@@ -7,6 +7,7 @@ import re
 import nltk
 from nltk.tag.stanford import StanfordNERTagger
 
+<<<<<<< HEAD
 class StanfordNERTaggerExtractor(object):
     """docstring for ClassName"""
     def __init__(self,three_class_jar_loc='stanford-jars/english.all.3class.distsim.crf.ser.gz',\
@@ -18,6 +19,14 @@ class StanfordNERTaggerExtractor(object):
         '''
         self.st = StanfordNERTagger(three_class_jar_loc ,
             ner_jar_loc)
+=======
+
+class StanfordNERTaggerExtractor(object):
+    """docstring for ClassName"""
+    def __init__(self):
+        self.st = StanfordNERTagger('stanford-jars/english.all.3class.distsim.crf.ser.gz' ,
+            'stanford-jars/stanford-ner.jar' )
+>>>>>>> first commit
 
     def tag_text_single(self,text):
         '''
@@ -59,6 +68,10 @@ class StanfordNERTaggerExtractor(object):
         return self.st.tag_sents(tokenized_sents)
 
     def identify_NER_tags_multi(self,text_tag,tag_to_find):
+<<<<<<< HEAD
+=======
+        ''' '''
+>>>>>>> first commit
         tag_strs = []
         for sent_tag in text_tag:
             for wrd in self.identify_NER_tags_single(sent_tag,tag_to_find):
@@ -68,6 +81,7 @@ class StanfordNERTaggerExtractor(object):
 
 
 class JobsExtractor(object):
+<<<<<<< HEAD
     def __init__(self,job_json='job_designations_all.json'):
         with open(job_json,'r') as f:
             jobs_dict = json.load(f)
@@ -79,6 +93,14 @@ class JobsExtractor(object):
         jobs_regex = r'\b|\b'.join(naukri_jobs)
         jobs_regex = r'\b'+jobs_regex+r'\b'
         self.reg_jobs = re.compile(jobs_regex)
+=======
+    def __init__(self):
+        with open('job_designations_all.json','r') as f:
+            jobs_dict = json.load(f)
+        self.reg_top_jobs = re.compile('|'.join(jobs_dict['top_jobs']))
+        # self.reg_jobs = re.compile('|'.join(jobs_dict['jobs']),re.IGNORECASE)
+        self.reg_jobs = re.compile('|'.join(jobs_dict['jobs']))
+>>>>>>> first commit
 
     def find_top_jobs(self,text):
         ''' '''
@@ -88,7 +110,10 @@ class JobsExtractor(object):
         return jobs
 
     def find_jobs(self,text):
+<<<<<<< HEAD
         ''' '''
+=======
+>>>>>>> first commit
         jobs = []
         for match in self.reg_jobs.finditer(text):
             jobs.append(text[match.start():match.end()])
