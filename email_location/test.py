@@ -29,6 +29,7 @@ tmp = pd.DataFrame({'Email':emails})
 tmp['Location'] = locations
 urls, res_froms = [], []
 for i in other_details:
+<<<<<<< HEAD
     try:
         ii = eval(i)
         urls.append(ii['url'])
@@ -36,6 +37,15 @@ for i in other_details:
     except :
         urls.append('')
         res_froms.append('')
+=======
+	try:
+		ii = eval(i)
+		urls.append(ii['url'])
+		res_froms.append(ii['res_from'])
+	except :
+		urls.append('')
+		res_froms.append('')
+>>>>>>> first commit
 
 tmp['URL'] = urls
 tmp['Result From'] = res_froms
@@ -103,7 +113,10 @@ tmp.to_excel('tmp_locs.xls',index=False)
 
 
 ##finding match
+<<<<<<< HEAD
 import nltk
+=======
+>>>>>>> first commit
 tmp = pd.read_excel('all_names_locs.xls')
 tmp1 = pd.read_excel('names_locations_linkedin.xls')
 res = pd.merge(tmp1,tmp,on=['Name','Company'])

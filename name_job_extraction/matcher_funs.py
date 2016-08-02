@@ -1,6 +1,7 @@
 import re
 from sets import Set
 
+<<<<<<< HEAD
 import pdb
 import sys
 import pandas as pd
@@ -10,12 +11,18 @@ def parse_string(x) :
     :param x:
     :return:
     '''
+=======
+DEBUG = False
+
+def parse_string(x) :
+>>>>>>> first commit
     t = type(x)
     if t is unicode :
         return x.encode("utf8")
     elif t is str :
         return x
     else :
+<<<<<<< HEAD
         raise Exception()
 
 class Matcher(object):
@@ -36,6 +43,14 @@ class Matcher(object):
             f = file('logfile.txt', 'w')
             sys.stdout = f
 
+=======
+        raise expectation_error("a string", x)
+
+class Matcher:
+
+    @staticmethod
+    def match_names_and_jobs( text, names, jobs):
+>>>>>>> first commit
         names = list([x for x in names if x not in jobs])
         names = list(Set([x for x in names]))
         jobs = list(Set([x for x in jobs]))
@@ -79,7 +94,11 @@ class Matcher(object):
                 name = names_dict[name_start_index][0]
                 distance = None
                 if job_start_index < name_start_index:
+<<<<<<< HEAD
                     distance = 99999999
+=======
+                    distance = name_start_index - job_end_index
+>>>>>>> first commit
                 else:
                     distance = job_start_index - name_end_idex
                 assert distance is not None
@@ -88,6 +107,7 @@ class Matcher(object):
                     print "Name: %s, Job: %s, Distance %s" % (
                         name, job, distance
                     )
+<<<<<<< HEAD
         job_and_names = self.matching_fun_orig(jobs_dict,names_dict,distances,sorted_job_indexes,sorted_name_indexes,DEBUG)
         if DEBUG:
             print "*" * 100
@@ -97,6 +117,8 @@ class Matcher(object):
         return job_and_names
 
     def matching_fun_orig(self,jobs_dict,names_dict,distances,sorted_job_indexes,sorted_name_indexes,DEBUG=False):
+=======
+>>>>>>> first commit
         if DEBUG:
             print "*" * 100
         job_and_names = []
@@ -109,6 +131,7 @@ class Matcher(object):
         n = len(sorted_name_indexes)
         if DEBUG:
             print "*" * 100
+<<<<<<< HEAD
         while (min_distance <= 4*first_min_distance or min_distance <= first_min_distance+20) \
               and min_distance <= min(100,max(50,first_min_distance+20)) \
                 and min_distance <= max_distance:
@@ -165,6 +188,10 @@ class Matcher(object):
             print "*" * 100
         while (min_distance <= 4*first_min_distance ) \
               and min_distance <= 50 \
+=======
+        while min_distance <= 4*first_min_distance \
+                and min_distance <= 50 \
+>>>>>>> first commit
                 and min_distance <= max_distance:
             ind = distances.index(min_distance)
             j = ind % n
@@ -199,5 +226,10 @@ class Matcher(object):
             for k in range(0, n):
                 distances[i*n+k] = max_distance + 1
             min_distance = min(distances)
+<<<<<<< HEAD
 
+=======
+        if DEBUG:
+            print "*" * 100
+>>>>>>> first commit
         return job_and_names

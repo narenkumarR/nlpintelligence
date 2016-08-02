@@ -6,6 +6,7 @@ Created On: 14-Mar-2016
 Author: ideas2it
 """
 import re
+<<<<<<< HEAD
 import pdb
 from selenium import webdriver
 from selenium.webdriver.support.ui import Select
@@ -41,6 +42,10 @@ class CrunchbaseCrawler(object):
         # self.browser.find_element_by_name("submit").click()
         # blocked me here. may be do later
 
+=======
+from bs_crawl import BeautifulsoupCrawl
+# from bs4 import BeautifulSoup
+>>>>>>> first commit
 
 class CrunchbaseProfileCrawler(object):
     '''Crawl a linkedin profie page
