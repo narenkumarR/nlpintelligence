@@ -78,7 +78,7 @@ def run_main(list_name=None,company_csv_loc=None,desig_loc=None,similar_companie
         con.cursor.execute(insert_query, inp_list1)
     con.commit()
     con.close_cursor()
-    os.system("find /tmp/* -maxdepth 1 -type d -name 'tmp*' |  xargs rm -rf")
+    # os.system("find /tmp/* -maxdepth 1 -type d -name 'tmp*' |  xargs rm -rf")
     if extract_urls:
         url_extractor = LkdnUrlExtrMain(visible=visible)
         logging.info('going to find linkedin urls')
@@ -88,32 +88,30 @@ def run_main(list_name=None,company_csv_loc=None,desig_loc=None,similar_companie
         t1.start()
         time.sleep(120)
     gc.collect()
-    if prospect_db:
+    if prospect_db :
         fp = FetchProspectDB()
-        fp.fetch_data(list_id,prospect_query)
+        fp.fetch_data(list_id,prospect_query,desig_list=desig_list)
     start_time = time.time()
-    # if similar_companies is 0, remove all in urls to crawl table
     while True:
         if time.time() - start_time > hours*60*60:
             break
-        # os.system("find /tmp/* -maxdepth 1 -type d -name 'tmp*' |  xargs rm -rf")
-        # os.system("pkill -9 firefox")
         logging.info('starting an iteration of crawling')
         if main_thread:
             logging.info('updating tables for iteration')
-            tables_updater.update_tables(list_id,desig_list,similar_companies)
+            tables_updater.update_tables(list_id,desig_list,similar_companies,company_select_query=prospect_query)
         crawler.run_both_single(list_id=list_id,visible=visible,limit_no=100,time_out = hours,what=what,n_threads=n_threads)
-        # os.system("find /tmp/* -maxdepth 1 -type d -name 'tmp*' |  xargs rm -rf")
         # os.system("pkill -9 firefox")
-        if main_thread:
-            gen_people_details(list_id,desig_list)
+        # os.system("pkill -9 Xvfb")
+        # os.system("find /tmp/* -maxdepth 1 -type d -name 'tmp*' |  xargs rm -rf")
+        # if main_thread: # generating emails taking long time..need fix
+        #     gen_people_details(list_id,desig_list)
     del crawler,tables_updater
     if extract_urls:
         if t1.is_alive():
             t1.terminate()
         del url_extractor
     # os.system("pkill -9 firefox")
-    os.system("find /tmp/* -maxdepth 1 -type d -name 'tmp*' |  xargs rm -rf")
+    # os.system("find /tmp/* -maxdepth 1 -type d -name 'tmp*' |  xargs rm -rf")
     gc.collect()
     logging.info('completed the main program')
 

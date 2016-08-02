@@ -76,6 +76,7 @@ from requests.exceptions import HTTPError
 import logging
 import time
 import datetime
+import pdb
 
 def get_news_websites(api_key,start_ind=0,chunk_size=None,api_type=0,logfile='log_file.log'):
     '''
@@ -90,6 +91,7 @@ def get_news_websites(api_key,start_ind=0,chunk_size=None,api_type=0,logfile='lo
     cb = CrunchBaseExtra(api_key)
     ind,ind1, errors = 0, int(start_ind), 0
     con.get_cursor()
+    #pdb.set_trace()
     while True:
         if chunk_size:
             # query = "select distinct a.uuid,split_part(a.cb_url,'organization/',2) cb_username from crunchbase_data.organizations a "\
@@ -97,7 +99,7 @@ def get_news_websites(api_key,start_ind=0,chunk_size=None,api_type=0,logfile='lo
             #         " where b.org_uuid is null and c.org_uuid is null and funding_rounds<'5' and country_code in ('USA','IND')  "\
             #         "  offset {} limit {}".format(start_ind+ind*chunk_size,chunk_size)
             query = "select distinct a.uuid,split_part(a.cb_url,'organization/',2) cb_username from crunchbase_data.organizations a "\
-                    " where funding_rounds<'5' and country_code in ('USA','IND')  "\
+                    " where (funding_rounds>='5'or funding_rounds is null)   "\
                     "  offset {} limit {}".format(start_ind+ind*chunk_size,chunk_size)
         else:
             # query = "select uuid,cb_username from (select distinct a.uuid,split_part(a.cb_url,'organization/',2) cb_username,last_funding_on from crunchbase_data.organizations a "\
@@ -106,7 +108,7 @@ def get_news_websites(api_key,start_ind=0,chunk_size=None,api_type=0,logfile='lo
             #         " order by last_funding_on desc)a offset {} ".format(start_ind,chunk_size)
             query = "select uuid,cb_username from (select distinct a.uuid,split_part(a.cb_url,'organization/',2) cb_username,last_funding_on from "\
                     " crunchbase_data.organizations a "\
-                    " where funding_rounds<'5' and country_code in ('USA','IND')  "\
+                    " where (funding_rounds>='5' or funding_rounds is null )  "\
                     " order by last_funding_on desc)a offset {} ".format(start_ind)
         con.execute(query)
         res = con.cursor.fetchall()

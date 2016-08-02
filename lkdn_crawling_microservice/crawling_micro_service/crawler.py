@@ -56,7 +56,7 @@ class LinkedinCompanyCrawlerThread(object):
                 self.proxy_generator.activate_browser()
                 proxies = self.proxy_generator.generate_proxy()
             except Exception :
-                logging.exception('could not create proxies. using None')
+                logging.exception('company part: could not create proxies. using None')
                 proxies = [(None,None)]
             try:
                 self.proxy_generator.exit()
@@ -83,12 +83,12 @@ class LinkedinCompanyCrawlerThread(object):
         '''
         try: #some error happens while getting proxy sometimes. putting it in try
             proxy_dets = self.get_proxy()
-            logging.info('proxy to be used : {}'.format(proxy_dets))
+            logging.info('company part: proxy to be used : {}'.format(proxy_dets))
             proxy_ip,proxy_port = proxy_dets[0],proxy_dets[1]
             crawler = linkedin_company_crawler.LinkedinOrganizationService(self.browser,self.visible,proxy=self.proxy,
                                                                       proxy_ip=proxy_ip,proxy_port=proxy_port,use_tor=self.use_tor)
         except: #if  coming here, run without proxy
-            logging.exception('Error while getting proxy. Running without proxy ')
+            logging.exception('company part: Error while getting proxy. Running without proxy ')
             proxy_ip, proxy_port = None,None
             crawler = linkedin_company_crawler.LinkedinOrganizationService(self.browser,self.visible,proxy=False,
                                                                       proxy_ip=proxy_ip,proxy_port=proxy_port,use_tor=self.use_tor)
@@ -115,7 +115,7 @@ class LinkedinCompanyCrawlerThread(object):
                 event.wait(timeout=120)
                 if res_1 is None: #if None means timeout happened, push to queue again. (this is causing the programe to
                     #                 not stop in some cases. So not pushing to in queue again)
-                    logging.info('res_1 is None for url:{}, thread:{}'.format(url,threading.currentThread()))
+                    logging.info('company part: res_1 is None for url:{}, thread:{}'.format(url,threading.currentThread()))
                     no_errors += 1
                 elif 'result' in res_1:
                     res = res_1['result']
@@ -127,37 +127,37 @@ class LinkedinCompanyCrawlerThread(object):
                                 no_errors = 0
                                 n_blocks = 0
                             else:
-                                logging.info('res company name is linkedin (default page) for url:{}, thread:{}'.format(url,threading.currentThread()))
+                                logging.info('company part: res company name is linkedin (default page) for url:{}, thread:{}'.format(url,threading.currentThread()))
                                 no_errors += 1
                         elif 'Notes' in res:
                             if res['Notes'] == 'Not Available Pubicly':
-                                logging.info('Results not available publicly for url:{}, thread:{}'.format(url,threading.currentThread()))
+                                logging.info('company part: Results not available publicly for url:{}, thread:{}'.format(url,threading.currentThread()))
                                 # self.out_queue.put(res)
                                 no_errors += 1
                             elif res['Notes'] == 'Java script code':
-                                logging.info('Not proper page, probably javascript for url:{}, thread:{}'.format(url,threading.currentThread()))
+                                logging.info('company part: Not proper page, probably javascript for url:{}, thread:{}'.format(url,threading.currentThread()))
                                 # self.out_queue.put(res)
                                 no_errors += 1
                             elif res['Notes'] == 'Company page not found':
-                                logging.info('Company page not found for url: {} ,thread: {}'.format(url,threading.currentThread()))
+                                logging.info('company part: Company page not found for url: {} ,thread: {}'.format(url,threading.currentThread()))
                                 self.out_queue.put((res,list_items_url_id))
                                 no_errors = 0
                                 n_blocks = 0
                             else:
-                                logging.info('Notes present, but some unknown error for url:{}, thread:{}'.format(url,threading.currentThread()))
+                                logging.info('company part: Notes present, but some unknown error for url:{}, thread:{}'.format(url,threading.currentThread()))
                                 # self.out_queue.put(res)
                                 no_errors += 1
                         else:
-                            logging.info('res has no company name/Notes keys. url:{}, thread:{}'.format(url,threading.currentThread()))
+                            logging.info('company part: res has no company name/Notes keys. url:{}, thread:{}'.format(url,threading.currentThread()))
                             no_errors += 1
                     else:
-                        logging.info('res is not present for url:{}, thread:{}'.format(url,threading.currentThread()))
+                        logging.info('company part: res is not present for url:{}, thread:{}'.format(url,threading.currentThread()))
                         no_errors += 1
                 else:
-                    logging.info('res_1 not None, and no result key for url:{}, thread:{}'.format(url,threading.currentThread()))
+                    logging.info('company part: res_1 not None, and no result key for url:{}, thread:{}'.format(url,threading.currentThread()))
                     no_errors += 1
             except Exception :
-                logging.exception('Error while execution for url: {0}, thread: {1}'.format(url,threading.currentThread()))
+                logging.exception('company part: Error while execution for url: {0}, thread: {1}'.format(url,threading.currentThread()))
                 time.sleep(1)
                 no_errors += 1
             if ind%10 == 0:
@@ -175,25 +175,25 @@ class LinkedinCompanyCrawlerThread(object):
                     pass
                 elif not self.proxy:
                     n_blocks += 1
-                    logging.info('Error condition met, sleeping for '+str(min(n_blocks,6)*600)+' seconds')
+                    logging.info('company part: Error condition met, sleeping for '+str(min(n_blocks,6)*600)+' seconds')
                     time.sleep(min(n_blocks,6)*600)
                 else: #if proxy get another proxy
                     time.sleep(randint(10,20))
-                    logging.info('Error condition met, trying to use another ip. current ip : {}, thread: {}'.format(proxy_dets,threading.currentThread()))
+                    logging.info('company part: Error condition met, trying to use another ip. current ip : {}, thread: {}'.format(proxy_dets,threading.currentThread()))
                     try:
                         crawler.exit()
-                        logging.info('Getting proxy ip details, thread: {0}'.format(threading.currentThread()))
+                        logging.info('company part: Getting proxy ip details, thread: {0}'.format(threading.currentThread()))
                         proxy_dets = self.get_proxy()
-                        logging.info('proxy to be used: {0}, thread:{1}'.format(proxy_dets,threading.currentThread()))
+                        logging.info('company part: proxy to be used: {0}, thread:{1}'.format(proxy_dets,threading.currentThread()))
                         proxy_ip,proxy_port = proxy_dets[0],proxy_dets[1]
                         crawler.init_selenium_parser(self.browser,self.visible,proxy=self.proxy,
                                                                   proxy_ip=proxy_ip,proxy_port=proxy_port,use_tor=self.use_tor)
                     except:
-                        logging.exception('Exception while trying to change ip, use same parser, thread:{}'.format(threading.currentThread()))
+                        logging.exception('company part: Exception while trying to change ip, use same parser, thread:{}'.format(threading.currentThread()))
                         try:
                             crawler.init_selenium_parser() #try with already existing parameters
                         except:
-                            logging.exception('Exception, can not restart crawler with already existing parameters, trying to restart, thread:{}'.format(threading.currentThread()))
+                            logging.exception('company part: Exception, can not restart crawler with already existing parameters, trying to restart, thread:{}'.format(threading.currentThread()))
                             try:
                                 try:
                                     del crawler
@@ -204,15 +204,15 @@ class LinkedinCompanyCrawlerThread(object):
                                                                       proxy_ip=proxy_ip,proxy_port=proxy_port,use_tor=self.use_tor)
                                 # self.crawler_queue.put(crawler)
                             except:
-                                logging.exception('could not start crawler, thread:{0}'.format(threading.currentThread()))
+                                logging.exception('company part: could not start crawler, thread:{0}'.format(threading.currentThread()))
                                 # break #stop this thread??
             if no_errors>0:
-                logging.info('Something went wrong, could not fetch details for url: {0}, thread id: {1}'.format(url,threading.currentThread()))
+                logging.info('company part: Something went wrong, could not fetch details for url: {0}, thread id: {1}'.format(url,threading.currentThread()))
                 # self.error_queue.put(url)
             self.in_queue.task_done()
-        logging.info('exiting crawler, thread:{}'.format(threading.currentThread()))
+        logging.info('company part: exiting crawler, thread:{}'.format(threading.currentThread()))
         crawler.exit()
-        logging.info('crawler exited, thread:{}'.format(threading.currentThread()))
+        logging.info('company part: crawler exited, thread:{}'.format(threading.currentThread()))
 
     def save_to_table(self,res,list_items_url_id):
         '''
@@ -379,9 +379,9 @@ class LinkedinCompanyCrawlerThread(object):
             inp_list = list(set(inp_list))
             self.con.close_cursor()
         if not inp_list:
-            logging.info('no company urls to crawl')
+            logging.info('company part: no company urls to crawl')
             return
-        logging.info('No of company urls for which crawling to be done : {}'.format(len(inp_list)))
+        logging.info('company part: No of urls for which crawling to be done : {}'.format(len(inp_list)))
         self.run_queue = True
         self.run_write_queue = True
         self.out_loc = out_loc
@@ -390,7 +390,7 @@ class LinkedinCompanyCrawlerThread(object):
         # self.processed_queue = Queue(maxsize=0)
         # self.error_queue = Queue(maxsize=0)
         self.gen_proxies()
-        logging.info('Company part : Starting indivudual threads. No of threads : {}'.format(n_threads))
+        logging.info('Company part: Starting indivudual threads. No of threads : {}'.format(n_threads))
         for i in range(n_threads):
             worker = threading.Thread(target=self.worker_fetch_url)
             worker.setDaemon(True)
@@ -398,7 +398,7 @@ class LinkedinCompanyCrawlerThread(object):
         worker = threading.Thread(target=self.worker_save_res)
         worker.setDaemon(True)
         worker.start()
-        logging.info('Company part : Putting urls to queue')
+        logging.info('Company part: Putting urls to queue')
         for i in inp_list:
             self.in_queue.put(i)
         del inp_list
@@ -410,8 +410,9 @@ class LinkedinCompanyCrawlerThread(object):
                 break
         self.run_queue = False
         time.sleep(60)
-        logging.info('company part crawling stopped, trying to save already crawled results. No of results left in out queue : {}'.format(len(self.out_queue.queue)))
-        self.out_queue.join()
+        logging.info('company part: crawling stopped, trying to save already crawled results. No of results left in out queue : {}'.format(len(self.out_queue.queue)))
+        if not self.out_queue.empty():
+            self.out_queue.join()
         self.run_write_queue = False
         # self.proxy_generator.exit()
         # while not self.crawler_queue.empty():
@@ -469,7 +470,7 @@ class LinkedinProfileCrawlerThread(object):
                 self.proxy_generator.activate_browser()
                 proxies = self.proxy_generator.generate_proxy()
             except Exception :
-                logging.exception('could not create proxies. using None')
+                logging.exception('People part: could not create proxies. using None')
                 proxies = [(None,None)]
             try:
                 self.proxy_generator.exit()
@@ -495,14 +496,14 @@ class LinkedinProfileCrawlerThread(object):
         :return:
         '''
         try: #some error happens while getting proxy sometimes. putting it in try
-            logging.info('No proxies in queue,trying to get proxies')
+            logging.info('People part: No proxies in queue,trying to get proxies')
             proxy_dets = self.get_proxy()
-            logging.info('proxy to be used : {}'.format(proxy_dets))
+            logging.info('People part: proxy to be used : {}'.format(proxy_dets))
             proxy_ip,proxy_port = proxy_dets[0],proxy_dets[1]
             crawler = linkedin_profile_crawler.LinkedinProfileCrawler(self.browser,self.visible,proxy=self.proxy,
                                                                       proxy_ip=proxy_ip,proxy_port=proxy_port,use_tor=self.use_tor)
         except: #if  coming here, run without proxy
-            logging.info('Error while getting proxy. Running without proxy')
+            logging.info('People part: Error while getting proxy. Running without proxy')
             proxy_ip,proxy_port = None,None
             crawler = linkedin_profile_crawler.LinkedinProfileCrawler(self.browser,self.visible,proxy=False,
                                                                       proxy_ip=proxy_ip,proxy_port=proxy_port,use_tor=self.use_tor)
@@ -526,7 +527,7 @@ class LinkedinProfileCrawlerThread(object):
                 t1.start()
                 event.wait(timeout=120)
                 if res_1 is None: #if None means timeout happened, push to queue again
-                    logging.info('res_1 None, probably timeout, for url:{}, thread:{}'.format(url,threading.currentThread()))
+                    logging.info('People part: res_1 None, probably timeout, for url:{}, thread:{}'.format(url,threading.currentThread()))
                     # self.in_queue.put(url)
                     no_errors += 1
                 elif 'result' in res_1:
@@ -538,32 +539,32 @@ class LinkedinProfileCrawlerThread(object):
                                 no_errors = 0
                                 n_blocks = 0
                             else:
-                                logging.info('res_1 company name is linkedin (default page) for url:{}, thread:{}'.format(url,threading.currentThread()))
+                                logging.info('People part: res_1 company name is linkedin (default page) for url:{}, thread:{}'.format(url,threading.currentThread()))
                                 no_errors += 1
                         elif 'Notes' in res:
                             if res['Notes'] == 'Not Available Pubicly':
-                                logging.info('Not publicly available for url:{}, thread:{}'.format(url,threading.currentThread()))
+                                logging.info('People part: Not publicly available for url:{}, thread:{}'.format(url,threading.currentThread()))
                                 # self.out_queue.put(res)
                                 no_errors += 1
                             elif res['Notes'] == 'Java script code':
-                                logging.info('Not proper page, probably javascript for url:{}, thread:{}'.format(url,threading.currentThread()))
+                                logging.info('People part: Not proper page, probably javascript for url:{}, thread:{}'.format(url,threading.currentThread()))
                                 # self.out_queue.put(res)
                                 no_errors += 1
                             else:
-                                logging.info('Notes present, but some unknown error for url:{}, thread:{}'.format(url,threading.currentThread()))
+                                logging.info('People part: Notes present, but some unknown error for url:{}, thread:{}'.format(url,threading.currentThread()))
                                 # self.out_queue.put(res)
                                 no_errors += 1
                         else:
-                            logging.info('res present, but Name or Notes keys not present for url:{}, thread:{}'.format(url,threading.currentThread()))
+                            logging.info('People part: res present, but Name or Notes keys not present for url:{}, thread:{}'.format(url,threading.currentThread()))
                             no_errors += 1
                     else:
-                        logging.info('res not present for url:{}, thread:{}'.format(url,threading.currentThread()))
+                        logging.info('People part: res not present for url:{}, thread:{}'.format(url,threading.currentThread()))
                         no_errors += 1
                 else:
-                    logging.info('res_1 not None, but no result key present for url:{}, thread:{}'.format(url,threading.currentThread()))
+                    logging.info('People part: res_1 not None, but no result key present for url:{}, thread:{}'.format(url,threading.currentThread()))
                     no_errors += 1
             except Exception :
-                logging.exception('Error while execution for url: {0}, Thread: {1}'.format(url,threading.currentThread()))
+                logging.exception('People part: Error while execution for url: {0}, Thread: {1}'.format(url,threading.currentThread()))
                 time.sleep(1)
                 no_errors += 1
             if ind%10 == 0:
@@ -578,24 +579,24 @@ class LinkedinProfileCrawlerThread(object):
                     pass
                 elif not self.proxy:
                     n_blocks += 1
-                    logging.info('Error condition met, sleeping for '+str(min(n_blocks,6)*600)+' seconds')
+                    logging.info('People part: Error condition met, sleeping for '+str(min(n_blocks,6)*600)+' seconds')
                     time.sleep(min(n_blocks,6)*600)
                 else:
                     time.sleep(randint(10,20))
-                    logging.info('Error condition met, trying to use another ip. Thread: {0}, Current ip: {1}'.format(threading.currentThread(), proxy_dets))
+                    logging.info('People part: Error condition met, trying to use another ip. Thread: {0}, Current ip: {1}'.format(threading.currentThread(), proxy_dets))
                     try:
                         crawler.exit()
                         proxy_dets = self.get_proxy()
-                        logging.info('proxy to be used: {0}, Thread:{1}'.format(proxy_dets,threading.currentThread()))
+                        logging.info('People part: proxy to be used: {0}, Thread:{1}'.format(proxy_dets,threading.currentThread()))
                         proxy_ip,proxy_port = proxy_dets[0],proxy_dets[1]
                         crawler.init_selenium_parser(self.browser,self.visible,proxy=self.proxy,
                                                             proxy_ip=proxy_ip,proxy_port=proxy_port,use_tor=self.use_tor)
                     except:
-                        logging.exception('Exception while trying to change ip, use same parser, thread:{}'.format(threading.currentThread()))
+                        logging.exception('People part: Exception while trying to change ip, use same parser, thread:{}'.format(threading.currentThread()))
                         try:
                             crawler.init_selenium_parser() #try with already existing parameters
                         except:
-                            logging.exception('Exception, can not restart crawler with already existing parameters, trying to restart, thread:{}'.format(threading.currentThread()))
+                            logging.exception('People part: Exception, can not restart crawler with already existing parameters, trying to restart, thread:{}'.format(threading.currentThread()))
                             try:
                                 try:
                                     del crawler
@@ -606,13 +607,13 @@ class LinkedinProfileCrawlerThread(object):
                                                                       proxy_ip=proxy_ip,proxy_port=proxy_port,use_tor=self.use_tor)
                                 # self.crawler_queue.put(crawler)
                             except:
-                                logging.exception('could not start crawler')
+                                logging.exception('People part: could not start crawler')
             if no_errors>0:
-                logging.info('Something went wrong, could not fetch details for url: {}, thread id: {}'.format(url,threading.currentThread()))
+                logging.info('People part: Something went wrong, could not fetch details for url: {}, thread id: {}'.format(url,threading.currentThread()))
             self.in_queue.task_done()
-        logging.info('exiting crawler, thread:{}'.format(threading.currentThread()))
+        logging.info('People part: exiting crawler, thread:{}'.format(threading.currentThread()))
         crawler.exit()
-        logging.info('crawler exited, thread:{}'.format(threading.currentThread()))
+        logging.info('People part: crawler exited, thread:{}'.format(threading.currentThread()))
 
     def save_to_table(self,res,list_items_url_id):
         '''
@@ -780,9 +781,9 @@ class LinkedinProfileCrawlerThread(object):
             inp_list = list(set(inp_list))
             self.con.close_cursor()
         if not inp_list:
-            logging.info('no people urls to crawl')
+            logging.info('People part: no people urls to crawl')
             return
-        logging.info('No of people urls for which crawling to be done : {}'.format(len(inp_list)))
+        logging.info('People part: No of  urls for which crawling to be done : {}'.format(len(inp_list)))
         self.run_queue = True
         self.run_write_queue = True
         self.out_loc = out_loc
@@ -790,7 +791,7 @@ class LinkedinProfileCrawlerThread(object):
         self.out_queue = Queue(maxsize=0)
         # self.processed_queue = Queue(maxsize=0)
         self.gen_proxies()
-        logging.info('People part : starting threads, no of threads: {}'.format(n_threads))
+        logging.info('People part: starting threads, no of threads: {}'.format(n_threads))
         for i in range(n_threads):
             worker = threading.Thread(target=self.worker_fetch_url)
             worker.setDaemon(True)
@@ -798,7 +799,7 @@ class LinkedinProfileCrawlerThread(object):
         worker = threading.Thread(target=self.worker_save_res)
         worker.setDaemon(True)
         worker.start()
-        logging.info('People part : putting urls into queue')
+        logging.info('People part: putting urls into queue')
         for i in inp_list:
             self.in_queue.put(i)
         # self.in_queue.join()
@@ -812,7 +813,8 @@ class LinkedinProfileCrawlerThread(object):
         self.run_queue = False
         time.sleep(60) #giving 20 second wait for all existing tasks to finish
         logging.info('people part: crawling stopped, trying to save already crawled results. No of results left in out queue : {}'.format(len(self.out_queue.queue)))
-        self.out_queue.join()
+        if not self.out_queue.empty():
+            self.out_queue.join()
         self.run_write_queue = False
         # self.proxy_generator.exit()
         # while not self.crawler_queue.empty():

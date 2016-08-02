@@ -29,6 +29,7 @@ class CompanyLinkedinURLExtractorSingle(object):
         :param time_out:
         :return:
         '''
+        logging.info('company extraction: trying for company : {}'.format(inp_tuple))
         company_url,additional_text = inp_tuple
         # logging.info('get_linkedin_url url:{}'.format(company_url))
         if re.search('http',company_url) or re.search('www',company_url):
