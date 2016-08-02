@@ -6,9 +6,11 @@ from selenium import webdriver
 from pyvirtualdisplay import Display
 import httplib
 import socket
+from selenium.webdriver.firefox.firefox_binary import FirefoxBinary
 
 from selenium.webdriver.remote.command import Command
-from selenium.common.exceptions import TimeoutException
+# from selenium.common.exceptions import TimeoutException
+from constants import firefox_binary_loc
 
 def get_status(driver):
     try:
@@ -19,8 +21,8 @@ def get_status(driver):
 
 class SeleniumParser(object):
     def __init__(self,browser = 'Firefox',browser_loc='/home/madan/Downloads/phantomjs-2.1.1-linux-x86_64/bin/phantomjs',
-                 visible = False,proxy = False,proxy_ip=None,proxy_port=None,page_load_timeout=60,use_tor=False):
-        '''
+                 visible = False,proxy = False,proxy_ip=None,proxy_port=None,page_load_timeout=80,use_tor=False):
+        '''Note: This module was developed to work with multiple browsers, but as of now works properly only for firefox
         :param browser: browser name {'Firefox','PhantomJS'}
         :param browser_loc: location of browser. for firefox this is not needed generally
         :param visible: should this be visible or not
@@ -51,14 +53,14 @@ class SeleniumParser(object):
                         firefox_profile.set_preference("network.proxy.http", proxy_ip)
                         firefox_profile.set_preference("network.proxy.http_port", int(proxy_port))
                         firefox_profile.update_preferences()
-                self.browser = webdriver.Firefox(firefox_profile=firefox_profile)
+                self.browser = webdriver.Firefox(firefox_binary=FirefoxBinary(firefox_binary_loc),firefox_profile=firefox_profile)
             else:
                 firefox_profile.set_preference( "network.proxy.type", 1 )
                 firefox_profile.set_preference( "network.proxy.socks_version", 5 )
                 firefox_profile.set_preference( "network.proxy.socks", '127.0.0.1' )
                 firefox_profile.set_preference( "network.proxy.socks_port", 9050 )
                 firefox_profile.set_preference( "network.proxy.socks_remote_dns", True )
-                self.browser = webdriver.Firefox(firefox_profile=firefox_profile)
+                self.browser = webdriver.Firefox(firefox_binary=FirefoxBinary(firefox_binary_loc),firefox_profile=firefox_profile)
         self.browser.set_page_load_timeout(page_load_timeout)
 
     def get_url(self,url):
@@ -69,8 +71,12 @@ class SeleniumParser(object):
 
         try:
             self.browser.get(url)
-        except TimeoutException:
-            self.browser.execute_script("window.stop();")
+        except:
+            try:
+                self.browser.execute_script("window.stop();")
+            except:
+                pass
+            pass
         html = self.browser.page_source
         html = str(html.encode('utf-8'))
         return html
@@ -81,6 +87,22 @@ class SeleniumParser(object):
         :return:
         '''
         html = self.get_url(url)
+        soup = BeautifulSoup(html)
+        return soup
+
+    def get_current_page(self):
+        ''' get current page in the browser(without loading, useful in javascript loading)
+        :return:
+        '''
+        html = self.browser.page_source
+        html = str(html.encode('utf-8'))
+        return html
+
+    def get_soup_current_page(self):
+        ''' get soup from current page in the browser
+        :return:
+        '''
+        html = self.get_current_page()
         soup = BeautifulSoup(html)
         return soup
 

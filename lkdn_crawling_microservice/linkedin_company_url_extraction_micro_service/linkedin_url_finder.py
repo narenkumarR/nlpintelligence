@@ -9,7 +9,8 @@ from company_linkedin_url_extractor.company_extractor import CompanyLinkedinURLE
 from constants import problematic_urls_file
 
 list_items_urls_table = 'crawler.list_items_urls'
-urls_to_crawl_priority_table = 'crawler.linkedin_company_urls_to_crawl_priority'
+urls_to_crawl_priority_table_company = 'crawler.linkedin_company_urls_to_crawl_priority'
+urls_to_crawl_priority_table_people = 'crawler.linkedin_people_urls_to_crawl_priority'
 
 class LkdnUrlExtrMain(object):
     '''
@@ -50,12 +51,16 @@ class LkdnUrlExtrMain(object):
             logging.info('linkedin_url_finder: data from url extractor, key:{},linkedin_url:{},conf:{}'.format(key,linkedin_url,conf))
             if linkedin_url:
                 # insert into list_items_urls table
-                insert_query = "INSERT INTO {} (list_id,list_items_id,url) VALUES (%s,%s,%s) "\
+                insert_query = "INSERT INTO {} (list_id,list_items_id,url) VALUES (%s,%s,split_part(split_part(split_part(%s,'?trk',1),'/careers',1),'/employee-insights',1)) "\
                     "ON CONFLICT DO NOTHING".format(list_items_urls_table)
                 self.con.cursor.execute(insert_query, (list_id,key,linkedin_url,))
                 self.con.commit()
                 query = "insert into {} (url,list_id,list_items_url_id) select url,list_id,id as list_items_url_id "\
-                " from {} where list_id = %s on conflict do nothing".format(urls_to_crawl_priority_table,list_items_urls_table)
+                " from {} where list_id = %s and url like '%%/company/%%' on conflict do nothing".format(urls_to_crawl_priority_table_company,list_items_urls_table)
+                self.con.cursor.execute(query,(list_id,))
+                self.con.commit()
+                query = "insert into {} (url,list_id,list_items_url_id) select url,list_id,id as list_items_url_id "\
+                " from {} where list_id = %s and (url like '%%/in/%%' or url like '%%/pub/%%') on conflict do nothing".format(urls_to_crawl_priority_table_people,list_items_urls_table)
                 self.con.cursor.execute(query,(list_id,))
                 self.con.commit()
             else:

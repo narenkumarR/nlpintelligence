@@ -267,11 +267,12 @@ f_names = ['data/bw_meta_all/'+i for i in os.listdir('data/bw_meta_all/')]
 br = bw_csv_reader.BwCsvReader()
 for f_name in f_names:
     print(f_name)
+    print(re.sub('\.csv','',re.sub('data/','',f_name)))
     logging.info(f_name)
     # tmp = pd.read_csv(f_name)
     for tmp in br.read_csv(f_name):
         tmp['builtwith_source_technology'] = re.sub('\.csv','',re.sub('data/','',f_name))
-        tmp.to_sql('companies_meta_data1',engine,index=False,if_exists='append')
+        tmp.to_sql('companies_meta_data1_extra',engine,index=False,if_exists='append')
         del tmp
         gc.collect()
 

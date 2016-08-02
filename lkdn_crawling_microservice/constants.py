@@ -6,11 +6,24 @@ user='postgres'
 password='postgres'
 host='localhost'
 
+# aws server credentials (this is done to take existing results from prospect table)
+prospect_database='linkedin_data'
+prospect_user='postgres'
+prospect_password='$P$BptPVyArwpjzWXe1wz1cafxlpmVlGE'
+prospect_host='52.221.230.64'
+# prospect_database='crawler_service_test'
+# prospect_user='postgres'
+# prospect_password='postgres'
+# prospect_host='localhost'
+
 # column names in the csv file
 company_name_field = 'name'
 company_details_field = 'details'
 designations_column_name = 'designations'
 linkedin_url_column = 'linkedin_url'
+
+# firefox binary location
+firefox_binary_loc = 'firefox_binaries/firefox-46/firefox'
 
 # table names
 company_urls_to_crawl_table = 'crawler.linkedin_company_urls_to_crawl_priority'

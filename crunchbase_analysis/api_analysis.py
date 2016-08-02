@@ -76,20 +76,22 @@ from requests.exceptions import HTTPError
 import logging
 import time
 import datetime
+import pdb
 
-def get_news_websites(api_key,start_ind=0,chunk_size=None):
+def get_news_websites(api_key,start_ind=0,chunk_size=None,api_type=0,logfile='log_file.log'):
     '''
     :param api_key:
     :param start_ind:
     :param chunk_size:
     :return:
     '''
-    logging.basicConfig(filename='log_file.log', level=logging.INFO,format='%(asctime)s %(message)s')
+    logging.basicConfig(filename=logfile, level=logging.INFO,format='%(asctime)s %(message)s')
     logging.info('started at {}'.format(datetime.datetime.now()))
     con = PostgresConnect()
     cb = CrunchBaseExtra(api_key)
-    ind,ind1, errors = 0, 0, 0
+    ind,ind1, errors = 0, int(start_ind), 0
     con.get_cursor()
+    #pdb.set_trace()
     while True:
         if chunk_size:
             # query = "select distinct a.uuid,split_part(a.cb_url,'organization/',2) cb_username from crunchbase_data.organizations a "\
@@ -97,7 +99,7 @@ def get_news_websites(api_key,start_ind=0,chunk_size=None):
             #         " where b.org_uuid is null and c.org_uuid is null and funding_rounds<'5' and country_code in ('USA','IND')  "\
             #         "  offset {} limit {}".format(start_ind+ind*chunk_size,chunk_size)
             query = "select distinct a.uuid,split_part(a.cb_url,'organization/',2) cb_username from crunchbase_data.organizations a "\
-                    " where funding_rounds<'5' and country_code in ('USA','IND')  "\
+                    " where (funding_rounds>='5'or funding_rounds is null)   "\
                     "  offset {} limit {}".format(start_ind+ind*chunk_size,chunk_size)
         else:
             # query = "select uuid,cb_username from (select distinct a.uuid,split_part(a.cb_url,'organization/',2) cb_username,last_funding_on from crunchbase_data.organizations a "\
@@ -106,7 +108,7 @@ def get_news_websites(api_key,start_ind=0,chunk_size=None):
             #         " order by last_funding_on desc)a offset {} ".format(start_ind,chunk_size)
             query = "select uuid,cb_username from (select distinct a.uuid,split_part(a.cb_url,'organization/',2) cb_username,last_funding_on from "\
                     " crunchbase_data.organizations a "\
-                    " where funding_rounds<'5' and country_code in ('USA','IND')  "\
+                    " where (funding_rounds>='5' or funding_rounds is null )  "\
                     " order by last_funding_on desc)a offset {} ".format(start_ind)
         con.execute(query)
         res = con.cursor.fetchall()
@@ -116,29 +118,35 @@ def get_news_websites(api_key,start_ind=0,chunk_size=None):
             logging.info('starting for cb_username : {}, ind1: {}'.format(cb_username,ind1))
             ind1 += 1
             try:
-                news_list = cb.news_list(cb_username,{'sort_order':'posted_on DESC'})
-                websites_list = cb.websites_list(cb_username)
+                if api_type == 0 or api_type == 1:
+                    news_list = cb.news_list(cb_username,{'sort_order':'posted_on DESC'})
+                if api_type == 0 or api_type == 2:
+                    websites_list = cb.websites_list(cb_username)
             except HTTPError:
                 errors += 1
                 logging.exception('server blocked. Sleep for {} seconds'.format(errors*60))
                 time.sleep(errors*60)
                 continue
+            except KeyboardInterrupt:
+                break
             except:
                 logging.exception('Unanticipated error')
                 continue
             errors = 0
-            if news_list:
-                news_for_insert = [(org_uuid,i[0],i[1],i[2],i[3],i[4])  for i in news_list ]
-                records_list_template = ','.join(['%s']*len(news_for_insert))
-                insert_query = "INSERT INTO {} (org_uuid,title,author,url,posted_on,uuid) VALUES {} ".format('crunchbase_data.news',records_list_template)
-                con.cursor.execute(insert_query, news_for_insert)
-                con.commit()
-            if websites_list:
-                websites_for_insert = [(org_uuid,i[0],i[1],i[2])  for i in websites_list ]
-                records_list_template = ','.join(['%s']*len(websites_for_insert))
-                insert_query = "INSERT INTO {} (org_uuid,url,website_type,uuid) VALUES {} ".format('crunchbase_data.websites',records_list_template)
-                con.cursor.execute(insert_query, websites_for_insert)
-                con.commit()
+            if api_type == 0 or api_type == 1:
+                if news_list:
+                    news_for_insert = [(org_uuid,i[0],i[1],i[2],i[3],i[4])  for i in news_list ]
+                    records_list_template = ','.join(['%s']*len(news_for_insert))
+                    insert_query = "INSERT INTO {} (org_uuid,title,author,url,posted_on,uuid) VALUES {} ".format('crunchbase_data.news',records_list_template)
+                    con.cursor.execute(insert_query, news_for_insert)
+                    con.commit()
+            if api_type == 0 or api_type == 2:
+                if websites_list:
+                    websites_for_insert = [(org_uuid,i[0],i[1],i[2])  for i in websites_list ]
+                    records_list_template = ','.join(['%s']*len(websites_for_insert))
+                    insert_query = "INSERT INTO {} (org_uuid,url,website_type,uuid) VALUES {} ".format('crunchbase_data.websites',records_list_template)
+                    con.cursor.execute(insert_query, websites_for_insert)
+                    con.commit()
         ind += 1
     con.close_cursor()
     logging.info('stopped at {}'.format(datetime.datetime.now()))
@@ -157,8 +165,18 @@ if __name__ == '__main__':
                          dest='chunk_size',
                          help='chunk size for processing',
                          default=None)
+    optparser.add_option('-t', '--type',
+                         dest='api_type',
+                         help='type of api request: 1 for news 2 for websites 0 for both',
+                         default=0,type='float')
+    optparser.add_option('-l', '--logfile',
+                         dest='logfile',
+                         help='name of logfile',
+                         default='log_file.log')
     (options, args) = optparser.parse_args()
     api_key = options.api_key
     start_ind = options.start_ind
     chunk_size = options.chunk_size
-    get_news_websites(api_key,start_ind,chunk_size)
+    api_type = options.api_type
+    logfile = options.logfile
+    get_news_websites(api_key,start_ind,chunk_size,api_type,logfile)
