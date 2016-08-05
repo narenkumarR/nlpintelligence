@@ -11,12 +11,15 @@ from selenium.webdriver.firefox.firefox_binary import FirefoxBinary
 from selenium.webdriver.remote.command import Command
 # from selenium.common.exceptions import TimeoutException
 from constants import firefox_binary_loc
+import os
 
 def get_status(driver):
     try:
         driver.execute(Command.STATUS)
         return "Alive"
     except (socket.error, httplib.CannotSendRequest):
+        return "Dead"
+    except:
         return "Dead"
 
 class SeleniumParser(object):
@@ -62,6 +65,7 @@ class SeleniumParser(object):
                 firefox_profile.set_preference( "network.proxy.socks_remote_dns", True )
                 self.browser = webdriver.Firefox(firefox_binary=FirefoxBinary(firefox_binary_loc),firefox_profile=firefox_profile)
         self.browser.set_page_load_timeout(page_load_timeout)
+        self.pid = self.browser.binary.process.pid
 
     def get_url(self,url):
         '''
@@ -115,3 +119,8 @@ class SeleniumParser(object):
             self.browser.quit()
         if self.display:
             self.display.stop()
+        try:
+            logging.info('selenium_crawl: trying to kill firefox : pid:{}'.format(self.pid))
+            os.system('kill -9 {}'.format(self.pid))
+        except:
+            pass

@@ -6,6 +6,7 @@ from Queue import Queue
 import threading
 import logging
 import time
+import os
 from random import randint
 
 import linkedin_company_crawler,linkedin_profile_crawler
@@ -39,7 +40,7 @@ class LinkedinCompanyCrawlerThread(object):
                                       'description','founded','specialties','website','employee_details','also_viewed_companies',
                                       'list_id','list_items_url_id']
         if proxy:
-            self.proxy_generator = ProxyGen(visible=visible,page_load_timeout=60)
+            self.proxy_generator = ProxyGen(browser_name=browser,visible=visible,page_load_timeout=60)
             self.proxies = Queue(maxsize=0)
             # self.proxies.put((None,None)) #try with actual ip first time
             # self.gen_proxies() # logging problem if this runs before init. put this in run call
@@ -75,6 +76,8 @@ class LinkedinCompanyCrawlerThread(object):
         '''
         if self.proxies.empty():
             self.gen_proxies()
+            if self.proxies.empty():
+                return (None,None)
         return self.proxies.get()
 
     def worker_fetch_url(self):
@@ -82,6 +85,7 @@ class LinkedinCompanyCrawlerThread(object):
         :return:
         '''
         try: #some error happens while getting proxy sometimes. putting it in try
+            logging.info('company part: No proxies in queue,trying to get proxies')
             proxy_dets = self.get_proxy()
             logging.info('company part: proxy to be used : {}'.format(proxy_dets))
             proxy_ip,proxy_port = proxy_dets[0],proxy_dets[1]
@@ -176,12 +180,18 @@ class LinkedinCompanyCrawlerThread(object):
                 elif not self.proxy:
                     n_blocks += 1
                     logging.info('company part: Error condition met, sleeping for '+str(min(n_blocks,6)*600)+' seconds')
-                    time.sleep(min(n_blocks,6)*600)
+                    time.sleep(min(n_blocks,6)*60)
                 else: #if proxy get another proxy
                     time.sleep(randint(10,20))
                     logging.info('company part: Error condition met, trying to use another ip. current ip : {}, thread: {}'.format(proxy_dets,threading.currentThread()))
                     try:
                         crawler.exit()
+                        try:
+                            logging.info('company part: trying to kill firefox : pid:{}'.format(crawler.link_parser.pid))
+                            os.system('kill -9 {}'.format(crawler.link_parser.pid))
+                        except:
+                            logging.exception('company part: Couldnt kill firefox')
+                            pass
                         logging.info('company part: Getting proxy ip details, thread: {0}'.format(threading.currentThread()))
                         proxy_dets = self.get_proxy()
                         logging.info('company part: proxy to be used: {0}, thread:{1}'.format(proxy_dets,threading.currentThread()))
@@ -205,6 +215,7 @@ class LinkedinCompanyCrawlerThread(object):
                                 # self.crawler_queue.put(crawler)
                             except:
                                 logging.exception('company part: could not start crawler, thread:{0}'.format(threading.currentThread()))
+                                self.run_queue = False # stop crawling if it reaches here
                                 # break #stop this thread??
             if no_errors>0:
                 logging.info('company part: Something went wrong, could not fetch details for url: {0}, thread id: {1}'.format(url,threading.currentThread()))
@@ -402,7 +413,7 @@ class LinkedinCompanyCrawlerThread(object):
         for i in inp_list:
             self.in_queue.put(i)
         del inp_list
-        while not self.in_queue.empty():
+        while not self.in_queue.empty() and self.run_queue:
             try:
                 time.sleep(2)
             except :
@@ -455,7 +466,7 @@ class LinkedinProfileCrawlerThread(object):
                                       'previous_companies','education','industry','summary','skills','experience',
                                       'related_people','same_name_people','list_id','list_items_url_id']
         if proxy:
-            self.proxy_generator = ProxyGen(browser=browser,visible=visible,page_load_timeout=60)
+            self.proxy_generator = ProxyGen(browser_name=browser,visible=visible,page_load_timeout=60)
             self.proxies = Queue(maxsize=0)
 
     def gen_proxies(self):
@@ -489,6 +500,8 @@ class LinkedinProfileCrawlerThread(object):
         '''
         if self.proxies.empty():
             self.gen_proxies()
+            if self.proxies.empty():
+                return (None,None)
         return self.proxies.get()
 
     def worker_fetch_url(self):
@@ -580,12 +593,19 @@ class LinkedinProfileCrawlerThread(object):
                 elif not self.proxy:
                     n_blocks += 1
                     logging.info('People part: Error condition met, sleeping for '+str(min(n_blocks,6)*600)+' seconds')
-                    time.sleep(min(n_blocks,6)*600)
+                    time.sleep(min(n_blocks,6)*60)
                 else:
                     time.sleep(randint(10,20))
                     logging.info('People part: Error condition met, trying to use another ip. Thread: {0}, Current ip: {1}'.format(threading.currentThread(), proxy_dets))
                     try:
                         crawler.exit()
+                        try:
+                            logging.info('people part: trying to kill firefox : pid:{}'.format(crawler.link_parser.pid))
+                            os.system('kill -9 {}'.format(crawler.link_parser.pid))
+                        except:
+                            logging.exception('people part: Couldnt kill firefox')
+                            pass
+                        logging.info('people part: Getting proxy ip details, thread: {0}'.format(threading.currentThread()))
                         proxy_dets = self.get_proxy()
                         logging.info('People part: proxy to be used: {0}, Thread:{1}'.format(proxy_dets,threading.currentThread()))
                         proxy_ip,proxy_port = proxy_dets[0],proxy_dets[1]
@@ -608,6 +628,7 @@ class LinkedinProfileCrawlerThread(object):
                                 # self.crawler_queue.put(crawler)
                             except:
                                 logging.exception('People part: could not start crawler')
+                                self.run_queue = False # stop crawling if it reaches here
             if no_errors>0:
                 logging.info('People part: Something went wrong, could not fetch details for url: {}, thread id: {}'.format(url,threading.currentThread()))
             self.in_queue.task_done()
@@ -790,7 +811,7 @@ class LinkedinProfileCrawlerThread(object):
         self.in_queue = Queue(maxsize=0)
         self.out_queue = Queue(maxsize=0)
         # self.processed_queue = Queue(maxsize=0)
-        self.gen_proxies()
+        self.gen_proxies() # generating proxies first. If this is not done, all threads will independantly try to generate
         logging.info('People part: starting threads, no of threads: {}'.format(n_threads))
         for i in range(n_threads):
             worker = threading.Thread(target=self.worker_fetch_url)
@@ -804,7 +825,8 @@ class LinkedinProfileCrawlerThread(object):
             self.in_queue.put(i)
         # self.in_queue.join()
         #doing while loop instead of join to save all the results in the queue. not sure if this is working or not.
-        while not self.in_queue.empty():
+        del inp_list
+        while not self.in_queue.empty() and self.run_queue:
             try:
                 time.sleep(2)
             except :

@@ -88,10 +88,11 @@ def run_main(list_name=None,company_csv_loc=None,desig_loc=None,similar_companie
         t1.start()
         time.sleep(120)
     gc.collect()
-    if prospect_db :
+    if prospect_db and prospect_query:
         fp = FetchProspectDB()
         fp.fetch_data(list_id,prospect_query,desig_list=desig_list)
     start_time = time.time()
+    limit_no_1 = n_threads*100
     while True:
         if time.time() - start_time > hours*60*60:
             break
@@ -99,11 +100,11 @@ def run_main(list_name=None,company_csv_loc=None,desig_loc=None,similar_companie
         if main_thread:
             logging.info('updating tables for iteration')
             tables_updater.update_tables(list_id,desig_list,similar_companies,company_select_query=prospect_query)
-        crawler.run_both_single(list_id=list_id,visible=visible,limit_no=100,time_out = hours,what=what,n_threads=n_threads)
-        # os.system("pkill -9 firefox")
-        # os.system("pkill -9 Xvfb")
-        # os.system("find /tmp/* -maxdepth 1 -type d -name 'tmp*' |  xargs rm -rf")
-        # if main_thread: # generating emails taking long time..need fix
+        crawler.run_both_single(list_id=list_id,visible=visible,limit_no=limit_no_1,time_out = hours,what=what,n_threads=n_threads)
+        #os.system("pkill -9 firefox")
+        #os.system("pkill -9 Xvfb")
+        #os.system("find /tmp/* -maxdepth 1 -type d -name 'tmp*' |  xargs rm -rf")
+        # if main_thread:
         #     gen_people_details(list_id,desig_list)
     del crawler,tables_updater
     if extract_urls:

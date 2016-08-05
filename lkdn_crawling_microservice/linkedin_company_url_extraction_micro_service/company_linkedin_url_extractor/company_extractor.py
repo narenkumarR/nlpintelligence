@@ -21,7 +21,7 @@ class CompanyLinkedinURLExtractorSingle(object):
         # self.crawler = BeautifulsoupCrawl()
         self.crawler = SeleniumParser(page_load_timeout=50,visible=visible)
         self.ddg_crawler = DuckduckgoCrawler(visible=visible)
-        self.search_string = 'linkedin.com' #earlier linkedin.com/company
+        self.search_string = r'linkedin.com/company/|linkedin.com/companies/|linkedin.com/pub/|linkedin.com/in/' #earlier linkedin.com/company
 
     def get_linkedin_url(self,inp_tuple,time_out=30):
         '''
@@ -120,8 +120,9 @@ class CompanyLinkedinURLExtractorSingle(object):
                     res_list_new.append(url)
                 else:
                     pass
-        # return the url with max match_cnt. if more than 1 url, this will go into exception
-        if len(res_list_new) == 1:
+        # return the url with max match_cnt. 
+        # if more than 1 url, this will go into exception(not done for now, take first one)
+        if len(res_list_new) >= 1:
             return res_list_new[0],90 #
         else:
             return '',0
