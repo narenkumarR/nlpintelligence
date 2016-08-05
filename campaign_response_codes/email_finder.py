@@ -13,9 +13,11 @@ import time
 import getpass
 # from queue import Queue
 # from threading import Thread
+from optparse import OptionParser
+from bs4 import BeautifulSoup
 
 from email_details import username, password,imap_server,subjects,subjects_matcher
-
+mail_split_reg = re.compile(r'On ((Sun|Mon|Tue|Wed|Thu|Fri|Sat),|([0-3]*))(.*)wrote:')
 
 class EmailConnectionService(object):
     def __init__(self,inbox_folder = None):
@@ -103,8 +105,9 @@ class EmailConnectionService(object):
                                     for part in original.walk():
                                         if part.get_content_type() == "text/plain":
                                             body = part.get_payload(decode=True)
+                                            body_1 = mail_split_reg.split(re.sub('\n|\r','',body))[0]
                                             # print('XXXX body XXXX',body)
-                                            self.mails.append((original['From'],original['Subject'],body,date_str))
+                                            self.mails.append((original['From'],original['Subject'],body_1,date_str))
                                         else:
                                             continue
                             else:
@@ -159,14 +162,26 @@ class EmailConnectionService(object):
                                     date_str = ''
                                     if original['Date']:
                                         date_str = original['Date']
+                                    # trying to get only las text
+                                    # import pdb
+                                    # pdb.set_trace()
+                                    # try:
+                                    #     soup = BeautifulSoup(original.get_payload(1).get_payload())
+                                    #     body = soup.find('div').text
+                                    #     myfile.write(str((original['From'],original['Subject'],body,date_str))+'\n')
+                                    # except:
+                                    #     print('Could not use beautifulsoup, try email package')
+                                    #     pass
                                     # print('XXXX message from: XXXX',original['From'])
                                     # print('XXXX subject XXXX',original['Subject'])
                                     # if original.get_content_maintype() == 'multipart': #If message is multi part we only want the text version of the body, this walks the message and gets the body.
                                     for part in original.walk():
                                         if part.get_content_type() == "text/plain":
                                             body = part.get_payload(decode=True)
+                                            body_1 = mail_split_reg.split(body)[0]
+                                            # soup = BeautifulSoup(original.get_payload(1).get_payload()))
                                             # print('XXXX body XXXX',body)
-                                            myfile.write(str((original['From'],original['Subject'],body,date_str))+'\n')
+                                            myfile.write(str((original['From'],original['Subject'],body_1,date_str))+'\n')
                                         else:
                                             continue
                                 else:
@@ -182,9 +197,16 @@ class EmailConnectionService(object):
         #     # self.conn.store(e_id, '+FLAGS', '\Seen')
         #     self.conn.store(e_id, '-FLAGS','\\Seen')
         # # print(self.mails)
-        # # self.disconnect()
+        self.disconnect()
 
 if __name__== '__main__':
+    optparser = OptionParser()
+    optparser.add_option('-n', '--name',
+                         dest='out_file_name',
+                         help='name of the output file',
+                         default='Mails.txt')
+    (options, args) = optparser.parse_args()
+    out_file_name = options.out_file_name
     ecs = EmailConnectionService()
     # ecs.read_save_mails(search_string='(SUBJECT "{}")'.format('" OR "'.join(subjects)),subjects_list=subjects)
-    ecs.read_save_mails(subjects_list=subjects)
+    ecs.read_save_mails(subjects_list=subjects,out_file = out_file_name)

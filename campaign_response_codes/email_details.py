@@ -1,8 +1,7 @@
 import re
-username = 'suriyah@contractiq.com'
-password = 'suriyah54321'
-# username = 'joswin.ideas2it@gmail.com'
-# password = 'M!ttuN01an'
+
+username = 'vishnu@contractiq.com'
+password = 'vishnu1234'
 imap_server = 'imap.gmail.com'
 
 # subjects = ['Scaling Engineering Teams','Scaling Mobile Initiatives for Brands','Mobile Report - ContractIQ',
@@ -15,5 +14,6 @@ imap_server = 'imap.gmail.com'
 
 # subjects = ['Visiting California','New Employee Announcement','Donate','tips for using your new inbox','regarding documents']
 # subjects = ['Quick question on the Makers Speak Report','Can we speak']
-subjects = ['Scaling Engineering Teams']
+subjects = ['Showcasing the top AngularJS developers','Introduction.+ContractIQ',
+            'Quick question on the Makers Speak Report','Research on NY - Complimentary access to our report']
 subjects_matcher = re.compile('|'.join(subjects),re.IGNORECASE)

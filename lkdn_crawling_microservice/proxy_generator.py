@@ -8,8 +8,8 @@ from random import shuffle
 class ProxyGen(object):
     '''
     '''
-    def __init__(self,browser='Firefox',visible=True,page_load_timeout=60,parser='selenium'):
-        self.browser = browser
+    def __init__(self,browser_name='Firefox',visible=True,page_load_timeout=60,parser='selenium'):
+        self.browser_name = browser_name
         self.visible = visible
         self.page_load_timeout = page_load_timeout
         self.parser = parser
@@ -17,11 +17,12 @@ class ProxyGen(object):
 
     def activate_browser(self):
         if self.parser == 'selenium':
-            self.browser = SeleniumParser(browser=self.browser,visible=self.visible,
+            self.browser = SeleniumParser(browser=self.browser_name,visible=self.visible,
                                           page_load_timeout=self.page_load_timeout)
             self.browser_active = True
         else:
-            self.browser = BeautifulsoupCrawl
+            raise NotImplementedError
+            # self.browser = BeautifulsoupCrawl
 
     def generate_proxy(self):
         '''

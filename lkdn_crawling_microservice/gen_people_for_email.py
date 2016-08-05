@@ -20,50 +20,94 @@ def gen_people_details(list_id,desig_list=None):
         desig_list_reg = '\y' + '\y|\y'.join(desig_list) + '\y'
     con = PostgresConnect()
     con.get_cursor()
-    table_name_id = str(list_id).split('-')[0]
+    table_name_id = '_'.join(str(list_id).split('-'))
+
     # all people urls and current company
     con.cursor.execute('drop table if exists crawler.tmp_table_email_gen_{}'.format(table_name_id))
     con.commit()
-    query = " create table crawler.tmp_table_email_gen_{} as select list_id,list_items_url_id, "\
+    query = " create table crawler.tmp_table_email_gen_{} as select distinct list_id,list_items_url_id, "\
         " unnest(crawler.clean_linkedin_url_array(string_to_array(company_linkedin_url,'|'))) company_linkedin_url, "\
-        "linkedin_url as people_linkedin_url from crawler.linkedin_people_base a where "\
-        "company_linkedin_url like '%%linkedin%%' and a.list_id = %s ".format(table_name_id)
-    con.cursor.execute(query,(list_id,))
+        "linkedin_url as people_linkedin_url,name,sub_text as designation from crawler.linkedin_people_base a where "\
+        "company_linkedin_url like '%%linkedin%%' and a.list_id = %s and a.sub_text ~* %s ".format(table_name_id)
+    con.cursor.execute(query,(list_id,desig_list_reg,))
+    # query =
+    query = "delete from crawler.tmp_table_email_gen_{} where company_linkedin_url is null or "\
+            " company_linkedin_url = '' ".format(table_name_id)
+    con.cursor.execute(query)
     con.commit()
-    # people_urls from current company
-    # con.cursor.execute('drop table if exists crawler.tmp_table2_email_gen_{}'.format(list_id))
+
+    # people in the related people field who are in same company and have valid designation
+    # Problem is theat linkedin_url of company not available in related_people field. Need to do some string matching
+    # con.cursor.execute('drop table if exists crawler.tmp_table3_email_gen_{}'.format(table_name_id))
     # con.commit()
-    query = " insert into crawler.tmp_table_email_gen_{} select list_id,list_items_url_id, "\
+    # query = " create table crawler.tmp_table3_email_gen_{} as select distinct list_id,list_items_url_id, "\
+    #     " unnest(crawler.clean_linkedin_url_array(string_to_array(company_linkedin_url,'|'))) company_linkedin_url, "\
+    #     "linkedin_url as people_linkedin_url,name,sub_text as designation from crawler.linkedin_people_base a where "\
+    #     "company_linkedin_url like '%%linkedin%%' and a.list_id = %s and a.sub_text ~* %s ".format(table_name_id)
+    # con.cursor.execute(query,(list_id,desig_list_reg,))
+    # # query =
+    # query = "delete from crawler.tmp_table3_email_gen_{} where company_linkedin_url is null or "\
+    #         " company_linkedin_url = '' ".format(table_name_id)
+    # con.cursor.execute(query)
+    # con.commit()
+
+    # people_urls from current company
+    con.cursor.execute('drop table if exists crawler.tmp_table2_email_gen_{}'.format(table_name_id))
+    con.commit()
+    query = " create table crawler.tmp_table2_email_gen_{} as select distinct list_id,list_items_url_id, "\
         " linkedin_url as company_linkedin_url, "\
-        "unnest(crawler.clean_linkedin_url_array(crawler.extract_related_info(string_to_array(employee_details,'|'),1))) as people_linkedin_url "\
+        "unnest(crawler.clean_linkedin_url_array(crawler.extract_related_info(string_to_array(employee_details,'|'),1))) as people_linkedin_url, "\
+        " unnest(crawler.clean_linkedin_url_array(crawler.extract_related_info(string_to_array(employee_details,'|'),2))) as name, "\
+        " unnest(crawler.clean_linkedin_url_array(crawler.extract_related_info(string_to_array(employee_details,'|'),3))) as designation, "\
+        " company_name,website "\
         "from crawler.linkedin_company_base a where "\
         "employee_details like '%%linkedin%%' and a.list_id = %s ".format(table_name_id)
     con.cursor.execute(query,(list_id,))
+    query = "delete from crawler.tmp_table2_email_gen_{} where "\
+            " (designation is not null and designation != '' and designation !~* %s) "\
+            " ".format(table_name_id)
+    con.cursor.execute(query,(desig_list_reg,))
     con.commit()
+
     # creating index
     query = "create index on crawler.tmp_table_email_gen_{} (company_linkedin_url)".format(table_name_id)
     con.cursor.execute(query)
     query = "create index on crawler.tmp_table_email_gen_{} (people_linkedin_url)".format(table_name_id)
     con.cursor.execute(query)
+    query = "create index on crawler.tmp_table2_email_gen_{} (company_linkedin_url)".format(table_name_id)
+    con.cursor.execute(query)
+    query = "create index on crawler.tmp_table2_email_gen_{} (people_linkedin_url)".format(table_name_id)
+    con.cursor.execute(query)
 
     # joining both
     con.cursor.execute('drop table if exists crawler.tmp_table1_email_gen_{}'.format(table_name_id))
     con.commit()
-    # below query takes a long to execute and has some problems
-    query = "create table crawler.tmp_table1_email_gen_{} as "\
-            "select a.name,a.sub_text,b.website,b.company_name,d.list_id,d.list_items_url_id from "\
-            " crawler.linkedin_people_base a join crawler.linkedin_people_redirect_url c on a.linkedin_url = c.redirect_url "\
-            "join crawler.tmp_table_email_gen_{} d on (c.redirect_url=d.people_linkedin_url or c.url = d.people_linkedin_url) "\
-            "join crawler.linkedin_company_redirect_url e on (d.company_linkedin_url = e.url or d.company_linkedin_url = e.redirect_url) "\
+    # here union of two sub queries are taken. This is done to improve performance
+    # Earlier this was done using single query (using or in the join conditions). This took long time to execute
+    query = "create table crawler.tmp_table1_email_gen_{table_id} as "\
+            " (select distinct d.name,d.designation,b.website,b.company_name,d.list_id,d.list_items_url_id from "\
+            "  crawler.tmp_table_email_gen_{table_id} d "\
+            "join crawler.linkedin_company_redirect_url e on ( d.company_linkedin_url = e.url) "\
             " join crawler.linkedin_company_base b on e.redirect_url = b.linkedin_url "\
-            " where d.list_id = %s and a.sub_text ~* '{}' ".format(table_name_id,table_name_id,desig_list_reg)
+            "  ) "\
+            " union "\
+            " (select distinct a.name,a.designation,a.website,a.company_name,a.list_id,a.list_items_url_id "\
+            " from crawler.tmp_table2_email_gen_{table_id} a where designation != '' and designation is not null  "\
+            " )"\
+            " union "\
+            " (select distinct a.name,a.sub_text as designation,b.website,b.company_name,d.list_id,d.list_items_url_id from "\
+            " crawler.linkedin_people_base a join crawler.linkedin_people_redirect_url c on a.linkedin_url = c.redirect_url "\
+            " join crawler.tmp_table2_email_gen_{table_id} d on (c.url=d.people_linkedin_url ) "\
+            " join crawler.linkedin_company_base b on d.company_linkedin_url = b.linkedin_url "\
+            " where a.sub_text ~* '{regex}' and (d.designation = '' or d.designation is null ) )"\
+            " ".format(table_id=table_name_id,regex=desig_list_reg)
     # query = "create table crawler.tmp_table1_email_gen_{} as "\
     #         "select a.name,a.sub_text,b.website,b.company_name,d.list_id,d.list_items_url_id from "\
     #         " crawler.linkedin_people_base a  "\
     #         "join crawler.tmp_table_email_gen_{} d on a.linkedin_url=d.people_linkedin_url "\
     #         " join crawler.linkedin_company_base b on d.company_linkedin_url = b.linkedin_url "\
     #         " where d.list_id = %s and a.sub_text ~* '{}' ".format(table_name_id,table_name_id,desig_list_reg)
-    con.cursor.execute(query,(list_id,))
+    con.cursor.execute(query,(list_id,list_id,))
     con.commit()
     # create first name, middle name and last name
     con.cursor.execute('alter table crawler.tmp_table1_email_gen_{} add column name_cleaned text[], add column domain text'.format(table_name_id))
@@ -74,8 +118,9 @@ def gen_people_details(list_id,desig_list=None):
     con.commit()
     query = "insert into crawler.people_details_for_email_verifier "\
             " (list_id,list_items_url_id,first_name,middle_name,last_name,domain,designation,company_name,company_website)  "\
-            "select distinct list_id,list_items_url_id, name_cleaned[2] as first_name, name_cleaned[3] as middle_name, "\
-            "name_cleaned[4] as last_name, domain, sub_text as designation,company_name, website as company_website "\
+            "select distinct on (name_cleaned[2],name_cleaned[3],name_cleaned[4], domain, designation,company_name,website) "\
+            " list_id,list_items_url_id, name_cleaned[2] as first_name, name_cleaned[3] as middle_name, "\
+            "name_cleaned[4] as last_name, domain,  designation,company_name, website as company_website "\
             " from crawler.tmp_table1_email_gen_{} where "\
             "domain not in ('http://','http://-','http://.','http://...','http://1','') and  "\
             "name_cleaned[2] is not null and name_cleaned[4] is not null and name_cleaned[2] not in('','.','..') "\
@@ -87,6 +132,7 @@ def gen_people_details(list_id,desig_list=None):
     # drop tables
     con.cursor.execute('drop table crawler.tmp_table1_email_gen_{}'.format(table_name_id))
     con.cursor.execute('drop table crawler.tmp_table_email_gen_{}'.format(table_name_id))
+    con.cursor.execute('drop table crawler.tmp_table2_email_gen_{}'.format(table_name_id))
     con.commit()
     con.close_cursor()
     logging.info('generated people details for email generation')

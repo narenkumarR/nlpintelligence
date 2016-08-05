@@ -20,8 +20,8 @@ CREATE TABLE Company
 	Specialized_Group_ID   int NULL,
 	Company_Type_ID        int NULL,
 	Company_Group_ID       int NULL,
-	Record_Created_Date    timestamp NULL,
-	Record_Updated_Date    timestamp NULL
+	Record_Created_Date    timestamp default current_timestamp,
+	Record_Updated_Date    timestamp default current_timestamp
 );
 
 ALTER TABLE Company
@@ -32,7 +32,7 @@ CREATE TABLE Company_Funding_Rounds
 	Is_Latest_Funding      BIT NULL,
 	Funding_Amount        FLOAT NULL,
 	Funding_Currency      varchar NULL,
-	Funding_Date          TIMESTAMP NULL,
+	Funding_Date          timestamp default current_timestamp,
 	Funding_Type_ID        int NULL,
 	Investor_ID           int NULL,
 	Pre_Money_Valuation_Amount float NULL,
@@ -45,8 +45,8 @@ CREATE TABLE Company_Funding_Rounds
 	Public_At_IPO          date NULL,
 	Stock_Symbol_IPO       varchar NULL,
 	Company_ID            int NULL,
-	Record_Created_Date    timestamp NULL,
-	Record_Updated_Date    timestamp NULL
+	Record_Created_Date    timestamp default current_timestamp,
+	Record_Updated_Date    timestamp default current_timestamp
 );
 
 CREATE TABLE Company_Group
@@ -55,8 +55,8 @@ CREATE TABLE Company_Group
 	Website              varchar NULL,
 	Founded              varchar NULL,
 	Description          varchar NULL,
-	Record_Created_Date    timestamp NULL,
-	Record_Updated_Date    timestamp NULL
+	Record_Created_Date    timestamp default current_timestamp,
+	Record_Updated_Date    timestamp default current_timestamp
 );
 
 ALTER TABLE Company_Group
@@ -66,8 +66,8 @@ CREATE TABLE Company_Type
 (
 	Company_Type_ID        serial NOT NULL,
 	Company_Type        varchar,
-	Record_Created_Date    timestamp NULL,
-	Record_Updated_Date    timestamp NULL
+	Record_Created_Date    timestamp default current_timestamp,
+	Record_Updated_Date    timestamp default current_timestamp
 );
 
 ALTER TABLE Company_Type
@@ -77,8 +77,8 @@ CREATE TABLE Industry
 (
 	Industry_ID           serial NOT NULL,
 	Industry_Description  varchar NULL,
-	Record_Created_Date    timestamp NULL,
-	Record_Updated_Date    timestamp NULL
+	Record_Created_Date    timestamp default current_timestamp,
+	Record_Updated_Date    timestamp default current_timestamp
 );
 
 ALTER TABLE Industry
@@ -88,8 +88,8 @@ CREATE TABLE Investor_CB_Funds
 (
 	Investor_ID           serial NOT NULL,
 	Investor_Code         varchar NULL,
-	Record_Created_Date    timestamp NULL,
-	Record_Updated_Date    timestamp NULL
+	Record_Created_Date    timestamp default current_timestamp,
+	Record_Updated_Date    timestamp default current_timestamp
 );
 
 ALTER TABLE Investor_CB_Funds
@@ -99,14 +99,14 @@ CREATE TABLE Investor_Funds
 (
 	Investor_ID           serial not NULL,
 	Investor_Fund_Amount   varchar NULL,
-	Fund_Date             timestamp NULL,
+	Fund_Date             timestamp default current_timestamp,
 	Investor_Name         varchar NULL,
 	Fund_Currency         varchar NULL,
 	Source_URL            varchar NULL,
 	Source_Description    varchar NULL,
 	Investor_Fund_ID       int NOT NULL,
-	Record_Created_Date    timestamp NULL,
-	Record_Updated_Date    timestamp NULL
+	Record_Created_Date    timestamp default current_timestamp,
+	Record_Updated_Date    timestamp default current_timestamp
 );
 
 ALTER TABLE Investor_Funds
@@ -118,8 +118,8 @@ CREATE TABLE Location_Hierarchy
 	Country              varchar NULL,
 	State                varchar NULL,
 	City                 varchar NULL,
-	Record_Created_Date    timestamp NULL,
-	Record_Updated_Date    timestamp NULL
+	Record_Created_Date    timestamp default current_timestamp,
+	Record_Updated_Date    timestamp default current_timestamp
 );
 
 ALTER TABLE Location_Hierarchy
@@ -143,8 +143,8 @@ CREATE TABLE People
 	Location_ID           int NULL,
 	Company_ID            int NULL,
 	Email_Address         varchar NULL,
-	Record_Created_Date    timestamp NULL,
-	Record_Updated_Date    timestamp NULL	
+	Record_Created_Date    timestamp default current_timestamp,
+	Record_Updated_Date    timestamp default current_timestamp	
 );
 
 CREATE TABLE Specialized_Group
@@ -152,8 +152,8 @@ CREATE TABLE Specialized_Group
 	Specialized_Group_ID   serial NOT NULL,
 	Industry_ID           int NULL,
 	Specialized_Group     varchar NULL,
-	Record_Created_Date    timestamp NULL,
-	Record_Updated_Date    timestamp NULL
+	Record_Created_Date    timestamp default current_timestamp,
+	Record_Updated_Date    timestamp default current_timestamp
 );
 
 ALTER TABLE Specialized_Group
@@ -163,8 +163,8 @@ CREATE TABLE Technologies_Supported
 (
 	Array_of_Skills_Technologies varchar NULL,
 	Company_ID            int NULL,
-	Record_Created_Date    timestamp NULL,
-	Record_Updated_Date    timestamp NULL
+	Record_Created_Date    timestamp default current_timestamp,
+	Record_Updated_Date    timestamp default current_timestamp
 );
 
 CREATE TABLE Type_Of_Funding_Angel_To_IPO
@@ -173,8 +173,8 @@ CREATE TABLE Type_Of_Funding_Angel_To_IPO
 	Funding_Type_CD        varchar NULL,
 	Funding_Type          varchar NULL,
 	Funding_Code          varchar NULL,	
-	Record_Created_Date    timestamp NULL,
-	Record_Updated_Date    timestamp NULL
+	Record_Created_Date    timestamp default current_timestamp,
+	Record_Updated_Date    timestamp default current_timestamp
 );
 
 ALTER TABLE Type_Of_Funding_Angel_To_IPO
