@@ -79,6 +79,9 @@ def run_main(list_name=None,company_csv_loc=None,desig_loc=None,similar_companie
     con.commit()
     con.close_cursor()
     # os.system("find /tmp/* -maxdepth 1 -type d -name 'tmp*' |  xargs rm -rf")
+    if prospect_db :
+        fp = FetchProspectDB()
+        fp.fetch_data(list_id,prospect_query,desig_list=desig_list)
     if extract_urls:
         url_extractor = LkdnUrlExtrMain(visible=visible)
         logging.info('going to find linkedin urls')
@@ -88,9 +91,6 @@ def run_main(list_name=None,company_csv_loc=None,desig_loc=None,similar_companie
         t1.start()
         time.sleep(120)
     gc.collect()
-    if prospect_db and prospect_query:
-        fp = FetchProspectDB()
-        fp.fetch_data(list_id,prospect_query,desig_list=desig_list)
     start_time = time.time()
     limit_no_1 = n_threads*100
     while True:

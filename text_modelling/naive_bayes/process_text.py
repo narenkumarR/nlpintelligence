@@ -5,6 +5,7 @@ import nltk,re
 
 from text_processing.word_transformations import Tokenizer
 from text_processing import extract_phrases
+from text_processing import timex
 # from naive_bayes.constants import *
 
 tk = Tokenizer()
@@ -20,7 +21,8 @@ def tokenizer(text):
     return wrd_list
 
 def process_textlist(text_list,stem,replace_phr_input,stop_words,stop_phrases,merge_phr_list_keep_original,
-                     merge_phr_list_remove_original,merge_words_with_next_keep_original,merge_words_with_next_remove_original):
+                     merge_phr_list_remove_original,merge_words_with_next_keep_original,
+                     merge_words_with_next_remove_original):
     '''
     :param text_list:
     :param stem: Stem words if true
@@ -35,8 +37,11 @@ def process_textlist(text_list,stem,replace_phr_input,stop_words,stop_phrases,me
     :return:
     '''
     # extracting phrases
+    # text_list = [txt+' datetime_in_text_xxx' if timex.check_if_date_present(txt) else txt for txt in text_list]
+    text_list = [extract_phrases.multiple_replace(replace_phr_input,text.lower(),word_limit=True,flags=2)
+                 for text in text_list]
     text_list = [extract_phrases.multiple_replace(replace_phr_input,
-        text.lower(),word_limit=True,flags=2) for text in text_list]
+        ' '.join(nltk.word_tokenize(text.lower())),word_limit=True,flags=2) for text in text_list]
     text_list = tk.stopword_removal_listinput(text_list,stop_words)
     text_list = tk.stop_phrase_removal_listinput(text_list,[wrd for wrd in stop_words if len(wrd)>1])
     text_list = tk.stop_phrase_removal_listinput(text_list,stop_phrases)
@@ -49,8 +54,9 @@ def process_textlist(text_list,stem,replace_phr_input,stop_words,stop_phrases,me
     text_list = phm.merge_word_listinput(text_list,merge_words_with_next_keep_original,flags=re.IGNORECASE,keep_original=True)
     text_list = phm.merge_word_listinput(text_list,merge_words_with_next_remove_original,flags=re.IGNORECASE,keep_original=False)
     #check if date time is present in the text.if yes, put a field as 1,else 0
-    # text_list = [txt+' datetime_in_text_xxx' if timex.check_if_date_present(txt) else txt for txt in text_list]
     if stem:
         text_list = tk.porter_stemmer_listinput(text_list)
+    text_list = [extract_phrases.multiple_replace(replace_phr_input,
+        ' '.join(nltk.word_tokenize(text.lower())),word_limit=True,flags=2) for text in text_list]
     return text_list
 

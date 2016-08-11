@@ -52,9 +52,9 @@ class TableUpdater(object):
         query = "insert into crawler.linkedin_company_urls_to_crawl_priority (url,list_id,list_items_url_id) "\
                 "select split_part(a.url,'?trk',1),a.list_id,a.id from crawler.list_items_urls a "\
                 " left join crawler.tmp_table1_updation_{} b on a.url = b.url where b.url is null "\
-                " and (a.url like '%/company/%' or a.url like '%/companies/%') "\
+                " and (a.url like '%%/company/%%' or a.url like '%%/companies/%%') and a.list_id = %s "\
                 " on conflict do nothing".format(table_name_id)
-        self.con.cursor.execute(query)
+        self.con.cursor.execute(query,(list_id,))
         self.con.commit()
         # people
         query = "drop table if exists crawler.tmp_table1_updation_{}".format(table_name_id)
@@ -70,9 +70,9 @@ class TableUpdater(object):
         query = "insert into crawler.linkedin_people_urls_to_crawl_priority (url,list_id,list_items_url_id) "\
                 "select split_part(a.url,'?trk',1),a.list_id,a.id from crawler.list_items_urls a "\
                 " left join crawler.tmp_table1_updation_{} b on a.url = b.url where b.url is null "\
-                " and (a.url like '%/pub/%' or a.url like '%/profile/%' or a.url like '%/in/%') "\
+                " and (a.url like '%%/pub/%%' or a.url like '%%/profile/%%' or a.url like '%%/in/%%') and a.list_id = %s "\
                 " on conflict do nothing".format(table_name_id)
-        self.con.cursor.execute(query)
+        self.con.cursor.execute(query,(list_id,))
         self.con.commit()
         if similar_companies:
             # inserting also viewed companies into the priority table for the initial list (here not giving company selection query)
@@ -202,7 +202,7 @@ class TableUpdater(object):
         self.con.commit()
         query = "insert into crawler.linkedin_people_urls_to_crawl_priority (url,list_id,list_items_url_id) "\
                 "select split_part(a.url,'?trk',1),a.list_id,a.list_items_url_id from crawler.tmp_table_updation_{} a "\
-                " left join crawler.tmp_table1 b on a.url = b.url "\
+                " left join crawler.tmp_table1_updation_{} b on a.url = b.url "\
                 " where b.url is null and a.position ~* %s "\
                 " and (a.url like '%%/pub/%%' or a.url like '%%/profile/%%' or a.url like '%%/in/%%') "\
                 " on conflict do nothing".format(table_name_id,table_name_id)
@@ -256,15 +256,15 @@ class TableUpdater(object):
                 "where list_id = %s and (url not like '%%linkedin%%' or url like '%%,%%' or url like '%%|%%' or url like '%%{}%%'  "\
                 " or (url not like '%%/company/%%' and url not like '%%/companies/%%'))"
         self.con.cursor.execute(query,(list_id,))
-        query = "delete from crawler.linkedin_people_urls_to_crawl_priority "\
+        query = "delete from crawler.linkedin_company_urls_to_crawl "\
                 "where list_id = %s and (url not like '%%linkedin%%' or url like '%%,%%' or url like '%%|%%' or url like '%%{}%%' "\
                 " or (url not like '%%/company/%%' and url not like '%%/companies/%%'))"
         self.con.cursor.execute(query,(list_id,))
-        query = "delete from crawler.linkedin_people_urls_to_crawl "\
+        query = "delete from crawler.linkedin_people_urls_to_crawl_priority "\
                 "where list_id = %s and (url not like '%%linkedin%%' or url like '%%,%%' or url like '%%|%%' or url like '%%{}%%' "\
                 " or (url not like '%%/in/%%' and url not like '%%/pub/%%'))"
         self.con.cursor.execute(query,(list_id,))
-        query = "delete from crawler.linkedin_people_urls_to_crawl_priority "\
+        query = "delete from crawler.linkedin_people_urls_to_crawl "\
                 "where list_id = %s and (url not like '%%linkedin%%' or url like '%%,%%' or url like '%%|%%' or url like '%%{}%%' "\
                 " or (url not like '%%/in/%%' and url not like '%%/pub/%%'))"
         self.con.cursor.execute(query,(list_id,))
