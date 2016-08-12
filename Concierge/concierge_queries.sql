@@ -119,3 +119,31 @@ UNION
  join linkedin_people_base b on c.people_url = b.linkedin_url
  )
 )x;
+
+
+
+
+
+---selecting people data 
+select * from
+(select distinct on (first_name,middle_name,last_name,domain,designation) * from (
+(select distinct first_name,middle_name,last_name,domain,trim(designation) as designation,
+a.company_name,company_website,headquarters,founded,company_size,industry,trim(specialties) as specialties,trim(description) description
+from crawler.people_details_for_email_verifier a join crawler.linkedin_company_base lk_c on a.company_website = lk_c.website 
+where
+designation ~* '\yProduct Manager.+Web\y|\yProduct Manager.+Technology\y|\yProduct Manager.+Engineering\y|\yProduct Manager.+Mobile\y|\yProduct Manager.+Product\y|\yProduct Manager.+products\y|\yDirector.+Web\y|\yDirector.+Technology\y|\yDirector.+Engineering\y|\yDirector.+Mobile\y|\yDirector.+Product\y|\yDirector.+products\y|\yVP.+Web\y|\yVP.+Technology\y|\yVP.+Engineering\y|\yVP.+Mobile\y|\yVP.+Product\y|\yVP.+products\y|\yVice president.+Web\y|\yVice president.+Technology\y|\yVice president.+Engineering\y|\yVice president.+Mobile\y|\yVice president.+Product\y|\yVice president.+products\y|\yHead of.+Web\y|\yHead of.+Technology\y|\yHead of.+Engineering\y|\yHead of.+Mobile\y|\yHead of.+Product\y|\yHead of.+products\y|\yChief Product Officer\y|\yCTO\y|\yChief Technology Officer\y'
+and
+ (lk_c.headquarters ~* 'colorado' or lk_c.headquarters ~* ' CO ') and (lk_c.headquarters ~* 'united states' or lk_c.headquarters ~ ' USA') 
+)
+union
+(
+select distinct first_name,middle_name,last_name,domain,trim(designation) as designation,a.company_name,company_website,headquarters,founded,
+company_size,industry,trim(specialties) as specialties,trim(description) description
+from crawler.people_details_for_email_verifier a join crawler.linkedin_company_base lk_c on a.company_website = lk_c.website 
+join crawler.list_items_urls c on lk_c.linkedin_url=c.url
+where 
+ designation ~* '\yProduct Manager.+Web\y|\yProduct Manager.+Technology\y|\yProduct Manager.+Engineering\y|\yProduct Manager.+Mobile\y|\yProduct Manager.+Product\y|\yProduct Manager.+products\y|\yDirector.+Web\y|\yDirector.+Technology\y|\yDirector.+Engineering\y|\yDirector.+Mobile\y|\yDirector.+Product\y|\yDirector.+products\y|\yVP.+Web\y|\yVP.+Technology\y|\yVP.+Engineering\y|\yVP.+Mobile\y|\yVP.+Product\y|\yVP.+products\y|\yVice president.+Web\y|\yVice president.+Technology\y|\yVice president.+Engineering\y|\yVice president.+Mobile\y|\yVice president.+Product\y|\yVice president.+products\y|\yHead of.+Web\y|\yHead of.+Technology\y|\yHead of.+Engineering\y|\yHead of.+Mobile\y|\yHead of.+Product\y|\yHead of.+products\y|\yChief Product Officer\y|\yCTO\y|\yChief Technology Officer\y'
+and c.list_id = '3dacd6dc-4ffd-11e6-ad3a-df63592beb60'
+)
+)lk_c where designation !~* '\yHR\y|human resource|sales and marketing'
+)x

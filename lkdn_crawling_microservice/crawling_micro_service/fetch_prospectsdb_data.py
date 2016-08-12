@@ -83,6 +83,7 @@ class FetchProspectDB(object):
             tmp = self.con.cursor.fetchall()
             list_items_url_id = tmp[0][0]
             self.prospect_insert_from_query(prospect_query,list_id,list_items_url_id,desig_list_reg=desig_list_reg)
+        self.fix_redirect_urls(list_id) #fetching from db causes redirect url issues
         self.con.close_cursor()
         self.prospect_con.close_cursor()
 
@@ -147,12 +148,12 @@ class FetchProspectDB(object):
         '''
         for urls in chunker(domains_all,100):
             # select matching rows
-            query = "select b.linkedin_url,b.company_name,b.company_size,b.industry,b.company_type,b.headquarters,b.description,"\
+            query = "select distinct b.linkedin_url,b.company_name,b.company_size,b.industry,b.company_type,b.headquarters,b.description,"\
                     "b.founded,b.specialties,b.website,array_to_string(b.employee_details_array,'|') employee_details,"\
                     "array_to_string(b.also_viewed_companies_array,'|') also_viewed_companies,a.website_cleaned "\
                     "from linkedin_company_domains a join linkedin_company_base b on a.linkedin_url=b.linkedin_url "\
-                    "where a.website_cleaned in %s"
-            self.prospect_con.execute(query,(tuple([i[0] for i in urls]),))
+                    "where a.website_cleaned in %s or a.domain in %s"
+            self.prospect_con.execute(query,(tuple([i[0] for i in urls]),tuple([i[0] for i in urls]),))
             company_prospect_data = self.prospect_con.cursor.fetchall()
             if not company_prospect_data:
                 continue
@@ -183,7 +184,7 @@ class FetchProspectDB(object):
             self.con.cursor.execute(query, insert_list1)
             self.con.commit()
             # insert people for these companies into the people table
-            query = "select d.linkedin_url,d.name,d.sub_text,d.location,d.company_name,"\
+            query = "select distinct d.linkedin_url,d.name,d.sub_text,d.location,d.company_name,"\
                     "array_to_string(d.company_linkedin_url_array,'|') company_linkedin_url,"\
                     "d.previous_companies,d.education,d.industry,d.summary,d.skills,"\
                     "array_to_string(d.experience_array,'|') experience,"\
@@ -308,4 +309,19 @@ class FetchProspectDB(object):
         insert_list = [list(in_tup) for in_tup in people_prospect_data]
         insert_list1 = [tuple(i[:-1]+[list_id,list_items_url_id]) for i in insert_list]
         self.con.cursor.execute(query, insert_list1)
+        self.con.commit()
+
+    def fix_redirect_urls(self,list_id):
+        ''' put all urls in the base tables into redirect url tables also
+        :param list_id:
+        :return:
+        '''
+        query = " insert into crawler.linkedin_company_redirect_url (url,redirect_url) "\
+                " select distinct linkedin_url,linkedin_url from "\
+                " crawler.linkedin_company_base where list_id = %s on conflict do nothing "
+        self.con.cursor.execute(query,(list_id,))
+        query = " insert into crawler.linkedin_people_redirect_url (url,redirect_url) "\
+                " select distinct linkedin_url,linkedin_url from "\
+                " crawler.linkedin_people_base where list_id = %s on conflict do nothing "
+        self.con.cursor.execute(query,(list_id,))
         self.con.commit()

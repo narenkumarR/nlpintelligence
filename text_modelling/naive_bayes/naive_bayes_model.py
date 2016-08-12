@@ -30,21 +30,45 @@ class NaiveBayesModel(object):
                                          merge_words_with_next_keep_original=self.merge_words_with_next_keep_original,
                                          merge_words_with_next_remove_original=self.merge_words_with_next_remove_original)
 
-    def _gen_vectorizer_get_dtm_textlist(self,text_list,feature_loc='',min_df=4):
+    def _gen_samples_uniform(self,text_list,label_list=[]):
+        '''
+        :param text_list:
+        :param label_list:
+        :return:
+        '''
+        if not label_list:
+                raise ValueError('Need to give label list for sampling')
+        # each class will be sampled to len(text_list)
+        df = pd.DataFrame({'text':text_list,'dv':label_list})
+        if self.class_wts:
+            tmp = df.groupby('dv').apply(
+                lambda x: x.sample(int(df.shape[0]*self.class_wts[self.classes.index(list(x['dv'])[0])]*3),
+                                   replace=True,random_state=self.random_state))
+        else:
+            tmp = df.groupby('dv').apply(lambda x: x.sample(df.shape[0],replace=True))
+        return list(tmp['text']),list(tmp['dv'])
+
+    def _gen_vectorizer_get_dtm_textlist(self,text_list,label_list=[],feature_loc='',min_df=4):
         '''create vectorizer and generate dtm
         :param text_list:
         :return:
         '''
         if feature_loc:
-            self.vocab = pd.read_csv(feature_loc)['features']
-            self.vectorizer = CountVectorizer(vocabulary=self.vocab,ngram_range=(1,1))
+            if type(feature_loc) == str:
+                self.vocab = pd.read_csv(feature_loc)['features']
+            else:
+                self.vocab = feature_loc
+            self.vectorizer = CountVectorizer(vocabulary=self.vocab,ngram_range=self.n_gram_range)
+            # need to do uniform sampling here because otherwise some probs can occur
+            # naive bayes gives bad results when the number is
+            # text_list,label_list = self._gen_samples_uniform(text_list,label_list)
             X_train = self.vectorizer.transform(self._process_textlist(text_list))
         else:
-            self.vectorizer = CountVectorizer(min_df=min_df,tokenizer=tokenizer,ngram_range=(1,1),\
+            self.vectorizer = CountVectorizer(min_df=min_df,tokenizer=tokenizer,ngram_range=self.n_gram_range,\
                                               stop_words = self.stop_words_vectorizer)
             X_train = self.vectorizer.fit_transform(self._process_textlist(text_list))
             self.vocab = self.vectorizer.get_feature_names()
-        return X_train
+        return X_train,label_list
 
     def _get_dtm_text(self,text):
         '''
@@ -66,9 +90,9 @@ class NaiveBayesModel(object):
                   merge_phr_list_remove_original,merge_words_with_next_keep_original,
                   merge_words_with_next_remove_original,
                   stop_words_vectorizer=None,
-                  # n_gram_range = (1,1),
+                  n_gram_range = (1,1),
                   feature_loc=None,
-                  default_class='',min_df=4,model_method = 'MultinomialNB',
+                  default_class='',min_df=4,model_method = 'MultinomialNB',random_state=0,
                   **kwargs):
         '''
         :param text_list:
@@ -82,14 +106,15 @@ class NaiveBayesModel(object):
         :param merge_words_with_next_keep_original:
         :param merge_words_with_next_remove_original:
         :param stop_words_vectorizer :
-        # :param n_gram_range : if simply take all ngrams, give this value and set all different lists as []
-        :param feature_loc:
+        :param n_gram_range : if simply take all ngrams, give this value and set all different lists as [](not implemented)
+        :param feature_loc: either a list of features or location to csv file (quick fix, need to do properly)
         :param default_class:
         :param min_df:
         :param model_method:
         :param kwargs:
         :return:
         '''
+        self.random_state = random_state
         self.stem = stem
         self.replace_phr_input = replace_phr_input
         self.stop_words = stop_words
@@ -98,40 +123,41 @@ class NaiveBayesModel(object):
         self.merge_phr_list_remove_original = merge_phr_list_remove_original
         self.merge_words_with_next_keep_original = merge_words_with_next_keep_original
         self.merge_words_with_next_remove_original = merge_words_with_next_remove_original
+        self.n_gram_range = n_gram_range
 
         if not stop_words_vectorizer:
             self.stop_words_vectorizer = stop_words
         else:
             self.stop_words_vectorizer = stop_words_vectorizer
         # Default class. This class will have more prior probability compared to other classes
+        self.classes = list(np.unique(label_list))
+        self.classes.sort()
         if default_class:
             if 'class_prior' in kwargs:
                 del kwargs['class_prior']
-            classes = list(np.unique(label_list))
-            classes.sort()
-            assert default_class in classes
+            assert default_class in self.classes
             self.default_class = np.array([default_class],dtype='|S8')
-            default_class_ind = classes.index(default_class)
-            class_wts = [0.95/len(classes)]*(len(classes)-1)
-            default_class_wt = 0.95/len(classes)+0.05
-            class_wts = class_wts[:default_class_ind]+[default_class_wt]+class_wts[default_class_ind:]
+            default_class_ind = self.classes.index(default_class)
+            class_wts = [0.95/len(self.classes)]*(len(self.classes)-1)
+            default_class_wt = 0.95/len(self.classes)+0.05
+            self.class_wts = class_wts[:default_class_ind]+[default_class_wt]+class_wts[default_class_ind:]
         else:
-            class_wts = None
-        self.class_wts = class_wts
+            self.class_wts = None
+            self.default_class = None
         if model_method == 'MultinomialNB':
-            self.model = MultinomialNB(fit_prior=False,class_prior=class_wts,**kwargs)
+            self.model = MultinomialNB(fit_prior=False,class_prior=self.class_wts,**kwargs)
         elif model_method == 'BernoulliNB':
-            self.model = BernoulliNB(fit_prior=False,class_prior=class_wts,**kwargs)
+            self.model = BernoulliNB(fit_prior=False,class_prior=self.class_wts,**kwargs)
         elif model_method == 'GaussianNB':
             # self.model = GaussianNB()
             raise ValueError('This method does not support sparse array as input, so not implemented now. Can add later')
         else:
             raise ValueError('Check the model_method input')
-        X_train = self._gen_vectorizer_get_dtm_textlist(text_list,feature_loc=feature_loc,min_df=min_df)
+        X_train,label_list = self._gen_vectorizer_get_dtm_textlist(text_list,label_list,feature_loc=feature_loc,min_df=min_df)
         y_train = pd.Series(label_list)
         self.model.fit(X_train,y_train)
         self.model_classes = list(self.model.classes_)
-        self.class_prior_weights = class_wts
+        self.class_prior_weights = self.class_wts
 
     def update_model_single(self,text,label):
         '''update the model with text and label

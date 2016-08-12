@@ -71,9 +71,9 @@ if __name__ == "__main__":
 
     while True:
         # try:
-            #os.system('pkill -9 firefox')
-            #os.system('pkill -9 Xvfb')
-            #os.system("find /tmp/* -maxdepth 1 -type d -name 'tmp*' |  xargs rm -rf")
+            os.system('pkill -9 firefox')
+            os.system('pkill -9 Xvfb')
+            os.system("find /tmp/* -maxdepth 1 -type d -name 'tmp*' |  xargs rm -rf")
             os.system('python main.py -n {} -f {} -d {} -s {} -t {} -u {} -p {} -q "{}" -v {} -w {} -m {} -r {}'.format(list_name,csv_company,
                                                                                         desig_loc,similar_companies,
                                                                                         hours,extract_urls,prospect_db,prospect_query,
