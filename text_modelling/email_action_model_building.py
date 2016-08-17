@@ -122,7 +122,7 @@ text_dv = list(mails1['Action Class'])
 text_inp_short,text_dv_short = [],[]
 for i in range(len(text_inp)):
     sents = nltk.sent_tokenize(text_inp[i])
-    if len(sents)<3:
+    if len(sents)<=3:#change it to <=3
         text_inp_short.append(text_inp[i])
         text_dv_short.append(text_dv[i])
 
@@ -214,3 +214,6 @@ nb_action_neutral_short.fit_model(text_inp_short,text_dv_short,stem=True,replace
              feature_loc=vocab_short,n_gram_range=(1,3),random_state=10
          )
 
+models = {'nb_action_neg':nb_action_neg,'nb_action_neg_short':nb_action_neg_short,'nb_action_neutral':nb_action_neutral,'nb_action_neutral_short':nb_action_neutral_short}
+with open('action_models_naivebayes.pkl','w') as f:
+  pickle.dump(models,f)

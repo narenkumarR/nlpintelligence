@@ -163,7 +163,7 @@ class LinkedinProfileCrawler(object):
         '''
         try:
             return soup.find('div',{'id':'profile'}).find('div',{'class':'profile-overview-content'})\
-                .find('table',{'class':'extra-info'}).find('td').text
+                .find('table',{'class':'extra-info'}).find('tr',{'data-section':'currentPositionsDetails'}).find('td').text
         except:
             return ''
 
@@ -173,8 +173,8 @@ class LinkedinProfileCrawler(object):
         :return:
         '''
         try:
-            tmp = soup.find('div',{'id':'profile'}).find('div',{'class':'profile-overview-content'}).\
-                find('table',{'class':'extra-info'}).find('tr').findAll('a')
+            tmp = soup.find('div',{'id':'profile'}).find('div',{'class':'profile-overview-content'})\
+                .find('table',{'class':'extra-info'}).find('tr',{'data-section':'currentPositionsDetails'}).findAll('a')
             links = [i['href'] for i in tmp]
             return '|'.join(links)
         except:
