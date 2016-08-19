@@ -32,6 +32,7 @@ class FetchProspectDB(object):
         :param similar_companies:
         :return:
         '''
+        logging.info('fetch_prospects: Started fetching')
         if not desig_list:
             desig_list_reg = desig_list_regex
         else:
@@ -48,7 +49,9 @@ class FetchProspectDB(object):
             for url,list_items_url_id in urls:
                 urls_dict[url] = list_items_url_id
             # put data from prospect db to crawler db
+            logging.info('fetch_prospects: fetching company details based on linkedin urls')
             self.prospect_insert_company(urls,urls_dict,list_id,desig_list_reg=desig_list_reg)
+            logging.info('fetch_prospects: fetching people details based on linkedin_urls')
             self.prospect_insert_people(urls,urls_dict,list_id,desig_list_reg=desig_list_reg)
         # take domains in list_table and search for them in prospect table
         # Here find all urls for which there is no url in list_items_urls table and give it to a function
@@ -61,10 +64,14 @@ class FetchProspectDB(object):
         if domains:
             domains_dict = {}
             for domain,list_items_id in domains:
+                if domain[-1] == '/':
+                    domain = domain[:-1]
                 domains_dict[domain] = list_items_id
+            logging.info('fetch_prospects: fetching details based on company domains')
             self.prospect_insert_company_website_input(domains,domains_dict,list_id,desig_list_reg=desig_list_reg)
         # querying using prospect query
         if prospect_query:
+            logging.info('fetch_prospects: fetching based on prospect query')
             # first insert a default value into list_items table and list_items_urls table
             query = "insert into crawler.list_items (list_id,list_input,list_input_additional) "\
                                         " values (%s,%s,%s) on conflict do nothing "
@@ -83,9 +90,13 @@ class FetchProspectDB(object):
             tmp = self.con.cursor.fetchall()
             list_items_url_id = tmp[0][0]
             self.prospect_insert_from_query(prospect_query,list_id,list_items_url_id,desig_list_reg=desig_list_reg)
+            logging.info('fetch_prospects: completed fetching based on prospect query')
         self.fix_redirect_urls(list_id) #fetching from db causes redirect url issues
         self.con.close_cursor()
         self.prospect_con.close_cursor()
+        self.con.close_connection()
+        self.prospect_con.close_connection()
+        logging.info('fetch_prospects: completed fetching process')
 
     def prospect_insert_company(self,urls_all,urls_dict,list_id,desig_list_reg):
         '''search for urls in company table
@@ -152,9 +163,18 @@ class FetchProspectDB(object):
                     "b.founded,b.specialties,b.website,array_to_string(b.employee_details_array,'|') employee_details,"\
                     "array_to_string(b.also_viewed_companies_array,'|') also_viewed_companies,a.website_cleaned "\
                     "from linkedin_company_domains a join linkedin_company_base b on a.linkedin_url=b.linkedin_url "\
-                    "where a.website_cleaned in %s or a.domain in %s"
-            self.prospect_con.execute(query,(tuple([i[0] for i in urls]),tuple([i[0] for i in urls]),))
-            company_prospect_data = self.prospect_con.cursor.fetchall()
+                    "where a.website_cleaned in %s "
+            self.prospect_con.execute(query,(tuple([i[0] for i in urls]),))
+            company_prospect_data_1 = self.prospect_con.cursor.fetchall()
+            query = "select distinct b.linkedin_url,b.company_name,b.company_size,b.industry,b.company_type,b.headquarters,b.description,"\
+                    "b.founded,b.specialties,b.website,array_to_string(b.employee_details_array,'|') employee_details,"\
+                    "array_to_string(b.also_viewed_companies_array,'|') also_viewed_companies,a.domain "\
+                    "from linkedin_company_domains a join linkedin_company_base b on a.linkedin_url=b.linkedin_url "\
+                    "where  a.domain in %s"
+            self.prospect_con.execute(query,(tuple([i[0] for i in urls]),))
+            company_prospect_data_2 = self.prospect_con.cursor.fetchall()
+            company_prospect_data = list(set(company_prospect_data_1+company_prospect_data_2))
+            del company_prospect_data_1,company_prospect_data_2
             if not company_prospect_data:
                 continue
             # insert linkedin_url into list_items_urls, then get the uuid, then use both to insert. This is done because

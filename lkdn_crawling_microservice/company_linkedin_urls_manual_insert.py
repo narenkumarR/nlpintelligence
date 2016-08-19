@@ -17,6 +17,7 @@ def upload_url_list(csv_loc=None,list_name=None):
     if list_name is None:
         raise ValueError('Need list name')
     url_df = pd.read_csv(csv_loc)
+    url_df = url_df.fillna('')
     url_list = list(url_df[linkedin_url_column])
     company_dets = [(url_df.iloc[i][company_name_field],url_df.iloc[i][company_details_field]) for i in range(url_df.shape[0])]
     con = PostgresConnect()
@@ -38,6 +39,8 @@ def upload_url_list(csv_loc=None,list_name=None):
         # now insert urls directly into the list_items_urls table
         for url,name_val in zip(url_list,company_dets):
             try:
+                if not url:
+                    continue
                 name = name_val[0]
                 value = name_val[1]
                 query = "insert into crawler.list_items_urls (list_id,list_items_id,url) "\
@@ -46,8 +49,9 @@ def upload_url_list(csv_loc=None,list_name=None):
                         " on conflict do nothing ".format('crawler.list_items')
                 con.cursor.execute(query,(url,name,value,))
                 con.commit()
-            except:
+            except Exception,e:
                 print('error happened for url:{},name_val:{}'.format(url,name_val))
+                print(e)
                 try:
                     con.close_cursor()
                 except:

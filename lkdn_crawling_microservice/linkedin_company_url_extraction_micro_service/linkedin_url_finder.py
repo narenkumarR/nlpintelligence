@@ -34,7 +34,7 @@ class LkdnUrlExtrMain(object):
         query = "select a.id as list_items_id, a.list_input,a.list_input_additional "\
                 "from crawler.list_items a left join crawler.list_items_urls b "\
                 "on a.list_id=b.list_id and a.id = b.list_items_id "\
-            "where a.list_id = %s and b.list_id is null"
+            "where a.list_id = %s and (b.list_id is null or b.url = '')"
         self.con.execute(query,(list_id,))
         in_list = self.con.cursor.fetchall()
         if not in_list:

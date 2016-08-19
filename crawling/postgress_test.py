@@ -5,8 +5,9 @@ __author__ = 'joswin'
 #set password for this user as 'postgres
 
 '''
-alter table linkedin_company_base rename to linkedin_company_base_2016_06_10_2;
-alter table linkedin_people_base rename to linkedin_people_base_2016_06_10_2;
+CREATE EXTENSION if not exists "uuid-ossp";
+CREATE EXTENSION if not exists pgcrypto;
+CREATE EXTENSION if not exists plpythonu;
 
 CREATE TABLE linkedin_people_base (
     linkedin_url text ,

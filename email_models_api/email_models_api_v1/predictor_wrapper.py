@@ -65,8 +65,9 @@ bounce_regex = re.compile(bounce_regex_str,re.IGNORECASE)
 # following regular expression are used for hard matching
 neg_neg_regex_str = r"(\.|,|hi|^)( |\n)*we are good(\.|$)|we are good[a-z ]+current|not at this time|not for us\."
 neg_dnc_regex_str = r"(got|sent to)( | the )wrong (email id|mail id|id)|"\
-    "(exclude|remove) [a-z ]*from[a-z ]+list|\bi [a-z ]+ sue [a-z ]+you"\
-    "|unsubscribe|stop send[a-z ]+(mail|spam)|stop spam|(send|sending) spam"
+    "(exclude|remove) [a-z ]*from[a-z ]+list|\bi [a-z ]+ (sue|suing) [a-z ]+you"\
+    "|unsubscribe|stop send[a-z ]+(mail|spam)|stop spam|(send|sending) spam"\
+    "take (me|us) off [a-z ]*list"
 pos_regex_str = r"not averse to try|(are|am) interested in knowing|guide (me|us) [a-z ]*(how to|next steps|what to|get intro)"\
     "|please (meet|emeet|e-meet)|how (to|should|can|will)[a-z ]+proceed"
 outofoffice_regex_str = r"currently not in[a-z ]+office|out of[a-z ]+office|currently on vacation|"\
