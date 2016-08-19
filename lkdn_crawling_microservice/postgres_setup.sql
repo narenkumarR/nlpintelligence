@@ -1,7 +1,7 @@
 --create extensions and schema
 CREATE SCHEMA IF NOT EXISTS crawler;
 set search_path to crawler;
-CREATE EXTENSION if not exists "uuid-ossp";
+CREATE EXTENSION if not exists "uuid-ossp" schema crawler;
 CREATE EXTENSION if not exists pgcrypto;
 CREATE EXTENSION plpythonu;
 

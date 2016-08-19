@@ -66,6 +66,7 @@ class SeleniumParser(object):
                 self.browser = webdriver.Firefox(firefox_binary=FirefoxBinary(firefox_binary_loc),firefox_profile=firefox_profile)
         self.browser.set_page_load_timeout(page_load_timeout)
         self.pid = self.browser.binary.process.pid
+        logging.info('selenium crawl: browser started. pid : {}'.format(self.pid))
 
     def get_url(self,url):
         '''

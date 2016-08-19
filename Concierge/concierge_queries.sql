@@ -147,3 +147,31 @@ and c.list_id = '3dacd6dc-4ffd-11e6-ad3a-df63592beb60'
 )
 )lk_c where designation !~* '\yHR\y|human resource|sales and marketing'
 )x
+
+--regular concierge query (for taking data from prospects db) (need to include people who are not crawled till now also into this(from array in the company table)
+select distinct  
+e.name,b.domain,trim(sub_text) as designation,a.company_name,a.website as company_website,
+b.headquarters,b.country,b.region,b.location location_company,founded,company_size,a.industry,trim(a.specialties) as specialties,
+trim(a.description) description, e.location as location_person
+from 
+linkedin_company_base a join linkedin_company_domains b on a.linkedin_url=b.linkedin_url
+join company_urls_mapper c on a.linkedin_url = c.alias_url join people_company_mapper d on c.base_url = d.company_url
+join linkedin_people_base e on d.people_url = e.linkedin_url
+where 
+conditions and 
+sub_text ~* regex_desig
+
+--regular concierge query for taking data from crawler db
+--getting only for initial list
+select distinct on (a.first_name,a.middle_name,a.last_name,a.domain)
+a.* from crawler.people_details_for_email_verifier_new a join linkedin_company_redirect_url b on 
+(a.company_linkedin_url = b.redirect_url or a.company_linkedin_url = b.url) join list_items_urls c on (b.redirect_url=c.url or b.url=c.url)
+where c.list_id = '36d9542a-6515-11e6-8815-5ff07181793b' and 
+designation ~* 'founder|\yCEO\y|Chief executive officer'
+
+--all
+select distinct on (a.first_name,a.middle_name,a.last_name,a.domain)
+a.* from crawler.people_details_for_email_verifier_new a 
+where a.list_id = '36d9542a-6515-11e6-8815-5ff07181793b' and 
+designation ~* 'founder|\yCEO\y|Chief executive officer' 
+

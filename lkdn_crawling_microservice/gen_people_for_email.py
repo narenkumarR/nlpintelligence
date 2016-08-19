@@ -27,7 +27,8 @@ def gen_people_details(list_id,desig_list=None):
     con.commit()
     query = " create table crawler.tmp_table_email_gen_{} as select distinct list_id,list_items_url_id, "\
         " unnest(crawler.clean_linkedin_url_array(string_to_array(company_linkedin_url,'|'))) company_linkedin_url, "\
-        "linkedin_url as people_linkedin_url,name,sub_text as designation from crawler.linkedin_people_base a where "\
+        "linkedin_url as people_linkedin_url,name,sub_text as designation,location as location_person "\
+            " from crawler.linkedin_people_base a where "\
         "company_linkedin_url like '%%linkedin%%' and a.list_id = %s and a.sub_text ~* %s ".format(table_name_id)
     con.cursor.execute(query,(list_id,desig_list_reg,))
     # query =
@@ -44,7 +45,7 @@ def gen_people_details(list_id,desig_list=None):
     # expand companies first (idea is to get company names and urls and match it with them in related people
     query = " create table crawler.tmp_table3_1_email_gen{} as select "\
         " list_id,list_items_url_id, "\
-        " trim(unnest(crawler.clean_linkedin_url_array(crawler.extract_related_info(string_to_array(experience,'|'),1)))) company_url, "\
+        " trim(unnest(crawler.clean_linkedin_url_array(crawler.extract_related_info(string_to_array(experience,'|'),1)))) company_linkedin_url, "\
         " trim(unnest(crawler.clean_linkedin_url_array(crawler.extract_related_info(string_to_array(experience,'|'),3)))) company_name,"\
         "related_people from crawler.linkedin_people_base "\
         " where experience like '%%{{}}%%' and list_id = %s  ".format(table_name_id)
@@ -54,12 +55,13 @@ def gen_people_details(list_id,desig_list=None):
     con.commit()
     query = " create table crawler.tmp_table3_2_email_gen{table_id} as select distinct "\
         " list_id,list_items_url_id, "\
-        " company_url,company_name, "\
-        " trim(unnest(crawler.extract_related_info(string_to_array(related_people,'|'),2))) as  person_name, "\
+        " company_linkedin_url,company_name, "\
+        " trim(unnest(crawler.extract_related_info(string_to_array(related_people,'|'),1))) as  people_linkedin_url, "\
+        " trim(unnest(crawler.extract_related_info(string_to_array(related_people,'|'),2))) as  name, "\
         " trim(split_part(trim(unnest(crawler.extract_related_info(string_to_array(related_people,'|'),3))),'at ',2)) company_name1, "\
         " trim(split_part(trim(unnest(crawler.extract_related_info(string_to_array(related_people,'|'),3))),'at ',1)) designation "\
         " from crawler.tmp_table3_1_email_gen{table_id} where "\
-        " company_name not in ('','NULL') and company_url != '' ".format(table_id = table_name_id)
+            " company_name not in ('','NULL') and company_linkedin_url != '' ".format(table_id = table_name_id)
     con.cursor.execute(query)
     con.commit()
     # delete items where names not matching or designation not matching
@@ -76,7 +78,7 @@ def gen_people_details(list_id,desig_list=None):
         "unnest(crawler.clean_linkedin_url_array(crawler.extract_related_info(string_to_array(employee_details,'|'),1))) as people_linkedin_url, "\
         " unnest(crawler.clean_linkedin_url_array(crawler.extract_related_info(string_to_array(employee_details,'|'),2))) as name, "\
         " unnest(crawler.clean_linkedin_url_array(crawler.extract_related_info(string_to_array(employee_details,'|'),3))) as designation, "\
-        " company_name,website "\
+        " company_name,website, headquarters,industry,company_size,founded "\
         "from crawler.linkedin_company_base a where "\
         "employee_details like '%%linkedin%%' and a.list_id = %s ".format(table_name_id)
     con.cursor.execute(query,(list_id,))
@@ -102,26 +104,37 @@ def gen_people_details(list_id,desig_list=None):
     # here union of two sub queries are taken. This is done to improve performance
     # Earlier this was done using single query (using or in the join conditions). This took long time to execute
     query = "create table crawler.tmp_table1_email_gen_{table_id} as "\
-            " (select distinct d.name,d.designation,b.website,b.company_name,d.list_id,d.list_items_url_id from "\
+            " (select distinct d.name,d.designation,b.website,b.company_name, "\
+            " d.company_linkedin_url,d.people_linkedin_url, d.location_person," \
+            " b.headquarters,b.industry,b.company_size,b.founded, "\
+            " d.list_id,d.list_items_url_id from "\
             "  crawler.tmp_table_email_gen_{table_id} d "\
             "join crawler.linkedin_company_redirect_url e on ( d.company_linkedin_url = e.url) "\
             " join crawler.linkedin_company_base b on e.redirect_url = b.linkedin_url "\
             "  ) "\
             " union "\
-            " (select distinct a.name,a.designation,a.website,a.company_name,a.list_id,a.list_items_url_id "\
+            " (select distinct a.name,a.designation,a.website,a.company_name, "\
+            " company_linkedin_url,people_linkedin_url,NULL as location_person, "\
+            " headquarters,industry,company_size,founded, "\
+            " a.list_id,a.list_items_url_id "\
             " from crawler.tmp_table2_email_gen_{table_id} a where designation != '' and designation is not null  "\
             " )"\
             " union "\
-            " (select distinct a.name,a.sub_text as designation,b.website,b.company_name,d.list_id,d.list_items_url_id from "\
+            " (select distinct a.name,a.sub_text as designation,b.website,b.company_name, "\
+            " d.company_linkedin_url,c.url as people_linkedin_url,a.location as location_person, "\
+            " b.headquarters,b.industry,b.company_size,b.founded,"\
+            " d.list_id,d.list_items_url_id from "\
             " crawler.linkedin_people_base a join crawler.linkedin_people_redirect_url c on a.linkedin_url = c.redirect_url "\
             " join crawler.tmp_table2_email_gen_{table_id} d on (c.url=d.people_linkedin_url ) "\
             " join crawler.linkedin_company_base b on d.company_linkedin_url = b.linkedin_url "\
             " where a.sub_text ~* '{regex}' and (d.designation = '' or d.designation is null ) )"\
             " union "\
-            " ( select distinct d.person_name as name,d.designation,b.website,b.company_name,"\
+            " ( select distinct d.name ,d.designation,b.website,b.company_name,"\
+            " b.linkedin_url as company_linkedin_url,d.people_linkedin_url,NULL as location_person, "\
+            " b.headquarters,b.industry,b.company_size,b.founded, "\
             " d.list_id,d.list_items_url_id from "\
             " crawler.tmp_table3_2_email_gen{table_id} d "\
-            "join crawler.linkedin_company_redirect_url e on ( d.company_url = e.url) "\
+            "join crawler.linkedin_company_redirect_url e on ( d.company_linkedin_url = e.url) "\
             " join crawler.linkedin_company_base b on e.redirect_url = b.linkedin_url "\
             " ) "\
             " ".format(table_id=table_name_id,regex=desig_list_reg)
@@ -133,6 +146,8 @@ def gen_people_details(list_id,desig_list=None):
     #         " where d.list_id = %s and a.sub_text ~* '{}' ".format(table_name_id,table_name_id,desig_list_reg)
     con.cursor.execute(query,(list_id,list_id,))
     con.commit()
+    con.cursor.execute(" update crawler.tmp_table1_email_gen_{} "\
+            " set name = regexp_replace(regexp_replace(name,'[^a-zA-Z0-9.()\- ]',' '),' +',' ') ".format(table_name_id))
     # create first name, middle name and last name
     con.cursor.execute('alter table crawler.tmp_table1_email_gen_{} add column name_cleaned text[], add column domain text'.format(table_name_id))
     con.commit()
@@ -140,11 +155,35 @@ def gen_people_details(list_id,desig_list=None):
             "domain = replace(substring(website  from '.*://([^/]*)'),'www.','') ".format(table_name_id)
     con.cursor.execute(query)
     con.commit()
-    query = "insert into crawler.people_details_for_email_verifier "\
-            " (list_id,list_items_url_id,first_name,middle_name,last_name,domain,designation,company_name,company_website)  "\
-            "select distinct on (name_cleaned[2],name_cleaned[3],name_cleaned[4], domain, trim(designation),company_name,website) "\
-            " list_id,list_items_url_id, name_cleaned[2] as first_name, name_cleaned[3] as middle_name, "\
-            "name_cleaned[4] as last_name, domain,  trim(designation) as designation,company_name, website as company_website "\
+    query = "update crawler.tmp_table1_email_gen_{} set domain = '' where "\
+            " (domain like '%google.com%' and company_name != 'Google' )  "\
+            " or (domain like 'facebook.com%' and company_name != 'Facebook') "\
+            " or (domain like 'linkedin.com%' and company_name != 'LinkedIn') "\
+            " or (domain like 'yahoo.com%' and company_name != 'Yahoo') "\
+            " or (domain like 'twitter.com%' and company_name != 'Twitter') "\
+            " or (domain like 'myspace.com%' and company_name != 'Myspace' and company_name != 'MySpace') "\
+            " or (domain like 'yelp.com%' and company_name != 'Yelp') "\
+            " or (domain like 'youtube.com%' and company_name != 'YouTube') "\
+            " or (domain like 'meetup.com%' and company_name != 'Meetup') "\
+            " or (domain like 'angel.co%' and company_name != 'AngelList') "\
+            " or (domain like 'vimeo.com%' and company_name != 'Vimeo') "\
+            " or (domain like 'instagram.com%' and company_name != 'Instagram') "\
+            " or (domain like 'companycheck.co.uk%' and company_name != 'Company Check Ltd') "\
+            " or (domain like 'tinyurl.com%' and company_name != 'TinyURL') "\
+            " or (domain ~* 'wikipedia.org|sites.google.com|plus.google.com|goo.gl|itunes.apple.com|underconstruction.com') "\
+            " or (domain in ('none','N','n','http','-','TBD','TBA','www','http:','.','None','NA','0','fb.com','x',"\
+            "'ow.ly','na.na','na','http;','goo.gl','1','com') ) ".format(table_name_id)
+    con.cursor.execute(query)
+    con.commit()
+    import pdb
+    pdb.set_trace()
+    query = "insert into crawler.people_details_for_email_verifier_new "\
+            " (list_id,list_items_url_id,full_name,first_name,middle_name,last_name,domain,designation,company_name,"\
+            " company_website, headquarters,industry,company_size,founded,company_linkedin_url,people_linkedin_url)  "\
+            "select distinct on (name_cleaned[2],name_cleaned[3],name_cleaned[4],website) "\
+            " list_id,list_items_url_id,name as full_name, name_cleaned[2] as first_name, name_cleaned[3] as middle_name, "\
+            "name_cleaned[4] as last_name, domain,  trim(designation) as designation,company_name, website as company_website, "\
+            " headquarters,industry,company_size,founded,company_linkedin_url,people_linkedin_url "\
             " from crawler.tmp_table1_email_gen_{} where "\
             "domain not in ('http://','http://-','http://.','http://...','http://1','') and  "\
             "name_cleaned[2] is not null and name_cleaned[4] is not null and name_cleaned[2] not in('','.','..') "\

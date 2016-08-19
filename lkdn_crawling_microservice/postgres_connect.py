@@ -37,6 +37,12 @@ class PostgresConnect(object):
         '''
         self.cursor.close()
 
+    def close_connection(self):
+        '''
+        :return:
+        '''
+        self.con.close()
+
     def execute(self,query,args=(),commit=False):
         '''
         :param query:

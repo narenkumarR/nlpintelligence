@@ -67,9 +67,9 @@ class BwCsvReader(object):
                 out_dic[ind] = actual_list
                 ind += 1
                 if ind == chunk_size:
-                    # out_df = pd.DataFrame.from_dict(out_dic,'index')
-                    # out_df.columns = cols
-                    # yield out_df
+                    out_df = pd.DataFrame.from_dict(out_dic,'index')
+                    out_df.columns = cols
+                    yield out_df
                     out_dic = {}
                     ind = 0
                     chunk_ind += 1

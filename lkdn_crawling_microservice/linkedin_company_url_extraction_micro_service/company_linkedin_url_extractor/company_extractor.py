@@ -4,6 +4,7 @@ from bs_crawl import BeautifulsoupCrawl
 from selenium_crawl import SeleniumParser
 from duckduckgo_crawler import DuckduckgoCrawler
 from urlparse import urljoin
+from random import shuffle
 
 import re
 import logging
@@ -21,7 +22,9 @@ class CompanyLinkedinURLExtractorSingle(object):
         # self.crawler = BeautifulsoupCrawl()
         self.crawler = SeleniumParser(page_load_timeout=50,visible=visible)
         self.ddg_crawler = DuckduckgoCrawler(visible=visible)
-        self.search_string = r'linkedin.com/company/|linkedin.com/companies/|linkedin.com/pub/|linkedin.com/in/' #earlier linkedin.com/company
+        # self.search_string = r'linkedin.com/company/|linkedin.com/companies/|linkedin.com/pub/|linkedin.com/in/' #earlier linkedin.com/company
+        self.search_string_website = r'linkedin.com/company/|linkedin.com/companies/|linkedin.com/pub/|linkedin.com/in/'
+        self.search_string_ddg = r'linkedin.com/company/|linkedin.com/companies/'
 
     def get_linkedin_url(self,inp_tuple,time_out=30):
         '''
@@ -61,7 +64,7 @@ class CompanyLinkedinURLExtractorSingle(object):
             res_list = []
             for dic1 in search_res:
                 res_url,text = dic1['url'],dic1['text']
-                if re.search(self.search_string,res_url):
+                if re.search(self.search_string_ddg,res_url):
                     res_list.append((res_url,text,conf))
                 conf = min(conf-5,60)
             final_res,final_conf = self.get_best_res_from_ddg_results(res_list,company_text,'')
@@ -74,7 +77,7 @@ class CompanyLinkedinURLExtractorSingle(object):
             res_list = []
             for dic1 in search_res:
                 res_url,text = dic1['url'],dic1['text']
-                if re.search(self.search_string,res_url):
+                if re.search(self.search_string_ddg,res_url):
                     res_list.append((res_url,text,conf))
                 conf = min(conf-5,60)
             final_res,final_conf = self.get_best_res_from_ddg_results(res_list,company_text+' '+additional_text,'')
@@ -95,7 +98,7 @@ class CompanyLinkedinURLExtractorSingle(object):
         company_text = re.sub(' +',' ',company_text)
         company_text = company_common_reg.sub(' ',company_text)
         company_text = re.sub(' +',' ',company_text)
-        company_text_wrds = company_text.split()
+        company_text_wrds = company_text.split(' ')
         res_list_new = []
         max_count = 0
         for url,text,conf in res_list:
@@ -200,7 +203,7 @@ class CompanyLinkedinURLExtractorSingle(object):
         :return:
         '''
         for url in urls:
-            if re.search(self.search_string,url): #if a linkedin company link found, return it
+            if re.search(self.search_string_website,url): #if a linkedin company link found, return it
                 return (url,100)
         #if the code comes here, it means no linkedin url present.
         #Now either we can look at other links like contact/about us page or do a ddg search
@@ -313,7 +316,9 @@ class CompanyLinkedinURLExtractorMulti(object):
             worker_link_extractors.append(link_extractor)
             worker.start()
         # logging.info('putting urls into input queue')
-        for i in url_dict:
+        url_dict_keys = url_dict.keys()
+        shuffle(url_dict_keys)
+        for i in url_dict_keys:
             self.in_queue.put((i,url_dict[i]))
         logging.info('company extraction: 120 second wait started ')
         time.sleep(120)

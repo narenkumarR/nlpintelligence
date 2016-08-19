@@ -80,8 +80,9 @@ if __name__ == "__main__":
                                                                                         visible,what,main_thread,
                                                                                         n_threads))
             time.sleep(10)
-            # after the first iteration, no need to look for prospect data
-            if prospect_db:
+            # after the first iteration, no need to look for prospect data # not correct. only if not looking for
+            # similar companies, this is needed. so adding similar company condition also here
+            if prospect_db and not similar_companies:
                 prospect_db = 0
         # except:
         #     continue
