@@ -112,6 +112,7 @@ class FetchProspectDB(object):
                     "from linkedin_company_base where linkedin_url in %s"
             self.prospect_con.execute(query,(tuple([i[0] for i in urls]),))
             company_prospect_data = self.prospect_con.cursor.fetchall()
+            logging.info('fetch_prospects: company linkedin url - fetched companies : {}'.format(len(company_prospect_data)))
             if not company_prospect_data:
                 continue
             # insert into crawler base table
@@ -175,6 +176,7 @@ class FetchProspectDB(object):
             company_prospect_data_2 = self.prospect_con.cursor.fetchall()
             company_prospect_data = list(set(company_prospect_data_1+company_prospect_data_2))
             del company_prospect_data_1,company_prospect_data_2
+            logging.info('fetch_prospects: company website - fetched companies : {}'.format(len(company_prospect_data)))
             if not company_prospect_data:
                 continue
             # insert linkedin_url into list_items_urls, then get the uuid, then use both to insert. This is done because
@@ -246,6 +248,7 @@ class FetchProspectDB(object):
                     "where linkedin_url in %s"
             self.prospect_con.execute(query,(tuple([i[0] for i in urls]),))
             people_prospect_data = self.prospect_con.cursor.fetchall()
+            logging.info('fetch_prospects: people - fetched people : {}'.format(len(people_prospect_data)))
             if not people_prospect_data:
                 continue
             # insert into crawler base table
@@ -295,6 +298,7 @@ class FetchProspectDB(object):
                     "from linkedin_company_base a where "+prospect_query
         self.prospect_con.execute(query)
         company_prospect_data = self.prospect_con.cursor.fetchall()
+        logging.info('fetch_prospects: company from query - fetched companies : {}'.format(len(company_prospect_data)))
         if not company_prospect_data:
             return
         # insert into crawler base table

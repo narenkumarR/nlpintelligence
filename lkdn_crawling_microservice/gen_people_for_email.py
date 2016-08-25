@@ -175,8 +175,6 @@ def gen_people_details(list_id,desig_list=None):
             "'ow.ly','na.na','na','http;','goo.gl','1','com') ) ".format(table_name_id)
     con.cursor.execute(query)
     con.commit()
-    import pdb
-    pdb.set_trace()
     query = "insert into crawler.people_details_for_email_verifier_new "\
             " (list_id,list_items_url_id,full_name,first_name,middle_name,last_name,domain,designation,company_name,"\
             " company_website, headquarters,industry,company_size,founded,company_linkedin_url,people_linkedin_url)  "\
