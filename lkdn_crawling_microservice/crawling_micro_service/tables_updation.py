@@ -174,6 +174,7 @@ class TableUpdater(object):
         query = "drop table if exists crawler.tmp_table_updation_{} ".format(table_name_id)
         self.con.cursor.execute(query)
         self.con.commit()
+        logging.info('creating tmp_table_updation')
         query = "create table crawler.tmp_table_updation_{} as "\
                 "select distinct unnest(crawler.clean_linkedin_url_array(crawler.extract_related_info(string_to_array(employee_details,'|'),1))) as url, "\
                 "unnest(crawler.clean_linkedin_url_array(crawler.extract_related_info(string_to_array(employee_details,'|'),3))) as position, "\
@@ -183,9 +184,12 @@ class TableUpdater(object):
             query = query + " and "+company_select_query
         self.con.cursor.execute(query,(list_id,))
         self.con.commit()
+        self.con.execute('analyze crawler.tmp_table_updation_{}'.format(table_name_id))
+        self.con.commit()
         query = "drop table if exists crawler.tmp_table1_updation_{} ".format(table_name_id)
         self.con.cursor.execute(query)
         self.con.commit()
+        logging.info('creating tmp_table1_updation')
         query = "create table crawler.tmp_table1_updation_{} as "\
                 "select a.url,a.list_id,a.list_items_url_id  "\
                 "from crawler.tmp_table_updation_{} a join  crawler.linkedin_people_redirect_url c on a.url = c.url "\
@@ -193,11 +197,14 @@ class TableUpdater(object):
                 "where  a.list_id = %s".format(table_name_id,table_name_id)
         self.con.cursor.execute(query,(list_id,))
         self.con.commit()
+        self.con.execute('analyze crawler.tmp_table1_updation_{}'.format(table_name_id))
+        self.con.commit()
         query = "insert into crawler.linkedin_people_urls_to_crawl (url,list_id,list_items_url_id) "\
                 "select split_part(a.url,'?trk',1),a.list_id,a.list_items_url_id from crawler.tmp_table_updation_{} a "\
                 " left join crawler.tmp_table1_updation_{} b on a.url = b.url "\
                 " where b.url is null and (a.url like '%/pub/%' or a.url like '%/profile/%' or a.url like '%/in/%')"\
                 " on conflict do nothing".format(table_name_id,table_name_id)
+        logging.info('inserting to people_urls_to_crawl')
         self.con.cursor.execute(query)
         self.con.commit()
         query = "insert into crawler.linkedin_people_urls_to_crawl_priority (url,list_id,list_items_url_id) "\
@@ -206,6 +213,7 @@ class TableUpdater(object):
                 " where b.url is null and a.position ~* %s "\
                 " and (a.url like '%%/pub/%%' or a.url like '%%/profile/%%' or a.url like '%%/in/%%') "\
                 " on conflict do nothing".format(table_name_id,table_name_id)
+        logging.info('inserting to people_urls_to_crawl_priority')
         self.con.cursor.execute(query,(desig_list_reg,))
         self.con.commit()
         # if similar_companies:
@@ -214,12 +222,15 @@ class TableUpdater(object):
         query = "drop table if exists crawler.tmp_table_updation_{} ".format(table_name_id)
         self.con.cursor.execute(query)
         self.con.commit()
+        logging.info('creating tmp_table_updation')
         query = "create table crawler.tmp_table_updation_{} as "\
                 "select distinct unnest(crawler.clean_linkedin_url_array(crawler.extract_related_info(string_to_array(related_people,'|'),1))) as url, "\
                 "unnest(crawler.clean_linkedin_url_array(crawler.extract_related_info(string_to_array(related_people,'|'),3))) as position, "\
                 " list_id,list_items_url_id "\
                 "from crawler.linkedin_people_base where related_people like '%%linkedin%%' and list_id = %s".format(table_name_id)
         self.con.cursor.execute(query,(list_id,))
+        self.con.commit()
+        self.con.execute('analyze crawler.tmp_table_updation_{}'.format(table_name_id))
         self.con.commit()
         # all these similar people will be put into urls_to_crawl table(not priority).
         # This will give urls to crawl even if there is not enough urls in priority table
@@ -231,13 +242,17 @@ class TableUpdater(object):
                 "from crawler.tmp_table_updation_{} a join  crawler.linkedin_people_redirect_url c on a.url = c.url  "\
                 "join crawler.linkedin_people_finished_urls b on ( b.url = c.redirect_url ) and (a.list_id=b.list_id) "\
                 "where  a.list_id = %s".format(table_name_id,table_name_id)
+        logging.info('creating tmp_table_updation1')
         self.con.cursor.execute(query,(list_id,))
+        self.con.commit()
+        self.con.execute('analyze crawler.tmp_table1_updation_{}'.format(table_name_id))
         self.con.commit()
         query = "insert into crawler.linkedin_people_urls_to_crawl (url,list_id,list_items_url_id) "\
                 "select split_part(a.url,'?trk',1),a.list_id,a.list_items_url_id from crawler.tmp_table_updation_{} a "\
                 " left join crawler.tmp_table1_updation_{} b on a.url = b.url "\
                 " where b.url is null and (a.url like '%/pub/%' or a.url like '%/profile/%' or a.url like '%/in/%') "\
                 " on conflict do nothing".format(table_name_id,table_name_id)
+        logging.info('inserting to people_urls_to_crawl')
         self.con.cursor.execute(query)
         self.con.commit()
         # put matching people into urls_to_crawl_priority table
@@ -247,6 +262,7 @@ class TableUpdater(object):
                 " and a.position ~* %s "\
                 " and (a.url like '%%/pub/%%' or a.url like '%%/profile/%%' or a.url like '%%/in/%%') "\
                 " on conflict do nothing".format(table_name_id,table_name_id)
+        logging.info('inserting to people_urls_to_crawl_priority')
         self.con.cursor.execute(query,(desig_list_reg,))
         self.con.commit()
 
