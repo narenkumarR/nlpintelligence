@@ -44,6 +44,29 @@ class FetchProspectDB(object):
                 " on a.list_id = b.list_id and a.id = b.list_items_url_id where a.list_id = %s and b.list_id is null"
         self.con.execute(query,(list_id,))
         urls = self.con.cursor.fetchall()
+        # add companies in the urls to crawl priority table and urls to crawl table
+        query = "select distinct a.url,a.list_items_url_id "\
+                " from crawler.linkedin_company_urls_to_crawl_priority a where list_id = %s "
+        self.con.execute(query,(list_id,))
+        urls.extend(self.con.cursor.fetchall())
+        # query = "select distinct a.url,a.list_items_url_id "\
+        #         " from crawler.linkedin_company_urls_to_crawl a left join crawler.linkedin_company_base b "\
+        #         " on a.list_id = b.list_id  "\
+        #         " where a.list_id = %s and b.list_id is null"
+        # self.con.execute(query,(list_id,))
+        # urls.extend(self.con.cursor.fetchall())
+        # add people in the urls to crawl tables
+        query = "select distinct a.url,a.list_items_url_id "\
+                " from crawler.linkedin_people_urls_to_crawl_priority a "\
+                " where a.list_id = %s "
+        self.con.execute(query,(list_id,))
+        urls.extend(self.con.cursor.fetchall())
+        # query = "select distinct a.url,a.list_items_url_id "\
+        #         " from crawler.linkedin_company_urls_to_crawl a left join crawler.linkedin_company_base b "\
+        #         " on a.list_id = b.list_id  "\
+        #         " where a.list_id = %s and b.list_id is null"
+        # self.con.execute(query,(list_id,))
+        # urls.extend(self.con.cursor.fetchall())
         if urls:
             urls_dict = {}
             for url,list_items_url_id in urls:
@@ -106,7 +129,7 @@ class FetchProspectDB(object):
         :return:
         '''
         for urls in chunker(urls_all,100):
-            query = "select linkedin_url,company_name,company_size,industry,company_type,headquarters,description,"\
+            query = "select distinct on (linkedin_url) linkedin_url,company_name,company_size,industry,company_type,headquarters,description,"\
                     "founded,specialties,website,array_to_string(employee_details_array,'|') employee_details,"\
                     "array_to_string(also_viewed_companies_array,'|') also_viewed_companies "\
                     "from linkedin_company_base where linkedin_url in %s"
@@ -126,7 +149,7 @@ class FetchProspectDB(object):
             self.con.cursor.execute(query, insert_list1)
             self.con.commit()
             # insert people for these companies into the people table
-            query = "select d.linkedin_url,d.name,d.sub_text,d.location,d.company_name,"\
+            query = "select distinct on (d.linkedin_url) d.linkedin_url,d.name,d.sub_text,d.location,d.company_name,"\
                     "array_to_string(d.company_linkedin_url_array,'|') company_linkedin_url,"\
                     "d.previous_companies,d.education,d.industry,d.summary,d.skills,"\
                     "array_to_string(d.experience_array,'|') experience,"\
@@ -160,14 +183,14 @@ class FetchProspectDB(object):
         '''
         for urls in chunker(domains_all,100):
             # select matching rows
-            query = "select distinct b.linkedin_url,b.company_name,b.company_size,b.industry,b.company_type,b.headquarters,b.description,"\
+            query = "select distinct on (b.linkedin_url) b.linkedin_url,b.company_name,b.company_size,b.industry,b.company_type,b.headquarters,b.description,"\
                     "b.founded,b.specialties,b.website,array_to_string(b.employee_details_array,'|') employee_details,"\
                     "array_to_string(b.also_viewed_companies_array,'|') also_viewed_companies,a.website_cleaned "\
                     "from linkedin_company_domains a join linkedin_company_base b on a.linkedin_url=b.linkedin_url "\
                     "where a.website_cleaned in %s "
             self.prospect_con.execute(query,(tuple([i[0] for i in urls]),))
             company_prospect_data_1 = self.prospect_con.cursor.fetchall()
-            query = "select distinct b.linkedin_url,b.company_name,b.company_size,b.industry,b.company_type,b.headquarters,b.description,"\
+            query = "select distinct on (b.linkedin_url) b.linkedin_url,b.company_name,b.company_size,b.industry,b.company_type,b.headquarters,b.description,"\
                     "b.founded,b.specialties,b.website,array_to_string(b.employee_details_array,'|') employee_details,"\
                     "array_to_string(b.also_viewed_companies_array,'|') also_viewed_companies,a.domain "\
                     "from linkedin_company_domains a join linkedin_company_base b on a.linkedin_url=b.linkedin_url "\
@@ -181,7 +204,7 @@ class FetchProspectDB(object):
                 continue
             # insert linkedin_url into list_items_urls, then get the uuid, then use both to insert. This is done because
             # we don't know the list_items_url_id at this point
-            list_items_urls = [(list_id,urls_dict[i[-1]],i[0]) for i in company_prospect_data]
+            list_items_urls = [(list_id,urls_dict[i[-1]],i[0]) for i in company_prospect_data if i[-1] in urls_dict]
             records_list_template = ','.join(['%s']*len(list_items_urls))
             query = "insert into crawler.list_items_urls "\
                 "(list_id,list_items_id,url) "\
@@ -206,7 +229,7 @@ class FetchProspectDB(object):
             self.con.cursor.execute(query, insert_list1)
             self.con.commit()
             # insert people for these companies into the people table
-            query = "select distinct d.linkedin_url,d.name,d.sub_text,d.location,d.company_name,"\
+            query = "select distinct on (d.linkedin_url) d.linkedin_url,d.name,d.sub_text,d.location,d.company_name,"\
                     "array_to_string(d.company_linkedin_url_array,'|') company_linkedin_url,"\
                     "d.previous_companies,d.education,d.industry,d.summary,d.skills,"\
                     "array_to_string(d.experience_array,'|') experience,"\
@@ -239,7 +262,7 @@ class FetchProspectDB(object):
         :return:
         '''
         for urls in chunker(urls_all,100):
-            query = "select linkedin_url,name,sub_text,location,company_name,"\
+            query = "select distinct on (linkedin_url) linkedin_url,name,sub_text,location,company_name,"\
                     "array_to_string(company_linkedin_url_array,'|') company_linkedin_url,"\
                     "previous_companies,education,industry,summary,skills,"\
                     "array_to_string(experience_array,'|') experience,"\
@@ -262,7 +285,7 @@ class FetchProspectDB(object):
             self.con.cursor.execute(query, insert_list1)
             self.con.commit()
             # select companies for these people and insert them
-            query = "select b.linkedin_url,b.company_name,b.company_size,b.industry,b.company_type,b.headquarters,b.description,"\
+            query = "select distinct on (b.linkedin_url) b.linkedin_url,b.company_name,b.company_size,b.industry,b.company_type,b.headquarters,b.description,"\
                     "b.founded,b.specialties,b.website,array_to_string(b.employee_details_array,'|') employee_details,"\
                     "array_to_string(b.also_viewed_companies_array,'|') also_viewed_companies, a.linkedin_url as input_url "\
                     "from linkedin_people_base a join people_urls_mapper d on a.linkedin_url=d.alias_url "\
@@ -292,7 +315,7 @@ class FetchProspectDB(object):
         '''
         if not prospect_query:
             raise ValueError('Need to give a query to fetch company details from prospect db')
-        query = "select linkedin_url,company_name,company_size,industry,company_type,headquarters,description,"\
+        query = "select distinct on (linkedin_url) linkedin_url,company_name,company_size,industry,company_type,headquarters,description,"\
                     "founded,specialties,website,array_to_string(employee_details_array,'|') employee_details,"\
                     "array_to_string(also_viewed_companies_array,'|') also_viewed_companies "\
                     "from linkedin_company_base a where "+prospect_query
@@ -312,7 +335,7 @@ class FetchProspectDB(object):
         self.con.cursor.execute(query, insert_list1)
         self.con.commit()
         # insert people for these companies into the people table
-        query = "select d.linkedin_url,d.name,d.sub_text,d.location,d.company_name,"\
+        query = "select distinct on (d.linkedin_url) d.linkedin_url,d.name,d.sub_text,d.location,d.company_name,"\
                 "array_to_string(d.company_linkedin_url_array,'|') company_linkedin_url,"\
                 "d.previous_companies,d.education,d.industry,d.summary,d.skills,"\
                 "array_to_string(d.experience_array,'|') experience,"\

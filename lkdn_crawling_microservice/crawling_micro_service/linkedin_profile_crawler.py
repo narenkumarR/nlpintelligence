@@ -162,8 +162,11 @@ class LinkedinProfileCrawler(object):
         :return:
         '''
         try:
-            return soup.find('div',{'id':'profile'}).find('div',{'class':'profile-overview-content'})\
-                .find('table',{'class':'extra-info'}).find('tr',{'data-section':'currentPositionsDetails'}).find('td').text
+            tmp = soup.find('div',{'id':'profile'}).find('div',{'class':'profile-overview-content'})\
+                .find('table',{'class':'extra-info'}).find('tr',{'data-section':'currentPositionsDetails'})\
+                .find('td').find('ol').findAll('li')
+            names = [i.find('a').text for i in tmp]
+            return '|'.join(names)
         except:
             return ''
 

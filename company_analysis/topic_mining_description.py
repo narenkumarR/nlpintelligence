@@ -113,3 +113,4 @@ clusters = [cluster_names[i] for i in cluster_inds]
 tmp['Company Cluster'] = clusters
 tmp_group = tmp.groupby(['industry', 'Company Cluster'])
 tmp.groupby(['industry', 'Company Cluster']).agg({'industry': len})
+

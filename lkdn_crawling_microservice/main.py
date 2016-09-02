@@ -28,7 +28,7 @@ def run_main(list_name=None,company_csv_loc=None,desig_loc=None,similar_companie
     :param similar_companies:
     :param hours:
     :param extract_urls:
-    :param prospect_db:
+    :param prospect_db:if 1, fetch from prospect db(only if main thread also is 1,otherwise ignored)
     :param prospect_query:
     :param visible:
     :param what: if 1 crawl companies,2 : people, 0: both
@@ -87,9 +87,7 @@ def run_main(list_name=None,company_csv_loc=None,desig_loc=None,similar_companie
         t1.daemon = True
         t1.start()
         time.sleep(120)
-    if prospect_db :
-        import pdb
-        pdb.set_trace()
+    if prospect_db and main_thread:
         logging.info('Fetching data in Prospect Database')
         fp = FetchProspectDB()
         fp.fetch_data(list_id,prospect_query,desig_list=desig_list)
@@ -102,6 +100,10 @@ def run_main(list_name=None,company_csv_loc=None,desig_loc=None,similar_companie
             break
         logging.info('starting an iteration of crawling')
         if main_thread:
+            # if prospect_db:
+            #     logging.info('Fetching data in Prospect Database')
+            #     fp.fetch_data(list_id,prospect_query,desig_list=desig_list)
+            #     logging.info('Completed fetching data from prospect db')
             logging.info('updating tables for iteration')
             tables_updater.update_tables(list_id,desig_list,similar_companies,company_select_query=prospect_query)
         crawler.run_both_single(list_id=list_id,visible=visible,limit_no=limit_no_1,time_out = hours,what=what,n_threads=n_threads)

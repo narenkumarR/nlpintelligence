@@ -25,20 +25,51 @@ def gen_people_details(list_id,desig_list=None):
     # all people urls and current company
     con.cursor.execute('drop table if exists crawler.tmp_table_email_gen_{}'.format(table_name_id))
     con.commit()
-    query = " create table crawler.tmp_table_email_gen_{} as select distinct list_id,list_items_url_id, "\
-        " unnest(crawler.clean_linkedin_url_array(string_to_array(company_linkedin_url,'|'))) company_linkedin_url, "\
-        "linkedin_url as people_linkedin_url,name,sub_text as designation,location as location_person "\
+    query = " create table crawler.tmp_table_email_gen_{} as "\
+            " (select distinct on (company_linkedin_url,people_linkedin_url) "\
+            " list_id,list_items_url_id,company_linkedin_url,people_linkedin_url,name,location_person,designation "\
+            " from "\
+            "(select  list_id,list_items_url_id, "\
+        " trim(unnest(crawler.clean_linkedin_url_array(crawler.extract_related_info(string_to_array(experience,'|'),1)))) company_linkedin_url, "\
+        "linkedin_url as people_linkedin_url,name ,location as location_person "\
+        " ,trim(unnest(crawler.clean_linkedin_url_array(crawler.extract_related_info(string_to_array(experience,'|'),2)))) designation "\
+        " ,trim(unnest(crawler.clean_linkedin_url_array(crawler.extract_related_info(string_to_array(experience,'|'),4)))) work_time "\
+                " from crawler.linkedin_people_base a where "\
+        "experience like '%%{{}}%%' and a.list_id = %s  )x "\
+                " where work_time like '%%Present%%' and designation ~* %s )"\
+        " union "\
+        " (select distinct list_id,list_items_url_id, "\
+        " company_linkedin_url, "\
+        "linkedin_url as people_linkedin_url,name,sub_text ,location as location_person "\
             " from crawler.linkedin_people_base a where "\
-        "company_linkedin_url like '%%linkedin%%' and a.list_id = %s and a.sub_text ~* %s ".format(table_name_id)
-    con.cursor.execute(query,(list_id,desig_list_reg,))
-    # query =
+        "company_linkedin_url like '%%linkedin%%' and experience not like '%%{{}}%%' "\
+        " and array_length(string_to_array(company_linkedin_url,'|'),1) = 1 "\
+            " and a.list_id = %s and a.sub_text ~* %s) "\
+        " ".format(table_name_id)
+        # tried to find for cases where company length is >1, but experience is '', all cases are errors in data
+        # " union "\
+        # " (select distinct on (company_linkedin_url,people_linkedin_url) "\
+        #     " list_id,list_items_url_id,company_linkedin_url,people_linkedin_url,name,sub_text,location_person,designation "\
+        #     " from "\
+        # "( select list_id,list_items_url_id, "\
+        # " unnest(crawler.clean_linkedin_url_array(string_to_array(company_linkedin_url,'|'))) company_linkedin_url, "\
+        # "linkedin_url as people_linkedin_url,name,sub_text as designation,location as location_person "\
+        # " ,sub_text as designation "\
+        #     " from crawler.linkedin_people_base a where "\
+        # "company_linkedin_url like '%%linkedin%%'  and experience not like '%%{{}}%%' "\
+        # " and array_length(string_to_array(company_linkedin_url,'|'),1) > 1 "\
+        #     " and a.list_id = %s and a.sub_text ~* %s )a "\
+        # " where  )"\
+        # " ".format(table_name_id)
+    con.cursor.execute(query,(list_id,desig_list_reg,list_id,desig_list_reg,))
+    # to get domain, we need linkedin url
     query = "delete from crawler.tmp_table_email_gen_{} where company_linkedin_url is null or "\
             " company_linkedin_url = '' ".format(table_name_id)
     con.cursor.execute(query)
     con.commit()
 
     # people in the related people field who are in same company and have valid designation
-    # Problem is theat linkedin_url of company not available in related_people field. Need to do some string matching
+    # Problem is that linkedin_url of company not available in related_people field. Need to do some string matching
     # company name also is not avaiable directly.need to extract it from designation
     con.cursor.execute('drop table if exists crawler.tmp_table3_1_email_gen{}'.format(table_name_id))
     con.commit()
@@ -66,7 +97,8 @@ def gen_people_details(list_id,desig_list=None):
     con.commit()
     # delete items where names not matching or designation not matching
     query = " delete from crawler.tmp_table3_2_email_gen{table_id} where "\
-        " company_name1 != company_name or designation !~* %s".format(table_id=table_name_id)
+        " company_name1 != company_name or designation !~* %s or "\
+            " designation not ilike '%%' || company_name || '%%' ".format(table_id=table_name_id)
     con.cursor.execute(query,(desig_list_reg,))
     con.commit()
 
@@ -82,8 +114,11 @@ def gen_people_details(list_id,desig_list=None):
         "from crawler.linkedin_company_base a where "\
         "employee_details like '%%linkedin%%' and a.list_id = %s ".format(table_name_id)
     con.cursor.execute(query,(list_id,))
+    # reason this query is like this needs to be specified(forgot!!)
+    # this was done so that for people whose designation is missing, try to join with people_base table and get details
     query = "delete from crawler.tmp_table2_email_gen_{} where "\
-            " (designation is not null and designation != '' and designation !~* %s) "\
+            " (designation is not null and designation != '' "\
+            " and (designation !~* %s or designation not ilike '%%' || company_name || '%%')) "\
             " ".format(table_name_id)
     con.cursor.execute(query,(desig_list_reg,))
     con.commit()
@@ -127,7 +162,8 @@ def gen_people_details(list_id,desig_list=None):
             " crawler.linkedin_people_base a join crawler.linkedin_people_redirect_url c on a.linkedin_url = c.redirect_url "\
             " join crawler.tmp_table2_email_gen_{table_id} d on (c.url=d.people_linkedin_url ) "\
             " join crawler.linkedin_company_base b on d.company_linkedin_url = b.linkedin_url "\
-            " where a.sub_text ~* '{regex}' and (d.designation = '' or d.designation is null ) )"\
+            " where a.sub_text ~* '{regex}' and (d.designation = '' or d.designation is null ) "\
+            " and a.sub_text ilike '%%'||b.company_name||'%%' ) "\
             " union "\
             " ( select distinct d.name ,d.designation,b.website,b.company_name,"\
             " b.linkedin_url as company_linkedin_url,d.people_linkedin_url,NULL as location_person, "\

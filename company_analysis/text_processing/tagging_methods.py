@@ -18,13 +18,13 @@ def get_postag_listinput(text_list):
         row_list = []
         prev_tag_splitcode = False
         for i in doc_tags:
-            if i[0] == pos_list_split:
+            if prev_tag_splitcode:
+                prev_tag_splitcode = False
+                continue
+            elif i[0] == pos_list_split or i[0] == list_split_code.strip():
                 out_list.append(row_list)
                 row_list = []
                 prev_tag_splitcode = True
-            elif prev_tag_splitcode:
-                prev_tag_splitcode = False
-                continue
             else:
                 row_list.append(i)
         out_list.append(row_list)
