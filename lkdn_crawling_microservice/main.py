@@ -20,7 +20,7 @@ from gen_people_for_email import gen_people_details
 from constants import company_name_field,company_details_field,designations_column_name
 
 def run_main(list_name=None,company_csv_loc=None,desig_loc=None,similar_companies=1,hours=1,extract_urls=1,
-             prospect_db = 0, prospect_query = '',visible=False,what=0,main_thread=0,n_threads=2):
+             prospect_db = 0, prospect_query = '',visible=False,what=0,main_thread=0,n_threads=2,n_urls_in_thread=100):
     '''
     :param list_name:
     :param company_csv_loc:
@@ -28,7 +28,7 @@ def run_main(list_name=None,company_csv_loc=None,desig_loc=None,similar_companie
     :param similar_companies:
     :param hours:
     :param extract_urls:
-    :param prospect_db:
+    :param prospect_db:if 1, fetch from prospect db(only if main thread also is 1,otherwise ignored)
     :param prospect_query:
     :param visible:
     :param what: if 1 crawl companies,2 : people, 0: both
@@ -87,21 +87,23 @@ def run_main(list_name=None,company_csv_loc=None,desig_loc=None,similar_companie
         t1.daemon = True
         t1.start()
         time.sleep(120)
-    if prospect_db :
-        import pdb
-        pdb.set_trace()
+    if prospect_db and main_thread:
         logging.info('Fetching data in Prospect Database')
         fp = FetchProspectDB()
         fp.fetch_data(list_id,prospect_query,desig_list=desig_list)
         logging.info('Completed fetching data from prospect db')
     gc.collect()
     start_time = time.time()
-    limit_no_1 = n_threads*100
+    limit_no_1 = n_threads*n_urls_in_thread
     while True:
         if time.time() - start_time > hours*60*60:
             break
         logging.info('starting an iteration of crawling')
         if main_thread:
+            # if prospect_db:
+            #     logging.info('Fetching data in Prospect Database')
+            #     fp.fetch_data(list_id,prospect_query,desig_list=desig_list)
+            #     logging.info('Completed fetching data from prospect db')
             logging.info('updating tables for iteration')
             tables_updater.update_tables(list_id,desig_list,similar_companies,company_select_query=prospect_query)
         crawler.run_both_single(list_id=list_id,visible=visible,limit_no=limit_no_1,time_out = hours,what=what,n_threads=n_threads)
@@ -168,8 +170,12 @@ if __name__ == "__main__":
                          default=0,type='float')
     optparser.add_option('-r', '--nthread',
                          dest='n_threads',
-                         help='if 1, main thread, table updation should happen, else only crawling',
+                         help='no of threads to be run in parallel',
                          default=2,type='int')
+    optparser.add_option('-k', '--nurls',
+                         dest='n_urls',
+                         help='no of urls in a thread',
+                         default=100,type='int')
 
     (options, args) = optparser.parse_args()
     csv_company = options.csv_company
@@ -184,7 +190,8 @@ if __name__ == "__main__":
     what = options.what
     main_thread = options.main_thread
     n_threads = options.n_threads
+    n_urls = options.n_urls
     run_main(list_name,csv_company,desig_loc,similar_companies,hours,extract_urls,prospect_db,prospect_query,
-             visible=visible,what=what,main_thread = main_thread,n_threads=n_threads)
+             visible=visible,what=what,main_thread = main_thread,n_threads=n_threads,n_urls_in_thread=n_urls)
 
 

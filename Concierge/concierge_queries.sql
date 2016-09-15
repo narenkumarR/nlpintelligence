@@ -175,3 +175,69 @@ a.* from crawler.people_details_for_email_verifier_new a
 where a.list_id = '36d9542a-6515-11e6-8815-5ff07181793b' and 
 designation ~* 'founder|\yCEO\y|Chief executive officer' 
 
+
+---------------------------------------------------------------------------------
+---------------------------------------------------------------------------------
+----------------- searching for people in the existing db------------------------
+---------------------------------------------------------------------------------
+---------------------------------------------------------------------------------
+--concierge query for taking from prospect db in aws server (31 Aug) (instead of us_ecomm1 table, create any table which is a subset of linkedin_company_base. or use linkedin_company_base directly and give conditions in where clause appropriately. 
+--people with company name in sub text
+select distinct on (name,domain) * from (
+(select  distinct on (e.name,b.domain)
+	e.name,trim(sub_text) as designation,b.domain,a.company_name,a.website as company_website,
+	b.headquarters,b.country,b.region,b.location location_company,founded,company_size,a.industry,trim(a.specialties) as specialties,
+	trim(a.description) description, e.location as location_person,a.linkedin_url as company_linkedin_url,e.linkedin_url as people_linkedin_url
+from 
+us_ecomm1 a join linkedin_company_domains b on a.linkedin_url=b.linkedin_url
+join company_urls_mapper c on a.linkedin_url = c.alias_url join people_company_mapper d on c.base_url = d.company_url
+join linkedin_people_base e on d.people_url = e.linkedin_url
+where 
+sub_text ~* '\yVP\y.+Engineering|\yVP\y.+App development|\yVP\y.+\yIT\y|\yVP\y.+Digital|\yVP\y.+e(.)?commerce technology|President.+Engineering|President.+App development|President.+\yIT\y|President.+Digital|President.+e(.)?commerce technology|Technology director|director (of )?technology'
+and sub_text ilike '%'||a.company_name||'%')
+union
+--using experience , get roles and companies and get matching people
+(select distinct on (x.name,x.domain)
+x.name,x.designation,x.domain,x.company_name,x.company_website,x.headquarters,x.country,x.region,x.location_company,
+x.founded,x.company_size,x.industry,x.specialties,
+x.description,x.location_person,x.company_linkedin_url,x.people_linkedin_url
+from 
+(select  
+	e.name,b.domain,a.company_name,a.website as company_website,
+	b.headquarters,b.country,b.region,b.location location_company,founded,company_size,a.industry,trim(a.specialties) as specialties,
+	trim(a.description) description, e.location as location_person,e.linkedin_url as people_linkedin_url,
+	trim(unnest(clean_linkedin_url_array(extract_related_info(experience_array,1)))) company_linkedin_url,
+	trim(unnest(clean_linkedin_url_array(extract_related_info(experience_array,2)))) designation,
+	trim(unnest(clean_linkedin_url_array(extract_related_info(experience_array,4)))) work_time
+	from
+	us_ecomm1 a join linkedin_company_domains b on a.linkedin_url=b.linkedin_url
+	join company_urls_mapper c on a.linkedin_url = c.alias_url join people_company_mapper d on c.base_url = d.company_url
+	join linkedin_people_base e on d.people_url = e.linkedin_url 
+	where 
+	experience_array[1] like '%{}%'  
+)x
+join
+us_ecomm1 y on x.company_linkedin_url = y.linkedin_url
+where
+designation ~* '\yVP\y.+Engineering|\yVP\y.+App development|\yVP\y.+\yIT\y|\yVP\y.+Digital|\yVP\y.+e(.)?commerce technology|President.+Engineering|President.+App development|President.+\yIT\y|President.+Digital|President.+e(.)?commerce technology|Technology director|director (of )?technology'
+and work_time like '%Present%' )
+union
+--people with single url in company linkedin url take directly
+(select  distinct on (e.name,b.domain)
+	e.name,trim(sub_text) as designation,b.domain,a.company_name,a.website as company_website,
+	b.headquarters,b.country,b.region,b.location location_company,founded,company_size,a.industry,trim(a.specialties) as specialties,
+	trim(a.description) description, e.location as location_person,a.linkedin_url as company_linkedin_url,e.linkedin_url as people_linkedin_url
+from 
+us_ecomm1 a join linkedin_company_domains b on a.linkedin_url=b.linkedin_url
+join company_urls_mapper c on a.linkedin_url = c.alias_url join people_company_mapper d on c.base_url = d.company_url
+join linkedin_people_base e on d.people_url = e.linkedin_url
+where 
+sub_text ~* '\yVP\y.+Engineering|\yVP\y.+App development|\yVP\y.+\yIT\y|\yVP\y.+Digital|\yVP\y.+e(.)?commerce technology|President.+Engineering|President.+App development|President.+\yIT\y|President.+Digital|President.+e(.)?commerce technology|Technology director|director (of )?technology'
+and array_length(company_linkedin_url_array,1) = 1)
+)a;
+---------------------------------------------------------------------------------
+---------------------------------------------------------------------------------
+----------------- searching for people in the existing db END--------------------
+---------------------------------------------------------------------------------
+---------------------------------------------------------------------------------
+

@@ -54,6 +54,10 @@ if __name__ == "__main__":
                          dest='n_threads',
                          help='if 1, main thread, table updation should happen, else only crawling',
                          default=2,type='int')
+    optparser.add_option('-k', '--nurls',
+                         dest='n_urls',
+                         help='no of urls in a thread',
+                         default=100,type='int')
 
     (options, args) = optparser.parse_args()
     csv_company = options.csv_company
@@ -68,17 +72,17 @@ if __name__ == "__main__":
     what = options.what
     main_thread = options.main_thread
     n_threads = int(options.n_threads)
-
+    n_urls = options.n_urls
     while True:
         # try:
             os.system('pkill -9 firefox')
             os.system('pkill -9 Xvfb')
             os.system("find /tmp/* -maxdepth 1 -type d -name 'tmp*' |  xargs rm -rf")
-            os.system('python main.py -n {} -f {} -d {} -s {} -t {} -u {} -p {} -q "{}" -v {} -w {} -m {} -r {}'.format(list_name,csv_company,
+            os.system('python main.py -n {} -f {} -d {} -s {} -t {} -u {} -p {} -q "{}" -v {} -w {} -m {} -r {} -k {}'.format(list_name,csv_company,
                                                                                         desig_loc,similar_companies,
                                                                                         hours,extract_urls,prospect_db,prospect_query,
                                                                                         visible,what,main_thread,
-                                                                                        n_threads))
+                                                                                        n_threads,n_urls))
             time.sleep(10)
             # after the first iteration, no need to look for prospect data # not correct. only if not looking for
             # similar companies, this is needed. so adding similar company condition also here

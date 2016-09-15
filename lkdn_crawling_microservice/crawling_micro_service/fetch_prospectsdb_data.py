@@ -44,6 +44,29 @@ class FetchProspectDB(object):
                 " on a.list_id = b.list_id and a.id = b.list_items_url_id where a.list_id = %s and b.list_id is null"
         self.con.execute(query,(list_id,))
         urls = self.con.cursor.fetchall()
+        # add companies in the urls to crawl priority table and urls to crawl table
+        query = "select distinct a.url,a.list_items_url_id "\
+                " from crawler.linkedin_company_urls_to_crawl_priority a where list_id = %s "
+        self.con.execute(query,(list_id,))
+        urls.extend(self.con.cursor.fetchall())
+        # query = "select distinct a.url,a.list_items_url_id "\
+        #         " from crawler.linkedin_company_urls_to_crawl a left join crawler.linkedin_company_base b "\
+        #         " on a.list_id = b.list_id  "\
+        #         " where a.list_id = %s and b.list_id is null"
+        # self.con.execute(query,(list_id,))
+        # urls.extend(self.con.cursor.fetchall())
+        # add people in the urls to crawl tables
+        query = "select distinct a.url,a.list_items_url_id "\
+                " from crawler.linkedin_people_urls_to_crawl_priority a "\
+                " where a.list_id = %s "
+        self.con.execute(query,(list_id,))
+        urls.extend(self.con.cursor.fetchall())
+        # query = "select distinct a.url,a.list_items_url_id "\
+        #         " from crawler.linkedin_company_urls_to_crawl a left join crawler.linkedin_company_base b "\
+        #         " on a.list_id = b.list_id  "\
+        #         " where a.list_id = %s and b.list_id is null"
+        # self.con.execute(query,(list_id,))
+        # urls.extend(self.con.cursor.fetchall())
         if urls:
             urls_dict = {}
             for url,list_items_url_id in urls:
@@ -92,6 +115,7 @@ class FetchProspectDB(object):
             self.prospect_insert_from_query(prospect_query,list_id,list_items_url_id,desig_list_reg=desig_list_reg)
             logging.info('fetch_prospects: completed fetching based on prospect query')
         self.fix_redirect_urls(list_id) #fetching from db causes redirect url issues
+        self.fix_urls_to_crawl(list_id)
         self.con.close_cursor()
         self.prospect_con.close_cursor()
         self.con.close_connection()
@@ -106,48 +130,48 @@ class FetchProspectDB(object):
         :return:
         '''
         for urls in chunker(urls_all,100):
-            query = "select linkedin_url,company_name,company_size,industry,company_type,headquarters,description,"\
+            query = "select distinct on (linkedin_url) linkedin_url,company_name,company_size,industry,company_type,headquarters,description,"\
                     "founded,specialties,website,array_to_string(employee_details_array,'|') employee_details,"\
-                    "array_to_string(also_viewed_companies_array,'|') also_viewed_companies "\
+                    "array_to_string(also_viewed_companies_array,'|') also_viewed_companies,timestamp "\
                     "from linkedin_company_base where linkedin_url in %s"
             self.prospect_con.execute(query,(tuple([i[0] for i in urls]),))
             company_prospect_data = self.prospect_con.cursor.fetchall()
             logging.info('fetch_prospects: company linkedin url - fetched companies : {}'.format(len(company_prospect_data)))
-            if not company_prospect_data:
-                continue
             # insert into crawler base table
             records_list_template = ','.join(['%s']*len(company_prospect_data))
             query = "insert into crawler.linkedin_company_base "\
                 "(linkedin_url,company_name,company_size,industry,company_type,headquarters,description,founded,"\
-                    "specialties,website,employee_details,also_viewed_companies,list_id,list_items_url_id) "\
+                    "specialties,website,employee_details,also_viewed_companies,created_on,list_id,list_items_url_id) "\
                 " VALUES {} ON CONFLICT DO NOTHING ".format(records_list_template)
             insert_list = [list(in_tup) for in_tup in company_prospect_data]
             insert_list1 = [tuple(i+[list_id,urls_dict[i[0]]]) for i in insert_list]
+            if not insert_list1 or not records_list_template:
+                continue
             self.con.cursor.execute(query, insert_list1)
             self.con.commit()
             # insert people for these companies into the people table
-            query = "select d.linkedin_url,d.name,d.sub_text,d.location,d.company_name,"\
+            query = "select distinct on (d.linkedin_url) d.linkedin_url,d.name,d.sub_text,d.location,d.company_name,"\
                     "array_to_string(d.company_linkedin_url_array,'|') company_linkedin_url,"\
                     "d.previous_companies,d.education,d.industry,d.summary,d.skills,"\
                     "array_to_string(d.experience_array,'|') experience,"\
                     "array_to_string(d.related_people_array,'|') related_people,"\
-                    "array_to_string(d.same_name_people_array,'|') same_name_people,a.linkedin_url as input_url "\
+                    "array_to_string(d.same_name_people_array,'|') same_name_people,d.timestamp,a.linkedin_url as input_url "\
                     "from linkedin_company_base a join company_urls_mapper b on a.linkedin_url=b.alias_url "\
                     " join people_company_mapper c on b.base_url=c.company_url join "\
                     "linkedin_people_base d on c.people_url=d.linkedin_url "\
                     "where a.linkedin_url in %s and d.sub_text ~* '" +  desig_list_reg + "' "
             self.prospect_con.execute(query,(tuple([i[0] for i in urls]),))
             people_prospect_data = self.prospect_con.cursor.fetchall()
-            if not people_prospect_data:
-                continue
             # insert into crawler base table
             records_list_template = ','.join(['%s']*len(people_prospect_data))
             query = "insert into crawler.linkedin_people_base "\
                 "(linkedin_url,name,sub_text,location,company_name,company_linkedin_url,previous_companies,education,"\
-                    "industry,summary,skills,experience,related_people,same_name_people,list_id,list_items_url_id) "\
+                    "industry,summary,skills,experience,related_people,same_name_people,created_on,list_id,list_items_url_id) "\
                 " VALUES {} ON CONFLICT DO NOTHING ".format(records_list_template)
             insert_list = [list(in_tup) for in_tup in people_prospect_data]
             insert_list1 = [tuple(i[:-1]+[list_id,urls_dict[i[-1]]]) for i in insert_list]
+            if not insert_list1 or not records_list_template:
+                continue
             self.con.cursor.execute(query, insert_list1)
             self.con.commit()
 
@@ -160,16 +184,16 @@ class FetchProspectDB(object):
         '''
         for urls in chunker(domains_all,100):
             # select matching rows
-            query = "select distinct b.linkedin_url,b.company_name,b.company_size,b.industry,b.company_type,b.headquarters,b.description,"\
+            query = "select distinct on (b.linkedin_url) b.linkedin_url,b.company_name,b.company_size,b.industry,b.company_type,b.headquarters,b.description,"\
                     "b.founded,b.specialties,b.website,array_to_string(b.employee_details_array,'|') employee_details,"\
-                    "array_to_string(b.also_viewed_companies_array,'|') also_viewed_companies,a.website_cleaned "\
+                    "array_to_string(b.also_viewed_companies_array,'|') also_viewed_companies,b.timestamp,a.website_cleaned "\
                     "from linkedin_company_domains a join linkedin_company_base b on a.linkedin_url=b.linkedin_url "\
                     "where a.website_cleaned in %s "
             self.prospect_con.execute(query,(tuple([i[0] for i in urls]),))
             company_prospect_data_1 = self.prospect_con.cursor.fetchall()
-            query = "select distinct b.linkedin_url,b.company_name,b.company_size,b.industry,b.company_type,b.headquarters,b.description,"\
+            query = "select distinct on (b.linkedin_url) b.linkedin_url,b.company_name,b.company_size,b.industry,b.company_type,b.headquarters,b.description,"\
                     "b.founded,b.specialties,b.website,array_to_string(b.employee_details_array,'|') employee_details,"\
-                    "array_to_string(b.also_viewed_companies_array,'|') also_viewed_companies,a.domain "\
+                    "array_to_string(b.also_viewed_companies_array,'|') also_viewed_companies,b.timestamp,a.domain "\
                     "from linkedin_company_domains a join linkedin_company_base b on a.linkedin_url=b.linkedin_url "\
                     "where  a.domain in %s"
             self.prospect_con.execute(query,(tuple([i[0] for i in urls]),))
@@ -177,12 +201,12 @@ class FetchProspectDB(object):
             company_prospect_data = list(set(company_prospect_data_1+company_prospect_data_2))
             del company_prospect_data_1,company_prospect_data_2
             logging.info('fetch_prospects: company website - fetched companies : {}'.format(len(company_prospect_data)))
-            if not company_prospect_data:
-                continue
             # insert linkedin_url into list_items_urls, then get the uuid, then use both to insert. This is done because
             # we don't know the list_items_url_id at this point
-            list_items_urls = [(list_id,urls_dict[i[-1]],i[0]) for i in company_prospect_data]
+            list_items_urls = [(list_id,urls_dict[i[-1]],i[0]) for i in company_prospect_data if i[-1] in urls_dict]
             records_list_template = ','.join(['%s']*len(list_items_urls))
+            if not list_items_urls or not records_list_template:
+                continue
             query = "insert into crawler.list_items_urls "\
                 "(list_id,list_items_id,url) "\
                 " VALUES {} ON CONFLICT DO NOTHING ".format(records_list_template)
@@ -199,35 +223,37 @@ class FetchProspectDB(object):
             records_list_template = ','.join(['%s']*len(company_prospect_data))
             query = "insert into crawler.linkedin_company_base "\
                 "(linkedin_url,company_name,company_size,industry,company_type,headquarters,description,founded,"\
-                    "specialties,website,employee_details,also_viewed_companies,list_id,list_items_url_id) "\
+                    "specialties,website,employee_details,also_viewed_companies,created_on,list_id,list_items_url_id) "\
                 " VALUES {} ON CONFLICT DO NOTHING ".format(records_list_template)
             insert_list = [list(in_tup) for in_tup in company_prospect_data]
             insert_list1 = [tuple(i[:-1]+[list_id,list_items_urls_dict[i[0]]]) for i in insert_list]
+            if not insert_list1 or not records_list_template:
+                continue
             self.con.cursor.execute(query, insert_list1)
             self.con.commit()
             # insert people for these companies into the people table
-            query = "select distinct d.linkedin_url,d.name,d.sub_text,d.location,d.company_name,"\
+            query = "select distinct on (d.linkedin_url) d.linkedin_url,d.name,d.sub_text,d.location,d.company_name,"\
                     "array_to_string(d.company_linkedin_url_array,'|') company_linkedin_url,"\
                     "d.previous_companies,d.education,d.industry,d.summary,d.skills,"\
                     "array_to_string(d.experience_array,'|') experience,"\
                     "array_to_string(d.related_people_array,'|') related_people,"\
-                    "array_to_string(d.same_name_people_array,'|') same_name_people,a.linkedin_url as input_url "\
+                    "array_to_string(d.same_name_people_array,'|') same_name_people,d.timestamp,a.linkedin_url as input_url "\
                     "from linkedin_company_base a join company_urls_mapper b on a.linkedin_url=b.alias_url "\
                     " join people_company_mapper c on b.base_url=c.company_url join "\
                     "linkedin_people_base d on c.people_url=d.linkedin_url "\
                     "where a.linkedin_url in %s and d.sub_text ~* '" +  desig_list_reg + "' "
             self.prospect_con.execute(query,(tuple([i[0] for i in list_items_urls_list]),))
             people_prospect_data = self.prospect_con.cursor.fetchall()
-            if not people_prospect_data:
-                continue
             # insert into crawler base table
             records_list_template = ','.join(['%s']*len(people_prospect_data))
             query = "insert into crawler.linkedin_people_base "\
                 "(linkedin_url,name,sub_text,location,company_name,company_linkedin_url,previous_companies,education,"\
-                    "industry,summary,skills,experience,related_people,same_name_people,list_id,list_items_url_id) "\
+                    "industry,summary,skills,experience,related_people,same_name_people,created_on,list_id,list_items_url_id) "\
                 " VALUES {} ON CONFLICT DO NOTHING ".format(records_list_template)
             insert_list = [list(in_tup) for in_tup in people_prospect_data]
             insert_list1 = [tuple(i[:-1]+[list_id,list_items_urls_dict[i[-1]]]) for i in insert_list]
+            if not insert_list1 or not records_list_template:
+                continue
             self.con.cursor.execute(query, insert_list1)
             self.con.commit()
 
@@ -239,48 +265,51 @@ class FetchProspectDB(object):
         :return:
         '''
         for urls in chunker(urls_all,100):
-            query = "select linkedin_url,name,sub_text,location,company_name,"\
+            query = "select distinct on (linkedin_url) linkedin_url,name,sub_text,location,company_name,"\
                     "array_to_string(company_linkedin_url_array,'|') company_linkedin_url,"\
                     "previous_companies,education,industry,summary,skills,"\
                     "array_to_string(experience_array,'|') experience,"\
                     "array_to_string(related_people_array,'|') related_people,"\
-                    "array_to_string(same_name_people_array,'|') same_name_people from linkedin_people_base "\
+                    "array_to_string(same_name_people_array,'|') same_name_people,timestamp " \
+                    " from linkedin_people_base "\
                     "where linkedin_url in %s"
             self.prospect_con.execute(query,(tuple([i[0] for i in urls]),))
             people_prospect_data = self.prospect_con.cursor.fetchall()
             logging.info('fetch_prospects: people - fetched people : {}'.format(len(people_prospect_data)))
-            if not people_prospect_data:
-                continue
             # insert into crawler base table
             records_list_template = ','.join(['%s']*len(people_prospect_data))
             query = "insert into crawler.linkedin_people_base "\
                 "(linkedin_url,name,sub_text,location,company_name,company_linkedin_url,previous_companies,education,"\
-                    "industry,summary,skills,experience,related_people,same_name_people,list_id,list_items_url_id) "\
+                    "industry,summary,skills,experience,related_people,same_name_people,created_on,list_id,list_items_url_id) "\
                 " VALUES {} ON CONFLICT DO NOTHING ".format(records_list_template)
             insert_list = [list(in_tup) for in_tup in people_prospect_data]
             insert_list1 = [tuple(i+[list_id,urls_dict[i[0]]]) for i in insert_list]
+            if not insert_list1 or not records_list_template:
+                continue
             self.con.cursor.execute(query, insert_list1)
             self.con.commit()
             # select companies for these people and insert them
-            query = "select b.linkedin_url,b.company_name,b.company_size,b.industry,b.company_type,b.headquarters,b.description,"\
+            query = "select distinct on (b.linkedin_url) b.linkedin_url,b.company_name,b.company_size,b.industry," \
+                    "b.company_type,b.headquarters,b.description,"\
                     "b.founded,b.specialties,b.website,array_to_string(b.employee_details_array,'|') employee_details,"\
-                    "array_to_string(b.also_viewed_companies_array,'|') also_viewed_companies, a.linkedin_url as input_url "\
+                    "array_to_string(b.also_viewed_companies_array,'|') also_viewed_companies, " \
+                    "b.timestamp, a.linkedin_url as input_url "\
                     "from linkedin_people_base a join people_urls_mapper d on a.linkedin_url=d.alias_url "\
                     " join people_company_mapper c on d.base_url=c.people_url join "\
                     "linkedin_company_base b on c.people_url=b.linkedin_url "\
                     "where a.linkedin_url in %s"
             self.prospect_con.execute(query,(tuple([i[0] for i in urls]),))
             company_prospect_data = self.prospect_con.cursor.fetchall()
-            if not company_prospect_data:
-                continue
             # insert into crawler base table
             records_list_template = ','.join(['%s']*len(company_prospect_data))
             query = "insert into crawler.linkedin_company_base "\
                 "(linkedin_url,company_name,company_size,industry,company_type,headquarters,description,founded,"\
-                    "specialties,website,employee_details,also_viewed_companies,list_id,list_items_url_id) "\
+                    "specialties,website,employee_details,also_viewed_companies,created_on,list_id,list_items_url_id) "\
                 " VALUES {} ON CONFLICT DO NOTHING ".format(records_list_template)
             insert_list = [list(in_tup) for in_tup in company_prospect_data]
             insert_list1 = [tuple(i[:-1]+[list_id,urls_dict[i[-1]]]) for i in insert_list]
+            if not insert_list1 or not records_list_template:
+                continue
             self.con.cursor.execute(query, insert_list1)
             self.con.commit()
 
@@ -292,32 +321,33 @@ class FetchProspectDB(object):
         '''
         if not prospect_query:
             raise ValueError('Need to give a query to fetch company details from prospect db')
-        query = "select linkedin_url,company_name,company_size,industry,company_type,headquarters,description,"\
+        query = "select distinct on (linkedin_url) linkedin_url,company_name,company_size,industry,company_type,headquarters,description,"\
                     "founded,specialties,website,array_to_string(employee_details_array,'|') employee_details,"\
-                    "array_to_string(also_viewed_companies_array,'|') also_viewed_companies "\
+                    "array_to_string(also_viewed_companies_array,'|') also_viewed_companies,a.timestamp "\
                     "from linkedin_company_base a where "+prospect_query
         self.prospect_con.execute(query)
         company_prospect_data = self.prospect_con.cursor.fetchall()
         logging.info('fetch_prospects: company from query - fetched companies : {}'.format(len(company_prospect_data)))
-        if not company_prospect_data:
-            return
         # insert into crawler base table
         records_list_template = ','.join(['%s']*len(company_prospect_data))
         query = "insert into crawler.linkedin_company_base "\
             "(linkedin_url,company_name,company_size,industry,company_type,headquarters,description,founded,"\
-                "specialties,website,employee_details,also_viewed_companies,list_id,list_items_url_id) "\
+                "specialties,website,employee_details,also_viewed_companies,created_on,list_id,list_items_url_id) "\
             " VALUES {} ON CONFLICT DO NOTHING ".format(records_list_template)
         insert_list = [list(in_tup) for in_tup in company_prospect_data]
         insert_list1 = [tuple(i+[list_id,list_items_url_id]) for i in insert_list]
+        if not insert_list1 or not records_list_template:
+            return
         self.con.cursor.execute(query, insert_list1)
         self.con.commit()
         # insert people for these companies into the people table
-        query = "select d.linkedin_url,d.name,d.sub_text,d.location,d.company_name,"\
+        query = "select distinct on (d.linkedin_url) d.linkedin_url,d.name,d.sub_text,d.location,d.company_name,"\
                 "array_to_string(d.company_linkedin_url_array,'|') company_linkedin_url,"\
                 "d.previous_companies,d.education,d.industry,d.summary,d.skills,"\
                 "array_to_string(d.experience_array,'|') experience,"\
                 "array_to_string(d.related_people_array,'|') related_people,"\
-                "array_to_string(d.same_name_people_array,'|') same_name_people,a.linkedin_url as input_url "\
+                "array_to_string(d.same_name_people_array,'|') same_name_people, " \
+                " d.timestamp,a.linkedin_url as input_url "\
                 "from linkedin_company_base a join company_urls_mapper b on a.linkedin_url=b.alias_url "\
                 " join people_company_mapper c on b.base_url=c.company_url join "\
                 "linkedin_people_base d on c.people_url=d.linkedin_url "\
@@ -328,10 +358,12 @@ class FetchProspectDB(object):
         records_list_template = ','.join(['%s']*len(people_prospect_data))
         query = "insert into crawler.linkedin_people_base "\
             "(linkedin_url,name,sub_text,location,company_name,company_linkedin_url,previous_companies,education,"\
-                "industry,summary,skills,experience,related_people,same_name_people,list_id,list_items_url_id) "\
+                "industry,summary,skills,experience,related_people,same_name_people,created_on,list_id,list_items_url_id) "\
             " VALUES {} ON CONFLICT DO NOTHING ".format(records_list_template)
         insert_list = [list(in_tup) for in_tup in people_prospect_data]
         insert_list1 = [tuple(i[:-1]+[list_id,list_items_url_id]) for i in insert_list]
+        if not insert_list1 or not records_list_template:
+            return
         self.con.cursor.execute(query, insert_list1)
         self.con.commit()
 
@@ -348,4 +380,23 @@ class FetchProspectDB(object):
                 " select distinct linkedin_url,linkedin_url from "\
                 " crawler.linkedin_people_base where list_id = %s on conflict do nothing "
         self.con.cursor.execute(query,(list_id,))
+        self.con.commit()
+
+    def fix_urls_to_crawl(self,list_id):
+        '''
+        :param list_id:
+        :return:
+        '''
+        query = " delete from crawler.linkedin_company_urls_to_crawl a using crawler.linkedin_company_finished_urls b "\
+                " where a.list_id = %s and b.list_id = %s and a.url = b.url "
+        self.con.cursor.execute(query,(list_id,list_id,))
+        query = " delete from crawler.linkedin_company_urls_to_crawl_priority a using crawler.linkedin_company_finished_urls b "\
+                " where a.list_id = %s and b.list_id = %s and a.url = b.url "
+        self.con.cursor.execute(query,(list_id,list_id,))
+        query = " delete from crawler.linkedin_people_urls_to_crawl a using crawler.linkedin_people_finished_urls b "\
+                " where a.list_id = %s and b.list_id = %s and a.url = b.url "
+        self.con.cursor.execute(query,(list_id,list_id,))
+        query = " delete from crawler.linkedin_people_urls_to_crawl_priority a using crawler.linkedin_people_finished_urls b "\
+                " where a.list_id = %s and b.list_id = %s and a.url = b.url "
+        self.con.cursor.execute(query,(list_id,list_id,))
         self.con.commit()
