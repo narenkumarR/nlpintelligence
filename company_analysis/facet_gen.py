@@ -98,13 +98,47 @@ class Subsumption(object):
         cond_probs = a_u_b.transpose() / wrd_cnts #division is done col based.. this is col based
         return cond_probs
 
-    def condition_1(self,cond_probs):
-        ''' a/b>0.8 and b/a<1
-        :param mat: output of get_conditional_probs function (cond prob of wrd/wrd_i is given in ith column
+    def subsumption_check(self,cond_probs,feture_names_list,t_directionality = 2,t_subsumption = 0.8,infreq_cutoff=0.1):
+        ''' p(a/b)>0.8 and p(b/a)<1(this is the metric in the original paper).
+        in the new paper it is p(a/b)>t_subsumption and p(a/b)>t_directionality*p(b/a)
+        infreq_cutoff is used to remove very rare words (need to implement)
+        :param cond_probs: output of get_conditional_probs function (cond prob of wrd/wrd_i is given in ith column
+        :param feture_names_list:
+        :param t_directionality:
+        :param t_subsumption:
         :return:
         '''
+        assert t_directionality>1
         cond_probs = np.array(cond_probs)
         cond_probs_t = cond_probs.transpose()
-        cond1 = cond_probs >= 0.8
-        cond2 = cond_probs_t <1
+        cond1 = cond_probs >= t_subsumption
+        cond2 = cond_probs >= t_directionality * cond_probs_t
+        # cond3 = cond_probs_t >= infreq_cutoff
         match_inds = np.where((cond1*cond2)==True)
+        features = [] # list of tuples (wrd1,wrd2) satisfying p(wrd1/wrd2)>0.8 and p(wrd2/wrd1)<1
+        if match_inds:
+            for ind in range(match_inds[0].shape[0]):
+                features.append((feture_names_list[match_inds[0][ind]],feture_names_list[match_inds[1][ind]]))
+        return match_inds,features
+
+    def equivalency_check(self,cond_probs,feture_names_list,t_directionality = 2,t_subsumption = 0.8):
+        '''p(x/y)>t_sub, p(y/x)>t_sub, t_dir*p(y/x)>=p(x/y)>=(1/t_dir)*p(y/x)
+        :param cond_probs:output of get_conditional_probs function (cond prob of wrd/wrd_i is given in ith column
+        :param feture_names_list:
+        :param t_directionality:
+        :param t_subsumption:
+        :return:
+        '''
+        assert t_directionality>1
+        cond_probs = np.array(cond_probs)
+        cond_probs_t = cond_probs.transpose()
+        cond1 = cond_probs >= t_subsumption
+        cond2 = cond_probs_t >= t_subsumption
+        cond3 = cond_probs <= t_directionality*cond_probs_t
+        cond4 = cond_probs >= cond_probs_t*(1/t_directionality)
+        match_inds = np.where((cond1*cond2*cond3*cond4)==True)
+        features = [] # list of tuples (wrd1,wrd2) satisfying p(wrd1/wrd2)>0.8 and p(wrd2/wrd1)<1
+        if match_inds:
+            for ind in range(match_inds[0].shape[0]):
+                features.append((feture_names_list[match_inds[0][ind]],feture_names_list[match_inds[1][ind]]))
+        return match_inds,features

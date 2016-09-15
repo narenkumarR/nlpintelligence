@@ -64,9 +64,10 @@ class LkdnUrlExtrMain(object):
                 self.con.cursor.execute(query,(list_id,))
                 self.con.commit()
             else:
-                delete_query = "DELETE FROM {} WHERE list_id = %s AND id = %s".format('crawler.list_items')
-                self.con.execute(delete_query,(list_id,key,))
-                self.con.commit()
+                # # why was this done. need to investigate
+                # delete_query = "DELETE FROM {} WHERE list_id = %s AND id = %s".format('crawler.list_items')
+                # self.con.execute(delete_query,(list_id,key,))
+                # self.con.commit()
                 with open(problematic_urls_file,'a') as f:
                     f.write('{}\n'.format(tmp_dic[key]))
         self.con.close_cursor()

@@ -175,12 +175,19 @@ a.* from crawler.people_details_for_email_verifier_new a
 where a.list_id = '36d9542a-6515-11e6-8815-5ff07181793b' and 
 designation ~* 'founder|\yCEO\y|Chief executive officer' 
 
---concierge query for taking from prospect db in aws server (31 Aug) (instead of us_ecomm1 table, create any table which is a subset of linkedin_company_base. or use linkedin_company_base directly and give conditions in where clause appropriately
+
+---------------------------------------------------------------------------------
+---------------------------------------------------------------------------------
+----------------- searching for people in the existing db------------------------
+---------------------------------------------------------------------------------
+---------------------------------------------------------------------------------
+--concierge query for taking from prospect db in aws server (31 Aug) (instead of us_ecomm1 table, create any table which is a subset of linkedin_company_base. or use linkedin_company_base directly and give conditions in where clause appropriately. 
 --people with company name in sub text
+select distinct on (name,domain) * from (
 (select  distinct on (e.name,b.domain)
-e.name,b.domain,trim(sub_text) as designation,a.company_name,a.website as company_website,
-b.headquarters,b.country,b.region,b.location location_company,founded,company_size,a.industry,trim(a.specialties) as specialties,
-trim(a.description) description, e.location as location_person,a.linkedin_url as company_linkedin_url,e.linkedin_url as people_linkedin_url
+	e.name,trim(sub_text) as designation,b.domain,a.company_name,a.website as company_website,
+	b.headquarters,b.country,b.region,b.location location_company,founded,company_size,a.industry,trim(a.specialties) as specialties,
+	trim(a.description) description, e.location as location_person,a.linkedin_url as company_linkedin_url,e.linkedin_url as people_linkedin_url
 from 
 us_ecomm1 a join linkedin_company_domains b on a.linkedin_url=b.linkedin_url
 join company_urls_mapper c on a.linkedin_url = c.alias_url join people_company_mapper d on c.base_url = d.company_url
@@ -217,9 +224,9 @@ and work_time like '%Present%' )
 union
 --people with single url in company linkedin url take directly
 (select  distinct on (e.name,b.domain)
-e.name,b.domain,trim(sub_text) as designation,a.company_name,a.website as company_website,
-b.headquarters,b.country,b.region,b.location location_company,founded,company_size,a.industry,trim(a.specialties) as specialties,
-trim(a.description) description, e.location as location_person,a.linkedin_url as company_linkedin_url,e.linkedin_url as people_linkedin_url
+	e.name,trim(sub_text) as designation,b.domain,a.company_name,a.website as company_website,
+	b.headquarters,b.country,b.region,b.location location_company,founded,company_size,a.industry,trim(a.specialties) as specialties,
+	trim(a.description) description, e.location as location_person,a.linkedin_url as company_linkedin_url,e.linkedin_url as people_linkedin_url
 from 
 us_ecomm1 a join linkedin_company_domains b on a.linkedin_url=b.linkedin_url
 join company_urls_mapper c on a.linkedin_url = c.alias_url join people_company_mapper d on c.base_url = d.company_url
@@ -227,5 +234,10 @@ join linkedin_people_base e on d.people_url = e.linkedin_url
 where 
 sub_text ~* '\yVP\y.+Engineering|\yVP\y.+App development|\yVP\y.+\yIT\y|\yVP\y.+Digital|\yVP\y.+e(.)?commerce technology|President.+Engineering|President.+App development|President.+\yIT\y|President.+Digital|President.+e(.)?commerce technology|Technology director|director (of )?technology'
 and array_length(company_linkedin_url_array,1) = 1)
-
+)a;
+---------------------------------------------------------------------------------
+---------------------------------------------------------------------------------
+----------------- searching for people in the existing db END--------------------
+---------------------------------------------------------------------------------
+---------------------------------------------------------------------------------
 

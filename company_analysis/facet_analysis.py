@@ -64,6 +64,7 @@ descr_chunks = [nltk.ne_chunk(i) for i in descr_postags]
 # remove trees, keep verbs, nouns and adjectives
 descr_chunks1 = [[i for i in chunk if type(i) == tuple] for chunk in descr_chunks ]
 from nltk.stem import WordNetLemmatizer
+import nltk
 wnl = WordNetLemmatizer()
 from text_processing.word_transformations import get_wordnet_pos
 descr_chunks1 = [[wnl.lemmatize(wrd,get_wordnet_pos(tag)) for wrd,tag in i if re.search('^V|^N|^J',tag)] for i in descr_chunks1]
