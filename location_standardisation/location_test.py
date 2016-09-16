@@ -46,3 +46,41 @@ pprint.pprint(location.raw)
 
 create table location_identifier (url text, location_raw text, country text, country_code text,state text, state_code text,county text,locality text);
 '''
+from geopy import geocoders
+geocoder_web = geocoders.GoogleV3()
+location = geocoder_web.geocode('23445 NE Novelty Hill Rd #G404 Redmond, WA 98007 United States')
+import pprint
+pprint.pprint(location.raw)
+
+
+'''
+
+CREATE OR REPLACE FUNCTION location_from_web(name location) RETURNS text[]
+LANGUAGE plpythonu
+AS $$
+if 'name_tools' in SD:
+    name_tools = SD['name_tools']
+else:
+    import name_tools
+    SD['name_tools'] = name_tools
+if 're' in SD:
+    re = SD['re']
+else:
+    import re
+    SD['re'] = re
+name1 = name.split(',')[0]
+name1 = re.sub('[!@#$%^&*()}{></~+_]|\[|\]',' ',name1)
+name1 = re.sub(' +',' ',name1)
+name_cleaned = name_tools.split(name1)
+f_part = name_cleaned[1].split()
+if len(f_part) == 1:
+    f_name,m_name = f_part[0],''
+elif len(f_part) > 1:
+    f_name,m_name = f_part[0],' '.join(f_part[1:])
+else:
+    f_name,m_name = '',''
+name_list = [name_cleaned[0],f_name,m_name,name_cleaned[2],name_cleaned[3]]
+return name_list
+$$;
+
+'''
