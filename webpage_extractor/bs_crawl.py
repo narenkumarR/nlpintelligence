@@ -8,15 +8,15 @@ from bs4 import BeautifulSoup
 
 from urllib_crawl import UrllibCrawl
 
-class BeautifulsoupCrawl:
+class BeautifulsoupCrawl(object):
+
+    def __init__(self):
+        pass
 
     @staticmethod
     def single_wp(baseurl,headers = {'User-Agent': 'Mozilla/5.0 (Macintosh; Intel Mac OS X 10.10; rv:39.0) Gecko/20100101 Firefox/39.0'}):
         # parse the html using BeautifulSoup
         response=BeautifulSoup(UrllibCrawl.getResponse(baseurl,headers=headers))
-
-        # print("single_wp..........url...",response.prettify())
-
         return response
 
     @staticmethod
@@ -31,4 +31,7 @@ class BeautifulsoupCrawl:
         return response
 
     def exit(self):
+        pass
+
+    def start_browser(self):
         pass

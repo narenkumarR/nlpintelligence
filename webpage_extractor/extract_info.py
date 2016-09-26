@@ -9,39 +9,23 @@ from optparse import OptionParser
 from random import shuffle
 
 from selenium_crawl import SeleniumParser
-from url_cleaner import UrlCleaner
-
+from utils import SoupUtils
 from constants import website_column,search_text_column,search_text_weight_column
+from url_cleaner import UrlCleaner
 
 logging.basicConfig(filename='website_extraction.log', level=logging.INFO,format='%(asctime)s %(message)s')
 
-class WebPageExtractor(object):
+class WebPageTextSearch(object):
     '''
     '''
     def __init__(self,visible=True):
         '''
         :return:
         '''
+        self.soup_util = SoupUtils()
         self.visible = visible
-        self.crawler = SeleniumParser()
+        self.crawler = SeleniumParser(visible=self.visible)
         self.url_cleaner = UrlCleaner()
-
-    def get_text_from_soup(self,soup):
-        '''
-        :param soup:
-        :return:
-        '''
-        for script in soup(["script", "style"]):
-            script.extract()    # rip it out
-        # get text
-        text = soup.get_text(' ')
-        # break into lines and remove leading and trailing space on each
-        lines = (line.strip() for line in text.splitlines())
-        # break multi-headlines into a line each
-        chunks = (phrase.strip() for line in lines for phrase in line.split("  "))
-        # drop blank lines
-        text = '\n'.join(chunk for chunk in chunks if chunk)
-        return text
 
     def search_webpage_single(self,search_texts,search_text_weights=None,url=None,soup=None):
         '''
@@ -63,7 +47,7 @@ class WebPageExtractor(object):
             if not url:
                 raise ValueError('No url provided')
             soup = self.crawler.get_soup(url)
-        text = self.get_text_from_soup(soup)
+        text = self.soup_util.get_text_from_soup(soup)
         # search_reg_text = '\y' + '\y|\y'.join(search_texts) + '\y'
         search_reg_text = '|'.join(search_texts)
         search_reg = re.compile(search_reg_text,re.IGNORECASE)
@@ -85,7 +69,7 @@ class WebPageExtractor(object):
         base_url = self.url_cleaner.clean_url(base_url,False)
         soup = self.crawler.get_soup(base_url)
         matches,weight = self.search_webpage_single(search_texts,search_text_weights,soup=soup)
-        urls, emails = self.get_all_links_soupinput(soup,base_url)
+        urls, emails = self.soup_util.get_all_links_soupinput(soup,base_url)
         urls = [(url,text) for url,text in urls if not ((not base_url in url) or re.search('\.png$',url) or 'login' in url)]
         shuffle(urls)
         for ind in range(min(len(urls),10)):
@@ -96,35 +80,14 @@ class WebPageExtractor(object):
             matches_tmp,weight_tmp = self.search_webpage_single(search_texts,search_text_weights,soup=soup)
             matches.extend(matches_tmp)
             weight = weight+weight_tmp
-            urls_tmp,mails_tmp = self.get_all_links_soupinput(soup,base_url)
+            urls_tmp,mails_tmp = self.soup_util.get_all_links_soupinput(soup,base_url)
             emails.extend(mails_tmp)
             urls.extend(urls_tmp)
-        # import pdb
-        # pdb.set_trace()
         out_url_searcher = re.compile(r'linkedin|facebook',re.IGNORECASE)
         urls = list(set([url for url,text in urls if out_url_searcher.search(url)]))
         emails = list(set(emails))
         matches = list(set(matches))
         return urls,emails,matches,weight
-
-    def get_all_links_soupinput(self,soup,base_url):
-        '''
-        :param soup:
-        :return:
-        '''
-        url_list, mail_list = [],[]
-        url_tmp = []
-        for a in soup.find_all('a', href=True):
-            url = a['href']
-            if '@' in url:
-                mail_list.append(url)
-            else:
-                url = self.url_cleaner.merge_urls(base_url,url)
-                url = self.url_cleaner.clean_url(url)
-                if url not in url_tmp:
-                    url_list.append((url,a.text))
-                    url_tmp.append(url)
-        return url_list,mail_list
 
     def search_webpage_csv_input(self,websites_loc,search_wts_loc,out_loc = 'website_extraction_output.xls'):
         '''
@@ -172,8 +135,7 @@ class WebPageExtractor(object):
                 with open('dic_'+out_loc,'w') as f:
                     import pickle
                     pickle.dump(out_dic,f)
-        import pdb
-        pdb.set_trace()
+
 
 if __name__ == "__main__":
     optparser = OptionParser()

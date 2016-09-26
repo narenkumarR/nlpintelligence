@@ -11,7 +11,7 @@ import multiprocessing
 from optparse import OptionParser
 
 from postgres_connect import PostgresConnect
-from linkedin_company_url_extraction_micro_service.linkedin_url_finder import LkdnUrlExtrMain
+from linkedin_url_finder import LkdnUrlExtrMain
 from crawling_micro_service.crawler_generic import LinkedinCrawlerThread
 from crawling_micro_service.tables_updation import TableUpdater
 from crawling_micro_service.fetch_prospectsdb_data import FetchProspectDB
@@ -20,7 +20,8 @@ from gen_people_for_email import gen_people_details
 from constants import company_name_field,company_details_field,designations_column_name
 
 def run_main(list_name=None,company_csv_loc=None,desig_loc=None,similar_companies=1,hours=1,extract_urls=1,
-             prospect_db = 0, prospect_query = '',visible=False,what=0,main_thread=0,n_threads=2,n_urls_in_thread=100):
+             prospect_db = 0, prospect_query = '',visible=False,what=0,main_thread=0,n_threads=2,n_urls_in_thread=100,
+             n_iters=0,login=0):
     '''
     :param list_name:
     :param company_csv_loc:
@@ -95,9 +96,15 @@ def run_main(list_name=None,company_csv_loc=None,desig_loc=None,similar_companie
     gc.collect()
     start_time = time.time()
     limit_no_1 = n_threads*n_urls_in_thread
+    what_bck = what
+    if login:
+        n_threads = 1 #only single thread if login
+        if not what_bck:
+            what = 1 #either company or people will be crawled in 1 iteration if login.
     while True:
-        if time.time() - start_time > hours*60*60:
-            break
+        if not n_iters:
+            if time.time() - start_time > hours*60*60:
+                break
         logging.info('starting an iteration of crawling')
         if main_thread:
             # if prospect_db:
@@ -106,12 +113,21 @@ def run_main(list_name=None,company_csv_loc=None,desig_loc=None,similar_companie
             #     logging.info('Completed fetching data from prospect db')
             logging.info('updating tables for iteration')
             tables_updater.update_tables(list_id,desig_list,similar_companies,company_select_query=prospect_query)
-        crawler.run_both_single(list_id=list_id,visible=visible,limit_no=limit_no_1,time_out = hours,what=what,n_threads=n_threads)
+        crawler.run_both_single(list_id=list_id,visible=visible,limit_no=limit_no_1,time_out = hours,what=what,
+                                n_threads=n_threads,login=login)
         #os.system("pkill -9 firefox")
         #os.system("pkill -9 Xvfb")
         #os.system("find /tmp/* -maxdepth 1 -type d -name 'tmp*' |  xargs rm -rf")
         # if main_thread:
         #     gen_people_details(list_id,desig_list)
+        if n_iters:
+            n_iters = n_iters - 1
+            if n_iters <= 0 :
+                break
+        if login:
+            if not what_bck:
+                what = 3-what #toggle what if crawling both people and company
+
     del crawler,tables_updater
     if extract_urls:
         if t1.is_alive():
@@ -142,7 +158,7 @@ if __name__ == "__main__":
                          default=1,type='float')
     optparser.add_option('-t', '--hours',
                          dest='no_hours',
-                         help='No of hours the process need to run. Default 1 hour',
+                         help='No of hours the process need to run. Default 1 hour. Used only when --iters is 0',
                          default=1,type='float')
     optparser.add_option('-u', '--urlextr',
                          dest='extract_urls',
@@ -176,7 +192,14 @@ if __name__ == "__main__":
                          dest='n_urls',
                          help='no of urls in a thread',
                          default=100,type='int')
-
+    optparser.add_option('-i', '--iters',
+                         dest='n_iters',
+                         help='no of iterations. default 0. if 0,program run is based on time',
+                         default=0,type='int')
+    optparser.add_option('-l', '--login',
+                         dest='login',
+                         help='login using credentials given in constants file',
+                         default=0,type='int')
     (options, args) = optparser.parse_args()
     csv_company = options.csv_company
     desig_loc = options.desig_loc
@@ -191,7 +214,10 @@ if __name__ == "__main__":
     main_thread = options.main_thread
     n_threads = options.n_threads
     n_urls = options.n_urls
+    n_iters = options.n_iters
+    login = options.login
     run_main(list_name,csv_company,desig_loc,similar_companies,hours,extract_urls,prospect_db,prospect_query,
-             visible=visible,what=what,main_thread = main_thread,n_threads=n_threads,n_urls_in_thread=n_urls)
+             visible=visible,what=what,main_thread = main_thread,n_threads=n_threads,n_urls_in_thread=n_urls,
+             n_iters = n_iters,login=login)
 
 

@@ -23,8 +23,9 @@ def get_status(driver):
         return "Dead"
 
 class SeleniumParser(object):
-    def __init__(self):
-        pass
+    def __init__(self,browser = 'Firefox',browser_loc='/home/madan/Downloads/phantomjs-2.1.1-linux-x86_64/bin/phantomjs',
+                 visible = False,proxy = False,proxy_ip=None,proxy_port=None,page_load_timeout=80,use_tor=False):
+        self.start_browser(browser,browser_loc,visible,proxy,proxy_ip,proxy_port,page_load_timeout,use_tor)
 
     def start_browser(self,browser = 'Firefox',browser_loc='/home/madan/Downloads/phantomjs-2.1.1-linux-x86_64/bin/phantomjs',
                  visible = False,proxy = False,proxy_ip=None,proxy_port=None,page_load_timeout=80,use_tor=False):

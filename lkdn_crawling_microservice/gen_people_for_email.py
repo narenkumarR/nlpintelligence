@@ -43,10 +43,11 @@ def gen_people_details(list_id,desig_list=None):
         " company_linkedin_url, "\
         "linkedin_url as people_linkedin_url,name,location as location_person,sub_text as designation "\
             " from crawler.linkedin_people_base a where "\
-        "company_linkedin_url like '%%linkedin%%' and experience not like '%%{{}}%%' "\
+        "company_linkedin_url like '%%linkedin%%'  "\
         " and array_length(string_to_array(company_linkedin_url,'|'),1) = 1 "\
             " and a.list_id = %s and a.sub_text ~* %s) "\
         " ".format(table_name_id)
+        # and experience not like '%%{{}}%%' removed in the above query
         # tried to find for cases where company length is >1, but experience is '', all cases are errors in data
         # " union "\
         # " (select distinct on (company_linkedin_url,people_linkedin_url) "\
@@ -172,8 +173,9 @@ def gen_people_details(list_id,desig_list=None):
             " b.headquarters,b.industry,b.company_size,b.founded, "\
             " d.list_id,d.list_items_url_id from "\
             "  crawler.tmp_table_email_gen_{table_id} d "\
-            "join crawler.linkedin_company_redirect_url e on ( d.company_linkedin_url = e.url) "\
-            " join crawler.linkedin_company_base b on e.redirect_url = b.linkedin_url "\
+            " left join crawler.linkedin_company_redirect_url e on ( d.company_linkedin_url = e.url) "\
+            " left join crawler.linkedin_company_base b on (e.redirect_url = b.linkedin_url or d.company_linkedin_url=b.linkedin_url) "\
+            " where e.url is not null or b.linkedin_url is not null "\
             "  ) "\
             " union "\
             " (select distinct a.name,a.designation,a.website,a.company_name, "\
@@ -191,7 +193,7 @@ def gen_people_details(list_id,desig_list=None):
             " join crawler.tmp_table2_email_gen_{table_id} d on (c.url=d.people_linkedin_url ) "\
             " join crawler.linkedin_company_base b on d.company_linkedin_url = b.linkedin_url "\
             " where a.sub_text ~* '{regex}' and (d.designation = '' or d.designation is null ) "\
-            " and a.sub_text ilike '%%'||b.company_name||'%%' ) "\
+            " and a.sub_text ilike '%'||b.company_name||'%' ) "\
             " ".format(table_id=table_name_id,regex=desig_list_reg)
     # query = "create table crawler.tmp_table1_email_gen_{} as "\
     #         "select a.name,a.sub_text,b.website,b.company_name,d.list_id,d.list_items_url_id from "\
@@ -199,7 +201,7 @@ def gen_people_details(list_id,desig_list=None):
     #         "join crawler.tmp_table_email_gen_{} d on a.linkedin_url=d.people_linkedin_url "\
     #         " join crawler.linkedin_company_base b on d.company_linkedin_url = b.linkedin_url "\
     #         " where d.list_id = %s and a.sub_text ~* '{}' ".format(table_name_id,table_name_id,desig_list_reg)
-    con.cursor.execute(query,(list_id,list_id,))
+    con.cursor.execute(query)
     con.commit()
     con.cursor.execute(" update crawler.tmp_table1_email_gen_{} "\
             " set name = regexp_replace(regexp_replace(name,'[^a-zA-Z0-9.()\- ]',' '),' +',' ') ".format(table_name_id))
@@ -237,13 +239,15 @@ def gen_people_details(list_id,desig_list=None):
             " list_id,list_items_url_id,name as full_name, name_cleaned[2] as first_name, name_cleaned[3] as middle_name, "\
             "name_cleaned[4] as last_name, domain,  trim(designation) as designation,company_name, website as company_website, "\
             " headquarters,industry,company_size,founded,company_linkedin_url,people_linkedin_url "\
-            " from crawler.tmp_table1_email_gen_{} where "\
-            "domain not in ('http://','http://-','http://.','http://...','http://1','') and  "\
-            "name_cleaned[2] is not null and name_cleaned[4] is not null and name_cleaned[2] not in('','.','..') "\
-            " and name_cleaned[4] not in ('','.','..') and domain is not null and domain != 'NULL' "\
-            "and list_id =%s "\
+            " from crawler.tmp_table1_email_gen_{} "\
             " on conflict do nothing".format(table_name_id)
-    con.cursor.execute(query,(list_id,))
+    #" where "\
+    #        "domain not in ('http://','http://-','http://.','http://...','http://1','') and  "\
+    #        "name_cleaned[2] is not null and name_cleaned[4] is not null and name_cleaned[2] not in('','.','..') "\
+    #        " and name_cleaned[4] not in ('','.','..') and domain is not null and domain != 'NULL' "\
+    #        "and list_id =%s "\
+            
+    con.cursor.execute(query)
     con.commit()
     # drop tables
     con.cursor.execute('drop table crawler.tmp_table1_email_gen_{}'.format(table_name_id))

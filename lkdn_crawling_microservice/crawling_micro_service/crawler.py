@@ -16,7 +16,7 @@ from postgres_connect import PostgresConnect
 linkedin_url_clean_regex=r'\?trk=pub-pbmap|\?trk=prof-samename-picture|\?trk=extra_biz_viewers_viewed|\?trk=biz_employee_pub|\?trk=ppro.cprof'
 
 class LinkedinCompanyCrawlerThread(object):
-    def __init__(self,browser='Firefox',visible=True,proxy=False,use_tor=False,use_db=False):
+    def __init__(self,browser='Firefox',visible=True,proxy=False,use_tor=False,use_db=False,login=False):
         '''
         :param browser:
         :param visible:
@@ -31,6 +31,7 @@ class LinkedinCompanyCrawlerThread(object):
         self.ip_matcher = re.compile("^\d{1,3}\.\d{1,3}\.\d{1,3}\.\d{1,3}$")
         self.use_tor = use_tor
         self.use_db = use_db
+        self.login = login
         if use_db:
             self.con = PostgresConnect()
             self.table_fields = ['Linkedin URL','Company Name','Company Size','Industry','Type','Headquarters',
@@ -90,12 +91,14 @@ class LinkedinCompanyCrawlerThread(object):
             logging.info('company part: proxy to be used : {}'.format(proxy_dets))
             proxy_ip,proxy_port = proxy_dets[0],proxy_dets[1]
             crawler = linkedin_company_crawler.LinkedinOrganizationService(self.browser,self.visible,proxy=self.proxy,
-                                                                      proxy_ip=proxy_ip,proxy_port=proxy_port,use_tor=self.use_tor)
+                                                                      proxy_ip=proxy_ip,proxy_port=proxy_port,
+                                                                      use_tor=self.use_tor,login=self.login)
         except: #if  coming here, run without proxy
             logging.exception('company part: Error while getting proxy. Running without proxy ')
             proxy_ip, proxy_port = None,None
             crawler = linkedin_company_crawler.LinkedinOrganizationService(self.browser,self.visible,proxy=False,
-                                                                      proxy_ip=proxy_ip,proxy_port=proxy_port,use_tor=self.use_tor)
+                                                                      proxy_ip=proxy_ip,proxy_port=proxy_port,
+                                                                      use_tor=self.use_tor,login=self.login)
         def get_output(crawler,url,res_1,event):
             res_1['result'] = crawler.get_organization_details_from_linkedin_link(url)
             event.set()
@@ -211,7 +214,8 @@ class LinkedinCompanyCrawlerThread(object):
                                 except:
                                     pass
                                 crawler = linkedin_company_crawler.LinkedinOrganizationService(self.browser,self.visible,proxy=self.proxy,
-                                                                      proxy_ip=proxy_ip,proxy_port=proxy_port,use_tor=self.use_tor)
+                                                                      proxy_ip=proxy_ip,proxy_port=proxy_port,use_tor=self.use_tor,
+                                                                      login=self.login)
                                 # self.crawler_queue.put(crawler)
                             except:
                                 logging.exception('company part: could not start crawler, thread:{0}'.format(threading.currentThread()))
@@ -443,7 +447,7 @@ class LinkedinCompanyCrawlerThread(object):
 
 
 class LinkedinProfileCrawlerThread(object):
-    def __init__(self,browser='Firefox',visible=True,proxy=False,use_tor=False,use_db=False):
+    def __init__(self,browser='Firefox',visible=True,proxy=False,use_tor=False,use_db=False,login=False):
         '''
         :param browser:
         :param visible:
@@ -457,6 +461,7 @@ class LinkedinProfileCrawlerThread(object):
         self.ip_matcher = re.compile("^\d{1,3}\.\d{1,3}\.\d{1,3}\.\d{1,3}$")
         self.use_tor = use_tor
         self.use_db = use_db
+        self.login = login
         if use_db:
             self.con = PostgresConnect()
             self.table_fields = ['Linkedin URL','Name','Position','Location','Company','CompanyLinkedinPage',
@@ -514,12 +519,14 @@ class LinkedinProfileCrawlerThread(object):
             logging.info('People part: proxy to be used : {}'.format(proxy_dets))
             proxy_ip,proxy_port = proxy_dets[0],proxy_dets[1]
             crawler = linkedin_profile_crawler.LinkedinProfileCrawler(self.browser,self.visible,proxy=self.proxy,
-                                                                      proxy_ip=proxy_ip,proxy_port=proxy_port,use_tor=self.use_tor)
+                                                                      proxy_ip=proxy_ip,proxy_port=proxy_port,
+                                                                      use_tor=self.use_tor,login=self.login)
         except: #if  coming here, run without proxy
             logging.info('People part: Error while getting proxy. Running without proxy')
             proxy_ip,proxy_port = None,None
             crawler = linkedin_profile_crawler.LinkedinProfileCrawler(self.browser,self.visible,proxy=False,
-                                                                      proxy_ip=proxy_ip,proxy_port=proxy_port,use_tor=self.use_tor)
+                                                                      proxy_ip=proxy_ip,proxy_port=proxy_port,
+                                                                      use_tor=self.use_tor,login=self.login)
         def get_output(crawler,url,res_1,event):
             res_1['result'] = crawler.fetch_details_urlinput(url)
             event.set()
@@ -624,7 +631,8 @@ class LinkedinProfileCrawlerThread(object):
                                 except:
                                     pass
                                 crawler = linkedin_profile_crawler.LinkedinProfileCrawler(self.browser,self.visible,proxy=self.proxy,
-                                                                      proxy_ip=proxy_ip,proxy_port=proxy_port,use_tor=self.use_tor)
+                                                                      proxy_ip=proxy_ip,proxy_port=proxy_port,use_tor=self.use_tor,
+                                                                      login=self.login)
                                 # self.crawler_queue.put(crawler)
                             except:
                                 logging.exception('People part: could not start crawler')

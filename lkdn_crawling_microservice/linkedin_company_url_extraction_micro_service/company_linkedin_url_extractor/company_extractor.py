@@ -24,7 +24,8 @@ class CompanyLinkedinURLExtractorSingle(object):
         self.ddg_crawler = DuckduckgoCrawler(visible=visible)
         # self.search_string = r'linkedin.com/company/|linkedin.com/companies/|linkedin.com/pub/|linkedin.com/in/' #earlier linkedin.com/company
         self.search_string_website = r'linkedin.com/company/|linkedin.com/companies/|linkedin.com/pub/|linkedin.com/in/'
-        self.search_string_ddg = r'linkedin.com/company/|linkedin.com/companies/'
+        # self.search_string_ddg = r'linkedin.com/company/|linkedin.com/companies/'
+        self.search_string_ddg = r'linkedin.com/pub/(?!dir/)|linkedin.com/in/'
 
     def get_linkedin_url(self,inp_tuple,time_out=30):
         '''
@@ -35,7 +36,11 @@ class CompanyLinkedinURLExtractorSingle(object):
         logging.info('company extraction: trying for company : {}'.format(inp_tuple))
         company_url,additional_text = inp_tuple
         # logging.info('get_linkedin_url url:{}'.format(company_url))
-        if re.search('http',company_url) or re.search('www',company_url):
+        if re.search('http',company_url) or re.search('www',company_url) or re.search('\.co',company_url):
+            if not re.search('www',company_url) and not re.search('http',company_url):
+                company_url = 'http://www.'+company_url
+            elif re.search('www',company_url) and not re.search('http',company_url):
+                company_url = 'http://'+company_url
             # soup = self.crawler.single_wp(company_url,timeout=time_out)
             soup = self.crawler.get_soup(company_url)
             if str(soup):
@@ -346,7 +351,7 @@ class CompanyLinkedinURLExtractorMulti(object):
             link_extractor.ddg_crawler.crawler.browser.quit()
         # try to yield from out_queue again if anything is remaining in the queue
         logging.info('company extraction: trying to fetch from out queue again')
-        while not self.out_queue.empty():
+        while not self.out_queue.empty() or not self.in_queue.empty():
             key,linkedin_url = self.out_queue.get()
             yield key,linkedin_url
             found_list.append(key)
