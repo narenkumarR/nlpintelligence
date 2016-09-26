@@ -22,7 +22,7 @@ class LinkedinCrawlerThread(object):
                                         n_threads=6,use_tor=False,use_db=False,limit_no=2000,urls_to_crawl_table='linkedin_company_urls_to_crawl',
             urls_to_crawl_priority='linkedin_company_urls_to_crawl_priority',base_table='linkedin_people_base',
             urls_to_crawl_table_people = 'linkedin_people_urls_to_crawl',finished_urls_table_company = 'linkedin_company_finished_urls',
-            finished_urls_table_people = 'linkedin_people_finished_urls',list_id=None):
+            finished_urls_table_people = 'linkedin_people_finished_urls',list_id=None,login=False):
         '''
         :param res_file:
         :param log_file:
@@ -46,7 +46,7 @@ class LinkedinCrawlerThread(object):
         else:
             with open(url_file,'r') as f:
                 urls = pickle.load(f)
-        cc = crawler.LinkedinCompanyCrawlerThread(browser,visible=visible,proxy=proxy,use_tor=use_tor,use_db=use_db)
+        cc = crawler.LinkedinCompanyCrawlerThread(browser,visible=visible,proxy=proxy,use_tor=use_tor,use_db=use_db,login=login)
         gc.collect()
         logging.info('starting the main run call for company process')
         cc.run(urls,res_file,log_file,n_threads,limit_no=limit_no,urls_to_crawl_table=urls_to_crawl_table,
@@ -59,7 +59,7 @@ class LinkedinCrawlerThread(object):
                                         n_threads=6,use_tor=False,use_db=False,limit_no=2000,urls_to_crawl_table='linkedin_people_urls_to_crawl',
             urls_to_crawl_priority='linkedin_people_urls_to_crawl_priority',base_table='linkedin_people_base',
             urls_to_crawl_table_company = 'linkedin_company_urls_to_crawl',finished_urls_table_company = 'linkedin_company_finished_urls',
-            finished_urls_table_people = 'linkedin_people_finished_urls',list_id=''):
+            finished_urls_table_people = 'linkedin_people_finished_urls',list_id='',login=False):
         '''
         :param res_file:
         :param log_file:
@@ -83,7 +83,7 @@ class LinkedinCrawlerThread(object):
         else:
             with open(url_file,'r') as f:
                 urls = pickle.load(f)
-        cc = crawler.LinkedinProfileCrawlerThread(browser,visible=visible,proxy=proxy,use_tor=use_tor,use_db=use_db)
+        cc = crawler.LinkedinProfileCrawlerThread(browser,visible=visible,proxy=proxy,use_tor=use_tor,use_db=use_db,login=login)
         gc.collect()
         logging.info('starting the main run call for people process')
         cc.run(urls,res_file,log_file,n_threads,limit_no=limit_no,urls_to_crawl_table=urls_to_crawl_table,
@@ -106,7 +106,7 @@ class LinkedinCrawlerThread(object):
                          company_base_table='crawler.linkedin_company_base',
                          finished_urls_table_company = 'crawler.linkedin_company_finished_urls',
                          finished_urls_table_people = 'crawler.linkedin_people_finished_urls',
-                         list_id = None,time_out = 1,what=0):
+                         list_id = None,time_out = 1,what=0,login=False):
         '''
         :param crawled_loc: location of result (used when crawling done using files). If crawling is db based, the logs
                             will go to logs folder in crawled_loc. This folder needs to be created before starting run
@@ -148,7 +148,7 @@ class LinkedinCrawlerThread(object):
                                                     args=(None,None,crawled_loc,browser,visible,proxy,
                                                     'people_urls_to_crawl.pkl',n_threads,use_tor,use_db,limit_no,
                                                     urls_to_crawl_people,urls_to_crawl_people_priority,people_base_table,urls_to_crawl_company,
-                                                    finished_urls_table_company ,finished_urls_table_people,list_id ))
+                                                    finished_urls_table_company ,finished_urls_table_people,list_id,login ))
             worker_people.daemon = True
             worker_people.start()
         if what == 0 or what == 1:
@@ -156,7 +156,7 @@ class LinkedinCrawlerThread(object):
                                                      args=(None,None,crawled_loc,browser,visible,proxy,
                                                     'company_urls_to_crawl.pkl',n_threads,use_tor,use_db,limit_no,
                                                      urls_to_crawl_company,urls_to_crawl_company_priority,company_base_table,urls_to_crawl_people,
-                                                     finished_urls_table_company ,finished_urls_table_people,list_id ))
+                                                     finished_urls_table_company ,finished_urls_table_people,list_id,login ))
             worker_company.daemon = True
             worker_company.start()
         gc.collect()

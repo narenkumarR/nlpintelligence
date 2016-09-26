@@ -3,7 +3,7 @@ __author__ = 'joswin'
 import logging
 from optparse import OptionParser
 from postgres_connect import PostgresConnect
-from company_linkedin_url_extractor.company_extractor import CompanyLinkedinURLExtractorMulti
+from linkedin_company_url_extraction_micro_service.company_linkedin_url_extractor.company_extractor import CompanyLinkedinURLExtractorMulti
 # from sqlalchemy import create_engine
 
 from constants import problematic_urls_file
@@ -73,20 +73,40 @@ class LkdnUrlExtrMain(object):
         self.con.close_cursor()
         logging.info('completed url extraction process')
 
+    def run_command(self,list_name):
+        '''
+        :param list_name:
+        :return:
+        '''
+        logging.basicConfig(filename='log_file_linkedin_url_extractor.log', level=logging.INFO,format='%(asctime)s %(message)s')
+        logging.info('started linkedin url extraction process from command line')
+        if list_name is None:
+            raise ValueError('Need list_name input')
+        self.con.get_cursor()
+        query = 'select id from crawler.list_table where list_name = %s'
+        self.con.cursor.execute(query,(list_name,))
+        res_list = self.con.cursor.fetchall()
+        if not res_list:
+            raise ValueError('List name not present in database')
+        else:
+            list_id = res_list[0][0]
+        self.con.close_cursor()
+        self.run_main(list_id)
+
 if __name__ == "__main__":
     optparser = OptionParser()
-    optparser.add_option('-f', '--file',
-                         dest='csv_company',
-                         help='location of csv with company names',
+    optparser.add_option('-n', '--lname',
+                         dest='list_name',
+                         help='list name',
                          default=None)
     # optparser.add_option('-d', '--designations',
     #                      dest='desig_loc',
     #                      help='location of csv containing target designations',
     #                      default=None)
     (options, args) = optparser.parse_args()
-    csv_company = options.csv_company
+    list_name = options.list_name
     # desig_loc = options.desig_loc
 
     extractor = LkdnUrlExtrMain()
-    extractor.run_main(csv_company)
+    extractor.run_command(list_name)
 

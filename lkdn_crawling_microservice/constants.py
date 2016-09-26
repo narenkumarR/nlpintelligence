@@ -22,6 +22,10 @@ company_details_field = 'details'
 designations_column_name = 'designations'
 linkedin_url_column = 'linkedin_url'
 
+# linkedin credentials
+linkedin_username = 'gokul.contractiq@gmail.com'
+linkedin_password = 'gokulrao8056'
+
 # firefox binary location
 firefox_binary_loc = 'firefox_binaries/firefox-46/firefox'
 

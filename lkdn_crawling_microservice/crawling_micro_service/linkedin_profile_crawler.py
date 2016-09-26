@@ -11,13 +11,16 @@ from selenium.common.exceptions import TimeoutException
 from socket import error as socket_error
 from httplib import CannotSendRequest,BadStatusLine
 
+from linkedin_login import login_fun
+
 import logging
 # logger = logging.getLogger(__name__)
 
 class LinkedinProfileCrawler(object):
     '''Crawl a linkedin profie page
     '''
-    def __init__(self,browser='Firefox',visible = True,proxy=False,proxy_ip = None,proxy_port = None,use_tor=None):
+    def __init__(self,browser='Firefox',visible = True,proxy=False,proxy_ip = None,proxy_port = None,use_tor=None,
+                 login=False):
         ''' support for methods other than selenium needs fixes
         :param browser:
         :param visible:
@@ -35,12 +38,14 @@ class LinkedinProfileCrawler(object):
         self.proxy_ip = proxy_ip
         self.proxy_port = proxy_port
         self.use_tor = use_tor
-        self.init_selenium_parser(browser,visible,proxy,proxy_ip,proxy_port,use_tor)
+        self.login = login
+        self.init_selenium_parser(browser,visible,proxy,proxy_ip,proxy_port,use_tor,login)
 
     def exit(self):
         self.link_parser.exit()
 
-    def init_selenium_parser(self,browser=None,visible = None,proxy=None,proxy_ip = None,proxy_port = None,use_tor=None):
+    def init_selenium_parser(self,browser=None,visible = None,proxy=None,proxy_ip = None,proxy_port = None,use_tor=None,
+                             login=False):
         if browser is None and visible is None and visible is None and proxy is None and use_tor is None: #if no input reload same parser
             # self.link_parser = linkedin_parser.LinkedinParserSelenium(self.browser,visible=self.visible,proxy=self.proxy,
             #                                                           proxy_ip=self.proxy_ip,proxy_port=self.proxy_port,
@@ -67,6 +72,8 @@ class LinkedinProfileCrawler(object):
                 self.link_parser = selenium_crawl.SeleniumParser(self.browser,visible=self.visible,proxy=self.proxy,
                                                                           proxy_ip=self.proxy_ip,proxy_port=self.proxy_port,
                                                                           use_tor=self.use_tor)
+        if login:
+            login_fun(self.link_parser.browser)
 
     def fetch_details_urlinput(self,url,use_selenium = True):
         '''

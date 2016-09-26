@@ -58,6 +58,14 @@ if __name__ == "__main__":
                          dest='n_urls',
                          help='no of urls in a thread',
                          default=100,type='int')
+    optparser.add_option('-i', '--iters',
+                         dest='n_iters',
+                         help='no of iterations. default 0. if 0,program run is based on time',
+                         default=0,type='int')
+    optparser.add_option('-l', '--login',
+                         dest='login',
+                         help='login using credentials given in constants file',
+                         default=0,type='int')
 
     (options, args) = optparser.parse_args()
     csv_company = options.csv_company
@@ -73,20 +81,30 @@ if __name__ == "__main__":
     main_thread = options.main_thread
     n_threads = int(options.n_threads)
     n_urls = options.n_urls
+    n_iters = options.n_iters
+    if n_iters:
+        n_iter = 1
+    else:
+        n_iter = 0
+    login = options.login
     while True:
         # try:
             os.system('pkill -9 firefox')
             os.system('pkill -9 Xvfb')
             os.system("find /tmp/* -maxdepth 1 -type d -name 'tmp*' |  xargs rm -rf")
-            os.system('python main.py -n {} -f {} -d {} -s {} -t {} -u {} -p {} -q "{}" -v {} -w {} -m {} -r {} -k {}'.format(list_name,csv_company,
+            os.system('python main.py -n {} -f {} -d {} -s {} -t {} -u {} -p {} -q "{}" -v {} -w {} -m {} -r {} -k {} -i {} -l {}'.format(list_name,csv_company,
                                                                                         desig_loc,similar_companies,
                                                                                         hours,extract_urls,prospect_db,prospect_query,
                                                                                         visible,what,main_thread,
-                                                                                        n_threads,n_urls))
+                                                                                        n_threads,n_urls,n_iter,login))
             time.sleep(10)
             # after the first iteration, no need to look for prospect data # not correct. only if not looking for
             # similar companies, this is needed. so adding similar company condition also here
             if prospect_db and not similar_companies:
                 prospect_db = 0
+            if n_iters:
+                n_iters = n_iters -1
+                if n_iters <= 0:
+                    break
         # except:
         #     continue

@@ -13,7 +13,8 @@ def upload_url_list(csv_loc=None,list_name=None):
     :return:
     '''
     if csv_loc is None:
-        raise ValueError('give location of csv with linkedin urls. Col name should be {},{},{}'.format(company_name_field,company_details_field,linkedin_url_column))
+        raise ValueError('give location of csv with linkedin urls. Col name '\
+                'should be {},{},{}'.format(company_name_field,company_details_field,linkedin_url_column))
     if list_name is None:
         raise ValueError('Need list name')
     url_df = pd.read_csv(csv_loc)
@@ -26,7 +27,11 @@ def upload_url_list(csv_loc=None,list_name=None):
     res = con.cursor.fetchall()
     # con.close_cursor()
     if not res:
-        raise ValueError('the list name given do not have any records')
+        # raise ValueError('the list name given do not have any records')
+        query = " insert into crawler.list_table (list_name) values (%s) "
+        con.execute(query,(list_name,))
+        con.execute("select id from crawler.list_table where list_name = %s",(list_name,))
+        res = con.cursor.fetchall()
     list_id = res[0][0]
     # prob with getting correct list_items_id while inserting- insert the name to list_item table
     if url_list and company_dets:
