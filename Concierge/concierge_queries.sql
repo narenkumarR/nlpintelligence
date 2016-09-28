@@ -182,6 +182,13 @@ designation ~* 'founder|\yCEO\y|Chief executive officer'
 ---------------------------------------------------------------------------------
 ---------------------------------------------------------------------------------
 --concierge query for taking from prospect db in aws server (31 Aug) (instead of us_ecomm1 table, create any table which is a subset of linkedin_company_base. or use linkedin_company_base directly and give conditions in where clause appropriately. 
+----eg----
+create table us_ecomm1 as 
+select distinct on (b.linkedin_url) b.* from tmp_ecommerce_not_dev_descr a join linkedin_company_domains c using(linkedin_url) 
+join linkedin_company_base b using(linkedin_url)
+where country='UNITED STATES';
+
+-----------
 --people with company name in sub text
 select distinct on (name,domain) * from (
 (select  distinct on (e.name,b.domain)
