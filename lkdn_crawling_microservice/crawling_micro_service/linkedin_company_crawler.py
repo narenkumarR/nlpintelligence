@@ -219,6 +219,9 @@ class LinkedinOrganizationService(object):
         try:
             p_list = self.soup.find('div',{'class':'company-employees module'}).findAll('li')
         except:
+            # try:
+            #     p_list = self.soup.find('div',{'class':'company-density module'}).findAll('li')
+            # except:
             self.details['Employee Details'] = []
             return
         out_list = []

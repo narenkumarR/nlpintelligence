@@ -220,13 +220,14 @@ class FetchProspectDB(object):
             for i in list_items_urls_list:
                 list_items_urls_dict[i[0]] = i[1]
             # insert into crawler base table
-            records_list_template = ','.join(['%s']*len(company_prospect_data))
             query = "insert into crawler.linkedin_company_base "\
                 "(linkedin_url,company_name,company_size,industry,company_type,headquarters,description,founded,"\
                     "specialties,website,employee_details,also_viewed_companies,created_on,list_id,list_items_url_id) "\
                 " VALUES {} ON CONFLICT DO NOTHING ".format(records_list_template)
             insert_list = [list(in_tup) for in_tup in company_prospect_data]
-            insert_list1 = [tuple(i[:-1]+[list_id,list_items_urls_dict[i[0]]]) for i in insert_list]
+            insert_list1 = [tuple(i[:-1]+[list_id,list_items_urls_dict.get(i[0],'some_error_need_fix')])
+                            for i in insert_list if list_items_urls_dict.get(i[0],'some_error_need_fix')!='some_error_need_fix']
+            records_list_template = ','.join(['%s']*len(insert_list1))
             if not insert_list1 or not records_list_template:
                 continue
             self.con.cursor.execute(query, insert_list1)
@@ -245,13 +246,14 @@ class FetchProspectDB(object):
             self.prospect_con.execute(query,(tuple([i[0] for i in list_items_urls_list]),))
             people_prospect_data = self.prospect_con.cursor.fetchall()
             # insert into crawler base table
-            records_list_template = ','.join(['%s']*len(people_prospect_data))
             query = "insert into crawler.linkedin_people_base "\
                 "(linkedin_url,name,sub_text,location,company_name,company_linkedin_url,previous_companies,education,"\
                     "industry,summary,skills,experience,related_people,same_name_people,created_on,list_id,list_items_url_id) "\
                 " VALUES {} ON CONFLICT DO NOTHING ".format(records_list_template)
             insert_list = [list(in_tup) for in_tup in people_prospect_data]
-            insert_list1 = [tuple(i[:-1]+[list_id,list_items_urls_dict[i[-1]]]) for i in insert_list]
+            insert_list1 = [tuple(i[:-1]+[list_id,list_items_urls_dict.get(i[-1],'some_error_need_fix')])
+                            for i in insert_list if list_items_urls_dict.get(i[0],'some_error_need_fix')!='some_error_need_fix']
+            records_list_template = ','.join(['%s']*len(insert_list1))
             if not insert_list1 or not records_list_template:
                 continue
             self.con.cursor.execute(query, insert_list1)

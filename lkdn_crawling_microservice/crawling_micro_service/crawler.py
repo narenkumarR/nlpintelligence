@@ -25,6 +25,8 @@ class LinkedinCompanyCrawlerThread(object):
         :param use_db:
         :return:
         '''
+        if login:
+            raise ValueError('The use of logging-in is to fetch people in a company. This is not implemented yet. Give login =0  for now')
         self.browser = browser
         self.visible = visible
         self.proxy = proxy
@@ -111,15 +113,20 @@ class LinkedinCompanyCrawlerThread(object):
             url,list_items_url_id = self.in_queue.get()
             # if url in self.processed_queue.queue or url in self.error_queue.queue:
             #     continue
-            logging.info('company part: Input URL:{}, thread:{}'.format(url,threading.currentThread()))
             try:
-                time.sleep(randint(1,2))
-                res_1 = {}
-                event = threading.Event()
-                t1 = threading.Thread(target=get_output, args=(crawler,url,res_1,event,))
-                t1.daemon = True
-                t1.start()
-                event.wait(timeout=120)
+                for t_no in range(2):
+                    time.sleep(randint(1,2))
+                    logging.info('company part: Input URL:{}, thread:{}, try:{}'.format(url,threading.currentThread(),t_no+1))
+                    res_1 = {}
+                    event = threading.Event()
+                    t1 = threading.Thread(target=get_output, args=(crawler,url,res_1,event,))
+                    t1.daemon = True
+                    t1.start()
+                    event.wait(timeout=120)
+                    if res_1.get('result','error_happened') != 'error_happened':
+                        res = res_1['result']
+                        if res.get('Name','LinkedIn') != 'LinkedIn':
+                            break
                 if res_1 is None: #if None means timeout happened, push to queue again. (this is causing the programe to
                     #                 not stop in some cases. So not pushing to in queue again)
                     logging.info('company part: res_1 is None for url:{}, thread:{}'.format(url,threading.currentThread()))
@@ -537,15 +544,20 @@ class LinkedinProfileCrawlerThread(object):
         while self.run_queue:
             ind += 1
             url,list_items_url_id = self.in_queue.get()
-            logging.info('people part: Input URL:{}, thread:{}'.format(url,threading.currentThread()))
             try:
-                time.sleep(randint(1,2))
-                res_1 = {}
-                event = threading.Event()
-                t1 = threading.Thread(target=get_output, args=(crawler,url,res_1,event,))
-                t1.daemon = True
-                t1.start()
-                event.wait(timeout=120)
+                for t_no in range(2):
+                    time.sleep(randint(10,60))
+                    logging.info('people part: Input URL:{}, thread:{}, try:{}'.format(url,threading.currentThread(),t_no+1))
+                    res_1 = {}
+                    event = threading.Event()
+                    t1 = threading.Thread(target=get_output, args=(crawler,url,res_1,event,))
+                    t1.daemon = True
+                    t1.start()
+                    event.wait(timeout=120)
+                    if res_1.get('result','error_happened') != 'error_happened':
+                        res = res_1['result']
+                        if res.get('Name','LinkedIn') != 'LinkedIn' and res.get('Name','LinkedIn') and 'Notes' not in res:
+                            break
                 if res_1 is None: #if None means timeout happened, push to queue again
                     logging.info('People part: res_1 None, probably timeout, for url:{}, thread:{}'.format(url,threading.currentThread()))
                     # self.in_queue.put(url)

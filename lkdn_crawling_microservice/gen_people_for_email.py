@@ -21,7 +21,6 @@ def gen_people_details(list_id,desig_list=None):
     con = PostgresConnect()
     con.get_cursor()
     table_name_id = '_'.join(str(list_id).split('-'))
-
     # all people urls and current company
     con.cursor.execute('drop table if exists crawler.tmp_table_email_gen_{}'.format(table_name_id))
     con.commit()
@@ -147,8 +146,9 @@ def gen_people_details(list_id,desig_list=None):
     # this was done so that for people whose designation is missing, try to join with people_base table and get details
     query = "delete from crawler.tmp_table2_email_gen_{} where "\
             " (designation is not null and designation != '' "\
-            " and (designation !~* %s or designation not ilike '%%' || company_name || '%%')) "\
+            " and (designation !~* %s )) "\
             " ".format(table_name_id)
+    # or designation not ilike '%%' || company_name || '%%' # this is not needed as we are looking at employees
     con.cursor.execute(query,(desig_list_reg,))
     con.commit()
 
