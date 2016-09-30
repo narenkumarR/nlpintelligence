@@ -25,8 +25,8 @@ class LinkedinCompanyCrawlerThread(object):
         :param use_db:
         :return:
         '''
-        if login:
-            raise ValueError('The use of logging-in is to fetch people in a company. This is not implemented yet. Give login =0  for now')
+        # if login:
+        #     raise ValueError('The use of logging-in is to fetch people in a company. This is not implemented yet. Give login =0  for now')
         self.browser = browser
         self.visible = visible
         self.proxy = proxy
@@ -115,7 +115,7 @@ class LinkedinCompanyCrawlerThread(object):
             #     continue
             try:
                 for t_no in range(2):
-                    time.sleep(randint(1,2))
+                    time.sleep(randint(10,20))
                     logging.info('company part: Input URL:{}, thread:{}, try:{}'.format(url,threading.currentThread(),t_no+1))
                     res_1 = {}
                     event = threading.Event()
@@ -125,7 +125,7 @@ class LinkedinCompanyCrawlerThread(object):
                     event.wait(timeout=120)
                     if res_1.get('result','error_happened') != 'error_happened':
                         res = res_1['result']
-                        if res.get('Name','LinkedIn') != 'LinkedIn':
+                        if res.get('Company Name','LinkedIn') != 'LinkedIn':
                             break
                 if res_1 is None: #if None means timeout happened, push to queue again. (this is causing the programe to
                     #                 not stop in some cases. So not pushing to in queue again)
@@ -384,9 +384,9 @@ class LinkedinCompanyCrawlerThread(object):
                 self.con.commit()
             if limit_no >0 :
                 query = "delete from {} a using {} b where a.url=b.url "\
-                        " and a.list_id=b.list_id".format(self.urls_to_crawl_table,self.finished_urls_table_company)
+                        " and a.list_id=b.list_id and a.list_id = %s".format(self.urls_to_crawl_table,self.finished_urls_table_company)
                 # query = 'select url from linkedin_company_urls_to_crawl limit {}'.format(limit_no)
-                self.con.cursor.execute(query)
+                self.con.cursor.execute(query,(self.list_id,))
                 query = "select url,list_items_url_id from {} where list_id = %s "\
                         " offset floor(random() * (select count(*) from {} where list_id = %s)) "\
                         "limit {}".format(self.urls_to_crawl_table,self.urls_to_crawl_table,limit_no)
@@ -546,7 +546,7 @@ class LinkedinProfileCrawlerThread(object):
             url,list_items_url_id = self.in_queue.get()
             try:
                 for t_no in range(2):
-                    time.sleep(randint(10,60))
+                    time.sleep(randint(30,90))
                     logging.info('people part: Input URL:{}, thread:{}, try:{}'.format(url,threading.currentThread(),t_no+1))
                     res_1 = {}
                     event = threading.Event()
@@ -566,7 +566,7 @@ class LinkedinProfileCrawlerThread(object):
                     res = res_1['result']
                     if res:
                         if 'Name' in res :
-                            if res['Name'] and res['Name'] != 'LinkedIn':
+                            if res['Name'] and (not self.login and res['Name'] != 'LinkedIn'):
                                 self.out_queue.put((res,list_items_url_id))
                                 no_errors = 0
                                 n_blocks = 0
