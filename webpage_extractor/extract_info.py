@@ -18,7 +18,7 @@ logging.basicConfig(filename='website_extraction.log', level=logging.INFO,format
 class WebPageTextSearch(object):
     '''
     '''
-    def __init__(self,visible=True):
+    def __init__(self,visible=True,min_pages_per_link=10):
         '''
         :return:
         '''
@@ -26,6 +26,7 @@ class WebPageTextSearch(object):
         self.visible = visible
         self.crawler = SeleniumParser(visible=self.visible)
         self.url_cleaner = UrlCleaner()
+        self.min_pages_per_link = min_pages_per_link
 
     def search_webpage_single(self,search_texts,search_text_weights=None,url=None,soup=None):
         '''
@@ -72,7 +73,7 @@ class WebPageTextSearch(object):
         urls, emails = self.soup_util.get_all_links_soupinput(soup,base_url)
         urls = [(url,text) for url,text in urls if not ((not base_url in url) or re.search('\.png$',url) or 'login' in url)]
         shuffle(urls)
-        for ind in range(min(len(urls),10)):
+        for ind in range(min(len(urls),self.min_pages_per_link)):
             url,text = urls[ind]
             if (not base_url in url) or re.search('\.png$',url) or 'login' in url:
                 continue
@@ -102,7 +103,7 @@ class WebPageTextSearch(object):
         search_wrds_weights_list = list(search_texts_df[search_text_weight_column])
         out_dic = {'website':[],'score':[],'emails':[],'urls':[],'match_texts_test':[]}
         ind = 0
-        self.crawler.start_browser(visible=self.visible)
+        # self.crawler.start_browser(visible=self.visible)
         for website in websites:
             logging.info('Trying for url : {}'.format(website))
             try:
@@ -155,12 +156,16 @@ if __name__ == "__main__":
                          dest='visible',
                          help='if 1 visible, if 0 not visible',
                          default=0,type='int')
+    optparser.add_option('-m', '--minpages',
+                         dest='minpages',
+                         help='no of pages to crawl within a url',
+                         default=0,type='int')
     (options, args) = optparser.parse_args()
     website_file = options.website_file
     search_text_file = options.search_text_file
     out_file = options.out_file
     visible = options.visible
-
-    wpe = WebPageExtractor(visible)
+    min_pages = options.minpages
+    wpe = WebPageTextSearch(visible,min_pages_per_link=min_pages)
     wpe.search_webpage_csv_input(website_file,search_text_file,out_file)
     wpe.crawler.exit()

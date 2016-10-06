@@ -37,9 +37,21 @@ class FetchProspectDB(object):
             desig_list_reg = desig_list_regex
         else:
             desig_list_reg = '\y' + '\y|\y'.join(desig_list) + '\y'
-        # first get all urls in the list_items_urls table
+        # get cursors
         self.con.get_cursor()
         self.prospect_con.get_cursor()
+        # delete urls in urls to crawl table which are present in company base table
+        # this is done because we are taking urls to look for in prospect db from this table and list_items_urls table
+        query = " delete from crawler.linkedin_company_urls_to_crawl_priority a using "\
+                " crawler.linkedin_company_base b where a.list_id=b.list_id and "\
+                " a.url = b.linkedin_url and a.list_id = %s"
+        self.con.execute(query,(list_id,))
+        query = " delete from crawler.linkedin_people_urls_to_crawl_priority a using "\
+                " crawler.linkedin_people_base b where a.list_id=b.list_id and "\
+                " a.url = b.linkedin_url and a.list_id = %s"
+        self.con.execute(query,(list_id,))
+        self.con.commit()
+        # first get all urls in the list_items_urls table
         query = "select distinct url,a.id from crawler.list_items_urls a left join crawler.linkedin_company_base b "\
                 " on a.list_id = b.list_id and a.id = b.list_items_url_id where a.list_id = %s and b.list_id is null"
         self.con.execute(query,(list_id,))
@@ -114,8 +126,8 @@ class FetchProspectDB(object):
             list_items_url_id = tmp[0][0]
             self.prospect_insert_from_query(prospect_query,list_id,list_items_url_id,desig_list_reg=desig_list_reg)
             logging.info('fetch_prospects: completed fetching based on prospect query')
-        self.fix_redirect_urls(list_id) #fetching from db causes redirect url issues
-        self.fix_urls_to_crawl(list_id)
+        # self.fix_redirect_urls(list_id) #fetching from db causes redirect url issues
+        # self.fix_urls_to_crawl(list_id)
         self.con.close_cursor()
         self.prospect_con.close_cursor()
         self.con.close_connection()
@@ -148,6 +160,19 @@ class FetchProspectDB(object):
             if not insert_list1 or not records_list_template:
                 continue
             self.con.cursor.execute(query, insert_list1)
+            # fix redirect url table. Earlier approach (calling fix_redirect_urls in the end) took lot of time
+            query = " insert into crawler.linkedin_company_redirect_url (url,redirect_url) "\
+                " values {} on conflict do nothing ".format(records_list_template)
+            insert_list2 = [(i[0],i[0]) for i in insert_list1]
+            self.con.cursor.execute(query,insert_list2)
+            # similary fix for urls to crawl tables
+            insert_list3 = [i[0] for i in insert_list1]+[list_id]
+            query = "DELETE FROM crawler.linkedin_company_urls_to_crawl WHERE " \
+                    " url in ({}) and list_id = %s ".format(records_list_template)
+            self.con.cursor.execute(query, insert_list3)
+            query = "DELETE FROM crawler.linkedin_company_urls_to_crawl_priority WHERE " \
+                    " url in ({}) and list_id = %s ".format(records_list_template)
+            self.con.cursor.execute(query, insert_list3)
             self.con.commit()
             # insert people for these companies into the people table
             query = "select distinct on (d.linkedin_url) d.linkedin_url,d.name,d.sub_text,d.location,d.company_name,"\
@@ -173,6 +198,19 @@ class FetchProspectDB(object):
             if not insert_list1 or not records_list_template:
                 continue
             self.con.cursor.execute(query, insert_list1)
+            # fix redirect url table. Earlier approach (calling fix_redirect_urls in the end) took lot of time
+            query = " insert into crawler.linkedin_people_redirect_url (url,redirect_url) "\
+                " values {} on conflict do nothing ".format(records_list_template)
+            insert_list2 = [(i[0],i[0]) for i in insert_list1]
+            self.con.cursor.execute(query,insert_list2)
+            # similary fix for urls to crawl tables
+            insert_list3 = [i[0] for i in insert_list1]+[list_id]
+            query = "DELETE FROM crawler.linkedin_people_urls_to_crawl WHERE " \
+                    " url in ({}) and list_id = %s ".format(records_list_template)
+            self.con.cursor.execute(query, insert_list3)
+            query = "DELETE FROM crawler.linkedin_people_urls_to_crawl_priority WHERE " \
+                    " url in ({}) and list_id = %s ".format(records_list_template)
+            self.con.cursor.execute(query, insert_list3)
             self.con.commit()
 
     def prospect_insert_company_website_input(self,domains_all,urls_dict,list_id,desig_list_reg):
@@ -231,6 +269,19 @@ class FetchProspectDB(object):
             if not insert_list1 or not records_list_template:
                 continue
             self.con.cursor.execute(query, insert_list1)
+            # fix redirect url table. Earlier approach (calling fix_redirect_urls in the end) took lot of time
+            query = " insert into crawler.linkedin_company_redirect_url (url,redirect_url) "\
+                " values {} on conflict do nothing ".format(records_list_template)
+            insert_list2 = [(i[0],i[0]) for i in insert_list1]
+            self.con.cursor.execute(query,insert_list2)
+            # similary fix for urls to crawl tables
+            insert_list3 = [i[0] for i in insert_list1]+[list_id]
+            query = "DELETE FROM crawler.linkedin_company_urls_to_crawl WHERE " \
+                    " url in ({}) and list_id = %s ".format(records_list_template)
+            self.con.cursor.execute(query, insert_list3)
+            query = "DELETE FROM crawler.linkedin_company_urls_to_crawl_priority WHERE " \
+                    " url in ({}) and list_id = %s ".format(records_list_template)
+            self.con.cursor.execute(query, insert_list3)
             self.con.commit()
             # insert people for these companies into the people table
             query = "select distinct on (d.linkedin_url) d.linkedin_url,d.name,d.sub_text,d.location,d.company_name,"\
@@ -257,6 +308,19 @@ class FetchProspectDB(object):
             if not insert_list1 or not records_list_template:
                 continue
             self.con.cursor.execute(query, insert_list1)
+            # fix redirect url table. Earlier approach (calling fix_redirect_urls in the end) took lot of time
+            query = " insert into crawler.linkedin_people_redirect_url (url,redirect_url) "\
+                " values {} on conflict do nothing ".format(records_list_template)
+            insert_list2 = [(i[0],i[0]) for i in insert_list1]
+            self.con.cursor.execute(query,insert_list2)
+            # similary fix for urls to crawl tables
+            insert_list3 = [i[0] for i in insert_list1]+[list_id]
+            query = "DELETE FROM crawler.linkedin_people_urls_to_crawl WHERE " \
+                    " url in ({}) and list_id = %s ".format(records_list_template)
+            self.con.cursor.execute(query, insert_list3)
+            query = "DELETE FROM crawler.linkedin_people_urls_to_crawl_priority WHERE " \
+                    " url in ({}) and list_id = %s ".format(records_list_template)
+            self.con.cursor.execute(query, insert_list3)
             self.con.commit()
 
     def prospect_insert_people(self,urls_all,urls_dict,list_id,desig_list_reg):
@@ -313,6 +377,18 @@ class FetchProspectDB(object):
             if not insert_list1 or not records_list_template:
                 continue
             self.con.cursor.execute(query, insert_list1)
+            # fix redirect url table. Earlier approach (calling fix_redirect_urls in the end) took lot of time
+            query = " insert into crawler.linkedin_people_redirect_url (url,redirect_url) "\
+                " values {} on conflict do nothing ".format(records_list_template)
+            insert_list2 = [(i[0],i[0]) for i in insert_list1]
+            self.con.cursor.execute(query,insert_list2)
+            insert_list3 = [i[0] for i in insert_list1]+[list_id]
+            query = "DELETE FROM crawler.linkedin_people_urls_to_crawl WHERE " \
+                    " url in ({}) and list_id = %s ".format(records_list_template)
+            self.con.cursor.execute(query, insert_list3)
+            query = "DELETE FROM crawler.linkedin_people_urls_to_crawl_priority WHERE " \
+                    " url in ({}) and list_id = %s ".format(records_list_template)
+            self.con.cursor.execute(query, insert_list3)
             self.con.commit()
 
     def prospect_insert_from_query(self,prospect_query,list_id,list_items_url_id,desig_list_reg):
@@ -341,6 +417,19 @@ class FetchProspectDB(object):
         if not insert_list1 or not records_list_template:
             return
         self.con.cursor.execute(query, insert_list1)
+        # fix redirect url table. Earlier approach (calling fix_redirect_urls in the end) took lot of time
+        query = " insert into crawler.linkedin_company_redirect_url (url,redirect_url) "\
+            " values {} on conflict do nothing ".format(records_list_template)
+        insert_list2 = [(i[0],i[0]) for i in insert_list1]
+        self.con.cursor.execute(query,insert_list2)
+        # SIMILARLY fixing the urls to crawl table
+        insert_list3 = [i[0] for i in insert_list1]+[list_id]
+        query = "DELETE FROM crawler.linkedin_company_urls_to_crawl WHERE " \
+                " url in ({}) and list_id = %s ".format(records_list_template)
+        self.con.cursor.execute(query, insert_list3)
+        query = "DELETE FROM crawler.linkedin_company_urls_to_crawl_priority WHERE " \
+                " url in ({}) and list_id = %s ".format(records_list_template)
+        self.con.cursor.execute(query, insert_list3)
         self.con.commit()
         # insert people for these companies into the people table
         query = "select distinct on (d.linkedin_url) d.linkedin_url,d.name,d.sub_text,d.location,d.company_name,"\
@@ -367,6 +456,19 @@ class FetchProspectDB(object):
         if not insert_list1 or not records_list_template:
             return
         self.con.cursor.execute(query, insert_list1)
+        # fix redirect url table. Earlier approach (calling fix_redirect_urls in the end) took lot of time
+        query = " insert into crawler.linkedin_people_redirect_url (url,redirect_url) "\
+            " values {} on conflict do nothing ".format(records_list_template)
+        insert_list2 = [(i[0],i[0]) for i in insert_list1]
+        self.con.cursor.execute(query,insert_list2)
+        # SIMILARLY fixing the urls to crawl table
+        insert_list3 = [i[0] for i in insert_list1]+[list_id]
+        query = "DELETE FROM crawler.linkedin_people_urls_to_crawl WHERE " \
+                " url in ({}) and list_id = %s ".format(records_list_template)
+        self.con.cursor.execute(query, insert_list3)
+        query = "DELETE FROM crawler.linkedin_people_urls_to_crawl_priority WHERE " \
+                " url in ({}) and list_id = %s ".format(records_list_template)
+        self.con.cursor.execute(query, insert_list3)
         self.con.commit()
 
     def fix_redirect_urls(self,list_id):

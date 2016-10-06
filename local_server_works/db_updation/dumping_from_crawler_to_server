@@ -1,0 +1,84 @@
+##############################################################################
+#################### earlier option has to dump whole table ##################
+#################### better way ##############################################
+##############################################################################
+--dump tables directly with where condition. first create the table schema in the server 
+--note: DATE is not necessary here. can use any other name (not the base table name). DATE is used to know when last dump was done by me.
+DROP TABLE IF EXISTS linkedin_company_base_DATE;
+CREATE TABLE linkedin_company_base_DATE (
+    id uuid DEFAULT uuid_generate_v1mc() NOT NULL,
+    linkedin_url text,
+    company_name text,
+    company_size text,
+    industry text,
+    company_type text,
+    headquarters text,
+    description text,
+    founded text,
+    specialties text,
+    website text,
+    employee_details text,
+    also_viewed_companies text,
+    list_id uuid,
+    list_items_url_id uuid,
+    created_on timestamp without time zone DEFAULT now()
+);
+DROP TABLE IF EXISTS linkedin_people_base_DATE;
+CREATE TABLE linkedin_people_base_DATE (
+    id uuid DEFAULT uuid_generate_v1mc() NOT NULL,
+    linkedin_url text,
+    name text,
+    sub_text text,
+    location text,
+    company_name text,
+    company_linkedin_url text,
+    previous_companies text,
+    education text,
+    industry text,
+    summary text,
+    skills text,
+    experience text,
+    related_people text,
+    same_name_people text,
+    list_id uuid,
+    list_items_url_id uuid,
+    created_on timestamp without time zone DEFAULT now()
+);
+
+--now dump data into above tables
+psql --dbname=postgresql://postgres:postgres@localhost:5432/crawler_service_test -c "copy (select * from crawler.linkedin_company_base where created_on> '2016-09-08 14:00:00'  ) to stdout" | psql --dbname=postgresql://pipecandy_user:pipecandy@192.168.1.142:5432/pipecandy_db1  -c "copy linkedin_company_base_DATE from stdin"
+psql --dbname=postgresql://postgres:postgres@localhost:5432/crawler_service_test -c "copy (select * from crawler.linkedin_people_base where created_on> '2016-09-08 14:00:00' ) to stdout" | psql --dbname=postgresql://pipecandy_user:pipecandy@192.168.1.142:5432/pipecandy_db1  -c "copy linkedin_people_base_DATE from stdin"
+
+##############################################################################
+##############################################################################
+##############################################################################
+
+
+###old version. not needed
+
+the setup that worked for me, there should be easier ways:
+rename the tables in the crawler db to names not present in server db.
+first dump the tables using following command. This should be done in two parts, one with only table creation, and other with only data (duplicate index error is happening if dumping is done in 1 step)
+Eg:
+pg_dump --section=pre-data --no-privileges --no-owner --no-reconnect --dbname=postgresql://postgres:postgres@127.0.0.1:5432/crawler_service_test   -t crawler.linkedin_company_base_process_2016_08_19_13_30 -t crawler.linkedin_people_base_process_2016_08_19_13_30 -f linkedin_dump_from_crawler_service_19Aug_13_30_schema.sql
+pg_dump --section=data  --no-privileges --no-owner --no-reconnect --dbname=postgresql://postgres:postgres@127.0.0.1:5432/crawler_service_test   -t crawler.linkedin_company_base_process_2016_08_19_13_30 -t crawler.linkedin_people_base_process_2016_08_19_13_30 -f linkedin_dump_from_crawler_service_19Aug_13_30_data.sql
+
+
+psql localhost -U postgres -d crawler_service_test -c "copy (select * from crawler.linkedin_company_base_2016_09_08_14_00 where created_on> '2016-08-19 13:30:00 limit 9')
+to stdout" | psql 192.168.1.142 -U pipecandy_user -d pipecandy_db1  -c "copy crawler.linkedin_company_base_2016_09_08_14_00 from stdin"
+
+
+##below not needed
+then rename the tables back to original names.
+
+then copy the files to server.
+steps in server:
+then, before loading , change the schema name from public to crawler in postgres . (for some reason if i create a new schema called crawler and try dumping the data, it is not working. (ERROR:  function uuid_generate_v1mc() does not exist). Not sure why this happens. This function is present in the db, and when I try the same this in public, it is working.) (command: alter schema public rename to crawler)
+load the tables using the following commands:
+first create tables
+psql --dbname=postgresql://pipecandy_user:pipecandy@localhost:5432/pipecandy_db1 < linkedin_dump_from_crawler_service_19Aug_13_30_schema.sql 
+then load data (this is not needed. replace with above new option)
+psql --dbname=postgresql://pipecandy_user:pipecandy@localhost:5432/pipecandy_db1 < linkedin_dump_from_crawler_service_19Aug_13_30_data.sql 
+
+change the schema name back to original name.
+add the data to master table

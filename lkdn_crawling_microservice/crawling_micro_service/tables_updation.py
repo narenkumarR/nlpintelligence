@@ -44,9 +44,10 @@ class TableUpdater(object):
         self.con.commit()
         query = "create table crawler.tmp_table1_updation_{} as "\
             "select a.url,a.list_id,a.id as list_items_url_id from crawler.list_items_urls a  join "\
-            "crawler.linkedin_company_redirect_url c on a.url = c.url join "\
-            "crawler.linkedin_company_base b on ( b.linkedin_url = c.redirect_url) and (b.list_id=a.list_id) "\
+            "crawler.linkedin_company_base b on ( b.linkedin_url = a.url) and (b.list_id=a.list_id) "\
             "where a.list_id = %s and (a.url like '%%/company/%%' or a.url like '%%/companies/%%')".format(table_name_id)
+            # "crawler.linkedin_company_redirect_url c on a.url = c.url join "\
+            #"crawler.linkedin_company_base b on ( b.linkedin_url = c.redirect_url) and (b.list_id=a.list_id) "\
         self.con.cursor.execute(query,(list_id,))
         self.con.commit()
         query = "insert into crawler.linkedin_company_urls_to_crawl_priority (url,list_id,list_items_url_id) "\
@@ -62,9 +63,9 @@ class TableUpdater(object):
         self.con.commit()
         query = "create table crawler.tmp_table1_updation_{} as "\
             "select a.url,a.list_id,a.id as list_items_url_id from crawler.list_items_urls a  join "\
-            "crawler.linkedin_people_redirect_url c on a.url = c.url  join "\
-            "crawler.linkedin_people_base b on (  b.linkedin_url = c.redirect_url) and (b.list_id=a.list_id) "\
+            "crawler.linkedin_people_base b on (  b.linkedin_url = a.url) and (b.list_id=a.list_id) "\
             "where a.list_id = %s and (a.url like '%%/pub/%%' or a.url like '%%/profile/%%' or a.url like '%%/in/%%')".format(table_name_id)
+        # "crawler.linkedin_people_redirect_url c on a.url = c.url  join "\
         self.con.cursor.execute(query,(list_id,))
         self.con.commit()
         query = "insert into crawler.linkedin_people_urls_to_crawl_priority (url,list_id,list_items_url_id) "\
@@ -84,10 +85,10 @@ class TableUpdater(object):
             " unnest(crawler.clean_linkedin_url_array(crawler.extract_related_info(string_to_array(a.company_linkedin_url,'|'),1))) as url, "\
             " a.list_id,a.list_items_url_id "\
             "from crawler.linkedin_people_base a  "\
-            " join  crawler.linkedin_people_redirect_url c on a.linkedin_url = c.redirect_url "\
-            " join crawler.list_items_urls b on a.list_id=b.list_id and (a.linkedin_url = b.url or c.url=b.url) "\
+            " join crawler.list_items_urls b on a.list_id=b.list_id and (a.linkedin_url = b.url ) "\
             "where  a.company_linkedin_url like '%%linkedin%%' and a.list_id = %s "\
             "  ".format(table_name_id)
+        # " join  crawler.linkedin_people_redirect_url c on a.linkedin_url = c.redirect_url "\
         self.con.cursor.execute(query,(list_id,))
         self.con.commit()
         # import pdb
@@ -98,8 +99,9 @@ class TableUpdater(object):
         query = "create table crawler.tmp_table1_updation_{} as "\
             "select a.url,a.list_id,a.list_items_url_id  "\
             "from crawler.tmp_table_updation_{} a join  crawler.linkedin_company_redirect_url c on a.url = c.url  "\
-            "join crawler.linkedin_company_base b on ( b.linkedin_url = c.redirect_url ) and (a.list_id=b.list_id) "\
+            "join crawler.linkedin_company_base b on ( b.linkedin_url = a.url ) and (a.list_id=b.list_id) "\
             "where  a.list_id = %s".format(table_name_id,table_name_id)
+        # "from crawler.tmp_table_updation_{} a join  crawler.linkedin_company_redirect_url c on a.url = c.url  "\
         self.con.cursor.execute(query,(list_id,))
         self.con.commit()
         query = "insert into crawler.linkedin_company_urls_to_crawl_priority (url,list_id,list_items_url_id) "\
@@ -120,9 +122,9 @@ class TableUpdater(object):
                 "select unnest(crawler.clean_linkedin_url_array(crawler.extract_related_info(string_to_array(a.also_viewed_companies,'|'),1))) as url, "\
                 " a.list_id,a.list_items_url_id "\
                 "from crawler.linkedin_company_base a "\
-                    " join  crawler.linkedin_company_redirect_url c on a.url = c.url "\
-                    " join crawler.list_items_urls b on a.list_id=b.list_id and (a.linkedin_url = b.url or c.redirect_url=b.url) "\
+                    " join crawler.list_items_urls b on a.list_id=b.list_id and (a.linkedin_url = b.url ) "\
                 "where  also_viewed_companies like '%%linkedin%%' and a.list_id = %s ".format(table_name_id)
+            # " join  crawler.linkedin_company_redirect_url c on a.linkedin_url = c.url "\
             self.con.cursor.execute(query,(list_id,))
             self.con.commit()
             query = "drop table if exists crawler.tmp_table1_updation_{} ".format(table_name_id)
@@ -130,7 +132,8 @@ class TableUpdater(object):
             self.con.commit()
             query = "create table crawler.tmp_table1_updation_{} as "\
                 "select a.url,a.list_id,a.list_items_url_id  "\
-                "from crawler.tmp_table_updation_{} a join  crawler.linkedin_company_redirect_url c on a.url = c.url  "\
+                "from crawler.tmp_table_updation_{} a " \
+                " join  crawler.linkedin_company_redirect_url c on a.url = c.url  "\
                 "join crawler.linkedin_company_base b on (b.linkedin_url = c.redirect_url) and (a.list_id=b.list_id) "\
                 "where  a.list_id = %s ".format(table_name_id,table_name_id)
             self.con.cursor.execute(query,(list_id,))
@@ -216,7 +219,7 @@ class TableUpdater(object):
         query = "create table crawler.tmp_table_updation_{} as "\
                 "select distinct unnest(crawler.clean_linkedin_url_array(crawler.extract_related_info(string_to_array(employee_details,'|'),1))) as url, "\
                 "unnest(crawler.clean_linkedin_url_array(crawler.extract_related_info(string_to_array(employee_details,'|'),3))) as position, "\
-                "linkedin_url,list_id, list_items_url_id "\
+                "linkedin_url as company_linkedin_url,list_id, list_items_url_id "\
                 "from crawler.linkedin_company_base a where employee_details like '%%linkedin%%' and list_id = %s ".format(table_name_id)
         if company_select_query:
             query = query + " and "+company_select_query
@@ -239,8 +242,8 @@ class TableUpdater(object):
         self.con.commit()
         if not similar_companies:
             query = "delete from crawler.tmp_table_updation_{}  where "\
-                    " linkedin_url not in (select url from crawler.list_items_urls where list_id = %s) and " \
-                    " linkedin_url not in (select redirect_url from crawler.list_items_urls a " \
+                    " company_linkedin_url not in (select url from crawler.list_items_urls where list_id = %s) and " \
+                    " company_linkedin_url not in (select redirect_url from crawler.list_items_urls a " \
                     " join crawler.linkedin_company_redirect_url b using(url) where a.list_id = %s) ".format(table_name_id)
             self.con.execute(query,(list_id,list_id,))
             self.con.commit()
@@ -271,7 +274,7 @@ class TableUpdater(object):
         query = "create table crawler.tmp_table_updation_{} as "\
                 "select distinct unnest(crawler.clean_linkedin_url_array(crawler.extract_related_info(string_to_array(related_people,'|'),1))) as url, "\
                 "unnest(crawler.clean_linkedin_url_array(crawler.extract_related_info(string_to_array(related_people,'|'),3))) as position, "\
-                " string_to_array(company_linkedin_url,'|') as linkedin_url,list_id,list_items_url_id "\
+                " string_to_array(company_linkedin_url,'|') as company_linkedin_url,list_id,list_items_url_id "\
                 "from crawler.linkedin_people_base where related_people like '%%linkedin%%' and list_id = %s".format(table_name_id)
         self.con.cursor.execute(query,(list_id,))
         self.con.commit()
@@ -292,10 +295,10 @@ class TableUpdater(object):
         self.con.commit()
         self.con.execute('analyze crawler.tmp_table1_updation_{}'.format(table_name_id))
         self.con.commit()
-        if not similar_companies:
+        if not similar_companies: #not optimal, because in people page, company url is always name, but sometime the url we give can be number based
             query = "delete from crawler.tmp_table_updation_{} where " \
-                    " not((linkedin_url && any(select array_agg(url) from crawler.list_items_urls where list_id = %s))  or " \
-                    " (linkedin_url && (select array_agg(redirect_url) from crawler.list_items_urls a join " \
+                    " not((company_linkedin_url && any(select array_agg(url) from crawler.list_items_urls where list_id = %s))  or " \
+                    " (company_linkedin_url && (select array_agg(redirect_url) from crawler.list_items_urls a join " \
                     " crawler.linkedin_company_redirect_url b using(url) where a.list_id = %s)) )".format(table_name_id)
             self.con.execute(query,(list_id,list_id,))
             self.con.commit()
