@@ -1,25 +1,26 @@
 __author__ = 'joswin'
 import psycopg2
 
-from constants import database,user,password,host
+from constants import from_database,from_host,from_password,from_user,from_port,to_database,to_host,to_password,to_user,to_port
 
 class Util(object):
     def __init__(self):
         '''
         :return:
         '''
-        self.con = psycopg2.connect(database='pipecandy_db1', user='pipecandy_user',password='pipecandy',host='localhost')
+        self.to_con = psycopg2.connect(database=to_database, user=to_user,password=to_password,host=to_host,port=to_port)
+        self.from_con = psycopg2.connect(database=from_database, user=from_user,password=from_password,host=from_host,port=from_port)
 
     def create_tables(self):
         '''
         :return:
         '''
-        self.cursor = self.con.cursor()
+        self.cursor = self.to_con.cursor()
         query = 'DROP TABLE IF EXISTS linkedin_company_base_DATE'
         self.cursor.execute(query)
         query = 'DROP TABLE IF EXISTS linkedin_people_base_DATE'
         self.cursor.execute(query)
-        self.con.commit()
+        self.to_con.commit()
         query = "CREATE TABLE linkedin_company_base_DATE ("\
                 "id uuid DEFAULT uuid_generate_v1mc() NOT NULL,"\
                 "linkedin_url text,"\
@@ -60,10 +61,23 @@ class Util(object):
                 "created_on timestamp without time zone DEFAULT now()"\
                 ") "
         self.cursor.execute(query)
-        self.con.commit()
+        self.to_con.commit()
         self.cursor.close()
 
     def insert_to_table(self):
         '''
         :return:
         '''
+        # psql --dbname=postgresql://postgres:postgres@localhost:5432/crawler_service_test -c
+        # "copy (select * from crawler.linkedin_company_base where created_on> '2016-09-08 14:00:00'  ) to stdout" |
+        # psql --dbname=postgresql://pipecandy_user:pipecandy@192.168.1.142:5432/pipecandy_db1
+        #  -c "copy linkedin_company_base_DATE from stdin"
+
+        # psql --dbname=postgresql://postgres:postgres@localhost:5432/crawler_service_test -c
+        #  "copy (select * from crawler.linkedin_people_base where created_on> '2016-09-08 14:00:00' ) to stdout" |
+        # psql --dbname=postgresql://pipecandy_user:pipecandy@192.168.1.142:5432/pipecandy_db1
+        #  -c "copy linkedin_people_base_DATE from stdin"
+
+        dump_command = 'psql --dbname=postgresql://{from_user}:{from_password}@{from_host}:{from_port}/{from_db} '\
+                    '-c " copy (select * from crawler.linkedin_company_base) "'
+        pass

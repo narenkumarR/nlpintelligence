@@ -24,8 +24,8 @@ class CompanyLinkedinURLExtractorSingle(object):
         self.ddg_crawler = DuckduckgoCrawler(visible=visible)
         # self.search_string = r'linkedin.com/company/|linkedin.com/companies/|linkedin.com/pub/|linkedin.com/in/' #earlier linkedin.com/company
         self.search_string_website = r'linkedin.com/company/|linkedin.com/companies/|linkedin.com/pub/|linkedin.com/in/'
-        # self.search_string_ddg = r'linkedin.com/company/|linkedin.com/companies/'
-        self.search_string_ddg = r'linkedin.com/pub/(?!dir/)|linkedin.com/in/'
+        self.search_string_ddg = r'linkedin.com/company/|linkedin.com/companies/'
+        # self.search_string_ddg = r'linkedin.com/company/|linkedin.com/companies/|linkedin.com/pub/(?!dir/)|linkedin.com/in/'
 
     def get_linkedin_url(self,inp_tuple,time_out=30):
         '''

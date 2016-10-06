@@ -80,6 +80,13 @@ def run_main(list_name=None,company_csv_loc=None,desig_loc=None,similar_companie
     con.commit()
     con.close_cursor()
     # os.system("find /tmp/* -maxdepth 1 -type d -name 'tmp*' |  xargs rm -rf")
+    if prospect_db :
+        #this is done before urls extraction because some domains will be already present in
+        #prospect db even though linkedin_url not present in the list.
+        logging.info('Fetching data in Prospect Database')
+        fp = FetchProspectDB()
+        fp.fetch_data(list_id,prospect_query,desig_list=desig_list)
+        logging.info('Completed fetching data from prospect db')
     if extract_urls:
         url_extractor = LkdnUrlExtrMain(visible=visible)
         logging.info('going to find linkedin urls')
@@ -88,11 +95,12 @@ def run_main(list_name=None,company_csv_loc=None,desig_loc=None,similar_companie
         t1.daemon = True
         t1.start()
         time.sleep(120)
-    if prospect_db and main_thread:
-        logging.info('Fetching data in Prospect Database')
-        fp = FetchProspectDB()
-        fp.fetch_data(list_id,prospect_query,desig_list=desig_list)
-        logging.info('Completed fetching data from prospect db')
+        if prospect_db :
+            #after finding linkedin_urls, look in prospect db again
+            logging.info('Fetching data in Prospect Database')
+            fp = FetchProspectDB()
+            fp.fetch_data(list_id,prospect_query,desig_list=desig_list)
+            logging.info('Completed fetching data from prospect db')
     gc.collect()
     start_time = time.time()
     limit_no_1 = n_threads*n_urls_in_thread

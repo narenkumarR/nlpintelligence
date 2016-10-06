@@ -216,13 +216,13 @@ class LinkedinOrganizationService(object):
         '''
         :return:
         '''
-        logging.info('get_employees started')
+        # logging.info('get_employees started')
         try:
             p_list = self.soup.find('div',{'class':'company-employees module'}).findAll('li')
-            logging.info('plist length:{}'.format(len(p_list)))
+            # logging.info('plist length:{}'.format(len(p_list)))
         except:
             try:
-                logging.info('went to exception. try the logging option')
+                logging.info('company_part:employee_details went to exception. try the logging option')
                 p_list = self.soup.find('div',{'class':'company-density module'}).findAll('li')
                 logging.info('plist len loggin option 1 {}'.format(len(p_list)))
             except:
@@ -254,7 +254,7 @@ class LinkedinOrganizationService(object):
             except:
                 tmp_dic['Designation'] = ''
             out_list.append(tmp_dic)
-        logging.info('out_list : {}'.format(out_list))
+        # logging.info('out_list : {}'.format(out_list))
         self.details['Employee Details'] = out_list
 
     # @dec_fun

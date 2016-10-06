@@ -1,0 +1,7 @@
+#before running:
+edit the email_details.py file to include the username and password.(currently supports only gmail)
+
+Login to gmail and enable imap access (Settings -> Forwarding and POP/IMAP -> Enable IMAP)
+Go to https://www.google.com/settings/security/lesssecureapps and turn on access for less secure apps
+
+After running, revert these changes
