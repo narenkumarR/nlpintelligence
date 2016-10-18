@@ -48,7 +48,7 @@ class LkdnUrlExtrMain(object):
         #     f.write('Following Company names had problems:\n')
         # iterating through results
         for key,linkedin_url,conf in self.cc.get_linkedin_url_multi(tmp_dic,n_threads=1,time_out=100):
-            logging.info('linkedin_url_finder: data from url extractor, key:{},linkedin_url:{},conf:{}'.format(key,linkedin_url,conf))
+            # logging.info('linkedin_url_finder: data from url extractor, key:{},linkedin_url:{},conf:{}'.format(key,linkedin_url,conf))
             if linkedin_url:
                 # insert into list_items_urls table
                 insert_query = "INSERT INTO {} (list_id,list_items_id,url) VALUES (%s,%s,split_part(split_part(split_part(%s,'?trk',1),'/careers',1),'/employee-insights',1)) "\
@@ -103,10 +103,15 @@ if __name__ == "__main__":
     #                      dest='desig_loc',
     #                      help='location of csv containing target designations',
     #                      default=None)
+    optparser.add_option('-v', '--visible',
+                         dest='visible',
+                         help='visible',
+                         default=0,type='int')
     (options, args) = optparser.parse_args()
     list_name = options.list_name
+    visible = options.visible
     # desig_loc = options.desig_loc
 
-    extractor = LkdnUrlExtrMain()
+    extractor = LkdnUrlExtrMain(visible=visible)
     extractor.run_command(list_name)
 

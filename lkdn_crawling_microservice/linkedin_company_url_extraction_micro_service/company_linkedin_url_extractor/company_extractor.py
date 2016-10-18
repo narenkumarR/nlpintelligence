@@ -52,9 +52,10 @@ class CompanyLinkedinURLExtractorSingle(object):
                 pass
         res,conf = self.get_linkedin_url_ddg(company_url,additional_text)
         if res and conf>0:
+            logging.info('Found linkedin url for domain: {} ,name: {} ,url: {}'.format(company_url,additional_text,res))
             return res,conf
         else:
-            logging.info('Could not find linkedin url for company : {}'.format(company_url))
+            logging.info('Could not find linkedin url for company : {} ,name: {}'.format(company_url,additional_text))
             return '',0
 
     def get_linkedin_url_ddg(self,company_text,additional_text=''):
@@ -62,21 +63,23 @@ class CompanyLinkedinURLExtractorSingle(object):
         :param company_text: can be the website of the company or company name
         :return:
         '''
-        if company_text:
-            search_query = company_text+' linkedin'
-            search_res = self.ddg_crawler.fetch_results(search_query)
-            conf = 95
-            res_list = []
-            for dic1 in search_res:
-                res_url,text = dic1['url'],dic1['text']
-                if re.search(self.search_string_ddg,res_url):
-                    res_list.append((res_url,text,conf))
-                conf = min(conf-5,60)
-            final_res,final_conf = self.get_best_res_from_ddg_results(res_list,company_text,'')
-            if final_conf >0 and final_res:
-                return final_res,final_conf
+        # need to make the results better. from now onwards, company_text will be website, and additional_text will be
+        # company name. search only using company name
+        # if company_text:
+        #     search_query = company_text+' linkedin'
+        #     search_res = self.ddg_crawler.fetch_results(search_query)
+        #     conf = 95
+        #     res_list = []
+        #     for dic1 in search_res:
+        #         res_url,text = dic1['url'],dic1['text']
+        #         if re.search(self.search_string_ddg,res_url):
+        #             res_list.append((res_url,text,conf))
+        #         conf = min(conf-5,60)
+        #     final_res,final_conf = self.get_best_res_from_ddg_results(res_list,company_text,'')
+        #     if final_conf >0 and final_res:
+        #         return final_res,final_conf
         if additional_text:
-            search_query = company_text + ' ' + additional_text+' linkedin'
+            search_query = additional_text+' linkedin'
             search_res = self.ddg_crawler.fetch_results(search_query)
             conf = 90
             res_list = []
@@ -85,7 +88,7 @@ class CompanyLinkedinURLExtractorSingle(object):
                 if re.search(self.search_string_ddg,res_url):
                     res_list.append((res_url,text,conf))
                 conf = min(conf-5,60)
-            final_res,final_conf = self.get_best_res_from_ddg_results(res_list,company_text+' '+additional_text,'')
+            final_res,final_conf = self.get_best_res_from_ddg_results(res_list,additional_text,'')
             if final_conf >0 and final_res:
                 return final_res,final_conf
         return '',0
@@ -101,7 +104,7 @@ class CompanyLinkedinURLExtractorSingle(object):
             company_text = re.sub('[^a-zA-Z0-9]',' ',company_text)
         company_text = company_text.lower()
         company_text = re.sub(' +',' ',company_text)
-        company_text = company_common_reg.sub(' ',company_text)
+        company_text = company_common_reg.sub(' ',company_text,re.IGNORECASE)
         company_text = re.sub(' +',' ',company_text)
         company_text_wrds = company_text.split(' ')
         res_list_new = []
@@ -130,8 +133,10 @@ class CompanyLinkedinURLExtractorSingle(object):
                     pass
         # return the url with max match_cnt. 
         # if more than 1 url, this will go into exception(not done for now, take first one)
+        # taking first one causes lots of problems. not giving any result
         if len(res_list_new) >= 1:
-            return res_list_new[0],90 #
+            # return res_list_new[0],90 #
+            return '',0
         else:
             return '',0
 
@@ -331,13 +336,15 @@ class CompanyLinkedinURLExtractorMulti(object):
         # start yielding results
         found_list = []
         logging.info('company extraction: looking at out_queue for urls')
-        while True:
+        while not self.in_queue.empty():
             try:
-                key,res = self.out_queue.get(timeout=60)
+                key,res = self.out_queue.get(timeout=240)
             except:
-                break
+                logging.exception('company extraction: error while getting from out queue')
+                # break # this is not needed???
+                continue
             linkedin_url,conf = res[0],res[1]
-            logging.info('company extraction: url extracted :{}, conf:{}'.format(linkedin_url,conf))
+            # logging.info('company extraction: url extracted :{}, conf:{}'.format(linkedin_url,conf))
             yield key,linkedin_url,conf # yield key, url and flag_found(1). if not found return 0
             found_list.append(key)
             # time.sleep(1)
@@ -352,8 +359,13 @@ class CompanyLinkedinURLExtractorMulti(object):
         # try to yield from out_queue again if anything is remaining in the queue
         logging.info('company extraction: trying to fetch from out queue again')
         while not self.out_queue.empty() or not self.in_queue.empty():
-            key,linkedin_url = self.out_queue.get()
-            yield key,linkedin_url
+            key,res = self.out_queue.get()
+            try:
+                key,res = self.out_queue.get(timeout=60)
+            except:
+                break
+            linkedin_url,conf = res[0],res[1]
+            yield key,linkedin_url,conf
             found_list.append(key)
             # time.sleep(30)
         logging.info('company extraction: out queue empty. send remaining as not able to find ')

@@ -37,7 +37,7 @@ def run_main(list_name=None,company_csv_loc=None,desig_loc=None,similar_companie
     :return:
     '''
     logging.basicConfig(filename='log_file.log', level=logging.INFO,format='%(asctime)s %(message)s')
-    logging.info('started main program')
+    logging.info('started main program. n_iter:{}'.format(n_iters))
     if not list_name:
         raise ValueError('list name must be provided')
     if company_csv_loc and company_csv_loc != 'None':
@@ -80,12 +80,21 @@ def run_main(list_name=None,company_csv_loc=None,desig_loc=None,similar_companie
     con.commit()
     con.close_cursor()
     # os.system("find /tmp/* -maxdepth 1 -type d -name 'tmp*' |  xargs rm -rf")
+    if main_thread:
+        logging.info('updating tables for iteration')
+        try:
+            tables_updater.update_tables(list_id,desig_list,similar_companies,company_select_query=prospect_query)
+        except:
+            logging.exception('Error while updating tables. Continue without updation')
     if prospect_db :
         #this is done before urls extraction because some domains will be already present in
         #prospect db even though linkedin_url not present in the list.
         logging.info('Fetching data in Prospect Database')
         fp = FetchProspectDB()
-        fp.fetch_data(list_id,prospect_query,desig_list=desig_list)
+        try:
+            fp.fetch_data(list_id,prospect_query,desig_list=desig_list)
+        except:
+            logging.exception('Error while fetching data. Continue without fetching.')
         logging.info('Completed fetching data from prospect db')
     if extract_urls:
         url_extractor = LkdnUrlExtrMain(visible=visible)
@@ -99,7 +108,10 @@ def run_main(list_name=None,company_csv_loc=None,desig_loc=None,similar_companie
             #after finding linkedin_urls, look in prospect db again
             logging.info('Fetching data in Prospect Database')
             fp = FetchProspectDB()
-            fp.fetch_data(list_id,prospect_query,desig_list=desig_list)
+            try:
+                fp.fetch_data(list_id,prospect_query,desig_list=desig_list)
+            except:
+                logging.exception('Error while fetching data. Continue without fetching.')
             logging.info('Completed fetching data from prospect db')
     gc.collect()
     start_time = time.time()
@@ -114,15 +126,18 @@ def run_main(list_name=None,company_csv_loc=None,desig_loc=None,similar_companie
             if time.time() - start_time > hours*60*60:
                 break
         logging.info('starting an iteration of crawling')
+        crawler.run_both_single(list_id=list_id,visible=visible,limit_no=limit_no_1,time_out = hours,what=what,
+                                n_threads=n_threads,login=login)
         if main_thread:
             # if prospect_db:
             #     logging.info('Fetching data in Prospect Database')
             #     fp.fetch_data(list_id,prospect_query,desig_list=desig_list)
             #     logging.info('Completed fetching data from prospect db')
             logging.info('updating tables for iteration')
-            tables_updater.update_tables(list_id,desig_list,similar_companies,company_select_query=prospect_query)
-        crawler.run_both_single(list_id=list_id,visible=visible,limit_no=limit_no_1,time_out = hours,what=what,
-                                n_threads=n_threads,login=login)
+            try:
+                tables_updater.update_tables(list_id,desig_list,similar_companies,company_select_query=prospect_query)
+            except:
+                logging.exception('Error while updating tables. Continue without updation')
         #os.system("pkill -9 firefox")
         #os.system("pkill -9 Xvfb")
         #os.system("find /tmp/* -maxdepth 1 -type d -name 'tmp*' |  xargs rm -rf")
