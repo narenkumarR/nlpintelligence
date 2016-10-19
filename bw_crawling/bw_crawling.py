@@ -122,9 +122,17 @@ def find_techs_selenium(url):
         trs = soup.find('div',{'class':'span8'}).find('tbody').findAll('tr')
         for tr in trs:
             try:
+                det_list = []
                 text = tr.find('a').text
                 url = tr.find('a')['href']
-                out_list.append((text,url))
+                det_list.extend([text,url])
+                tds = tr.find_all('td')[1:]
+                for td in tds:
+                    try:
+                        det_list.append(td.text.strip())
+                    except:
+                        det_list.append('')
+                out_list.append(det_list)
             except:
                 continue
     except:
@@ -147,6 +155,9 @@ for ind in range(tmp.shape[0]):
     else:
         out_dic[dic_key] = techs
 
+import pickle
+with open('BW_technologies_18Oct.pkl','w') as f:
+    pickle.dump(out_dic,f)
 
 #report creation
 sp.browser.get('https://trendspro.builtwith.com/createReport/builtwith')
