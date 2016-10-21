@@ -36,9 +36,11 @@ class SeleniumParser(object):
         :param use_tor: flag to use tor. Tor should be started before running this code.
         :return:
         '''
+        # self.visible = visible
         if not visible:
             self.display = Display(visible=0, size=(800, 600))
             self.display.start()
+            # self.xvfb_pid = self.display.pid
         else:
             self.display = None
         if browser == 'PhantomJS':

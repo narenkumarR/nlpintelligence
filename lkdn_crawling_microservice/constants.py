@@ -73,7 +73,7 @@ common_company_wrds = ['limited', 'all', 'just', 'being', 'over', 'both', 'throu
                        'he', 'me', 'myself', 'this', 'up', 'will', 'while', 'associates', 'can', 'were', 'my', 'and',
                        'then', 'is', 'in', 'am', 'it', 'an', 'as', 'itself', 'at', 'have', 'further', 'technology',
                        'their', 'if', 'again', 'no', 'media', 'agency', 'when', 'same', 'any', 'how', 'other', 'which',
-                       'digital',  'inc', 'development', 'who', 'most', 'services', 'such', 'why', 'engineering',
+                       'digital',  'inc','inc.', 'development', 'who', 'most', 'services', 'such', 'why', 'engineering',
                         'center', 'medical', 'having', 'so', 'corporation', 'the', 'yours', 'once','nan','NaN']
 
 company_common_reg = re.compile(r'\b'+r'\b|\b'.join(common_company_wrds)+r'\b')

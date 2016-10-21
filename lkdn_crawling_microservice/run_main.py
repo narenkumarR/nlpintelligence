@@ -88,10 +88,11 @@ if __name__ == "__main__":
         n_iter = 0
     login = options.login
     while True:
-        # try:
-            os.system('pkill -9 firefox')
-            os.system('pkill -9 Xvfb')
-            os.system("find /tmp/* -maxdepth 1 -type d -name 'tmp*' |  xargs rm -rf")
+        try:
+            # os.system('pkill -9 firefox')
+            # os.system('pkill -9 Xvfb')
+            # os.system("find /tmp/* -maxdepth 1 -type d -name 'tmp*' |  xargs rm -rf")
+            # os.system("find /tmp/* -maxdepth 0 -type f -name 'tmpaddon*' | xargs rm -rf")
             os.system('python main.py -n {} -f {} -d {} -s {} -t {} -u {} -p {} -q "{}" -v {} -w {} -m {} -r {} -k {} -i {} -l {}'.format(list_name,csv_company,
                                                                                         desig_loc,similar_companies,
                                                                                         hours,extract_urls,prospect_db,prospect_query,
@@ -106,5 +107,9 @@ if __name__ == "__main__":
                 n_iters = n_iters -1
                 if n_iters <= 0:
                     break
-        # except:
-        #     continue
+        except:
+            # os.system('pkill -9 firefox')
+            # os.system('pkill -9 Xvfb')
+            # os.system("find /tmp/* -maxdepth 1 -type d -name 'tmp*' |  xargs rm -rf")
+            # os.system("find /tmp/* -maxdepth 0 -type f -name 'tmpaddon*' | xargs rm -rf")
+            break
