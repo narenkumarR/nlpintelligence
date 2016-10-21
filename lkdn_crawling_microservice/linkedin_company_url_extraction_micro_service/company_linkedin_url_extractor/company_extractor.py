@@ -25,13 +25,15 @@ class CompanyLinkedinURLExtractorSingle(object):
         # self.search_string = r'linkedin.com/company/|linkedin.com/companies/|linkedin.com/pub/|linkedin.com/in/' #earlier linkedin.com/company
         self.search_string_website = r'linkedin.com/company/|linkedin.com/companies/|linkedin.com/pub/|linkedin.com/in/'
         self.search_string_ddg = r'linkedin.com/company/|linkedin.com/companies/'
+        self.search_string_people = r'linkedin.com/pub/|linkedin.com/in/'
         # self.search_string_ddg = r'linkedin.com/company/|linkedin.com/companies/|linkedin.com/pub/(?!dir/)|linkedin.com/in/'
 
     def get_linkedin_url(self,inp_tuple,time_out=30):
         '''
-        :param inp_tuple:
+        :param inp_tuple:(company_url,additional_text)
         :param time_out:
-        :return:
+        :return:company_url,confidence,other_urls_list
+        other_urls_list are urls of people.
         '''
         logging.info('company extraction: trying for company : {}'.format(inp_tuple))
         company_url,additional_text = inp_tuple
@@ -47,16 +49,16 @@ class CompanyLinkedinURLExtractorSingle(object):
                 urls = self.get_urls_soupinput(soup,company_url)
                 linkedin_url,confidence = self.get_linkedin_company_url_listinput(urls,company_url)
                 if confidence>0 and linkedin_url:
-                    return linkedin_url,confidence
+                    return linkedin_url,confidence,[]
             else: #else try from ddg. if could not find from main page also, try ddg
                 pass
-        res,conf = self.get_linkedin_url_ddg(company_url,additional_text)
+        res,conf,people_urls = self.get_linkedin_url_ddg(company_url,additional_text)
         if res and conf>0:
             logging.info('Found linkedin url for domain: {} ,name: {} ,url: {}'.format(company_url,additional_text,res))
-            return res,conf
+            return res,conf,people_urls
         else:
             logging.info('Could not find linkedin url for company : {} ,name: {}'.format(company_url,additional_text))
-            return '',0
+            return '',0,[]
 
     def get_linkedin_url_ddg(self,company_text,additional_text=''):
         '''
@@ -82,16 +84,19 @@ class CompanyLinkedinURLExtractorSingle(object):
             search_query = additional_text+' linkedin'
             search_res = self.ddg_crawler.fetch_results(search_query)
             conf = 90
-            res_list = []
+            res_list,people_list = [],[]
             for dic1 in search_res:
                 res_url,text = dic1['url'],dic1['text']
                 if re.search(self.search_string_ddg,res_url):
                     res_list.append((res_url,text,conf))
+                if re.search(self.search_string_people,res_url):
+                    # if not re.search(r'at linkedin',text,re.IGNORECASE): this works in google search, not in ddg
+                    people_list.append(res_url)
                 conf = min(conf-5,60)
             final_res,final_conf = self.get_best_res_from_ddg_results(res_list,additional_text,'')
             if final_conf >0 and final_res:
-                return final_res,final_conf
-        return '',0
+                return final_res,final_conf,people_list
+        return '',0,[]
 
     def get_best_res_from_ddg_results(self,res_list,company_text,additional_text=''):
         ''' match the results to get best result from ddg results. Will use string matching here
@@ -141,7 +146,7 @@ class CompanyLinkedinURLExtractorSingle(object):
             return '',0
 
     def get_linkedin_url_threaded(self,company_url,time_out=30):
-        '''threaded implementation
+        '''threaded implementation. not used
         :param company_url:
         :return:
         '''
@@ -223,7 +228,7 @@ class CompanyLinkedinURLExtractorSingle(object):
         return '',0
 
     def get_linkedin_secondary_research(self,base_url):
-        '''when directly this class is called for one url, this can be used
+        '''when directly this class is called for one url, this can be used. not used
         :param urls: list of urls to follow. not using currently
         :param base_url:
         :return:
@@ -239,7 +244,7 @@ class CompanyLinkedinURLExtractorSingle(object):
         return ('',0)
 
     def get_link_ddg_search(self,base_url,event,res_dic):
-        '''when directly this class is called for one url, this can be used
+        '''when directly this class is called for one url, this can be used. not used
         :param base_url:
         :return:
         '''
@@ -277,6 +282,7 @@ class CompanyLinkedinURLExtractorMulti(object):
             # logging.info('Trying to find linkedin url for : {0},{1}, thread:{2}'.format(key,inp_tuple,threading.currentThread()))
             try:
                 res = link_extractor.get_linkedin_url(inp_tuple,time_out=self.time_out)
+                #res is a tuple (company_url,confidence,other_urls_list)
                 # if res:
                 self.out_queue.put((key,res))
                 # logging.info('completed for : {0},{1}, res:{2},thread:{3}'.format(key,inp_tuple,res,threading.currentThread()))
@@ -285,12 +291,13 @@ class CompanyLinkedinURLExtractorMulti(object):
             self.in_queue.task_done()
 
     def get_outdic(self):
-        '''
+        '''not used
         :return:dictionary of key:linkedin_url fetched pair
         '''
         out_dic = {}
         while not self.out_queue.empty():
             key,linkedin_url = self.out_queue.get() #what we get here is not linkedin url. it is a tuple
+            #                                         (company_url,confidence,other_urls_list)
             # logging.info('fetched from out_queue: {0},{1}'.format(key,linkedin_url))
             out_dic[key] = linkedin_url
         for key in self.url_dict.keys():
@@ -300,6 +307,9 @@ class CompanyLinkedinURLExtractorMulti(object):
         return out_dic
 
     def yield_outs(self):
+        ''' not used
+        :return:
+        '''
         while not self.out_queue.empty():
             key,linkedin_url = self.out_queue.get()
             yield key,linkedin_url
@@ -339,13 +349,14 @@ class CompanyLinkedinURLExtractorMulti(object):
         while not self.in_queue.empty():
             try:
                 key,res = self.out_queue.get(timeout=240)
+                # res is a tuple (company_url,confidence,other_urls_list)
             except:
                 logging.exception('company extraction: error while getting from out queue')
                 # break # this is not needed???
                 continue
-            linkedin_url,conf = res[0],res[1]
+            linkedin_url,conf,people_urls = res[0],res[1],res[2]
             # logging.info('company extraction: url extracted :{}, conf:{}'.format(linkedin_url,conf))
-            yield key,linkedin_url,conf # yield key, url and flag_found(1). if not found return 0
+            yield key,linkedin_url,conf,people_urls # yield key, url and flag_found(1). if not found return 0
             found_list.append(key)
             # time.sleep(1)
         logging.info('company extraction: out_queue is empty ')
@@ -361,15 +372,15 @@ class CompanyLinkedinURLExtractorMulti(object):
         while not self.out_queue.empty() or not self.in_queue.empty():
             key,res = self.out_queue.get()
             try:
-                key,res = self.out_queue.get(timeout=60)
+                key,res = self.out_queue.get(timeout=60) # res is a tuple (company_url,confidence,other_urls_list)
             except:
                 break
-            linkedin_url,conf = res[0],res[1]
-            yield key,linkedin_url,conf
+            linkedin_url,conf,people_urls = res[0],res[1],res[2]
+            yield key,linkedin_url,conf,people_urls
             found_list.append(key)
             # time.sleep(30)
         logging.info('company extraction: out queue empty. send remaining as not able to find ')
         for key in self.url_dict.keys():
             if key not in found_list:
                 # logging.info('could not find linkedin ur for key:{0}'.format(key))
-                yield key,'',0
+                yield key,'',0,[]

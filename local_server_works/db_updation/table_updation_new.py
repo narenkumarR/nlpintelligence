@@ -92,6 +92,9 @@ class LinkedinDumpUtil(object):
             " add column location text, add column region text, add column country text".format(table_name)
         self.cursor.execute(query)
         self.con.commit()
+        query = "update {}_domain_tmp set wesite_cleaned = domain".format(table_name)
+        self.cursor.execute(query)
+        self.con.commit()
         queries = (
             "update {}_domain_tmp set linkedin_name = split_part(linkedin_url,'linkedin.com/company/',2) "\
             " where  linkedin_url like '%linkedin.com/company/%'".format(table_name),
@@ -118,11 +121,7 @@ class LinkedinDumpUtil(object):
             "update {}_domain_tmp set domain = '' where domain like '%vimeo.com%' and linkedin_name != 'vimeo'".format(table_name),
             "update {}_domain_tmp set domain = '' where domain like '%instagram.com%' and linkedin_name != 'instagram'".format(table_name),
             "update {}_domain_tmp set domain = '' where domain like '%companycheck.co.uk%' and linkedin_name != 'company-check-ltd'".format(table_name),
-            "update {}_domain_tmp set domain = '' where domain like '%tinyurl.com%' and linkedin_name != 'tinyurl'".format(table_name),
-            "update {}_domain_tmp set linkedin_name = split_part(linkedin_url,'linkedin.com/company/',2) "\
-                " where  linkedin_url like '%linkedin.com/company/%' ".format(table_name),
-            "update {}_domain_tmp set linkedin_name = split_part(linkedin_url,'linkedin.com/companies/',2) "\
-                "where  linkedin_url like '%linkedin.com/companies/%' ".format(table_name)
+            "update {}_domain_tmp set domain = '' where domain like '%tinyurl.com%' and linkedin_name != 'tinyurl'".format(table_name)
             )
         for query in queries:
             self.cursor.execute(query)

@@ -1,6 +1,7 @@
 __author__ = 'joswin'
 
 import psycopg2
+import logging
 from constants import database,user,password,host
 
 class PostgresConnect(object):
@@ -21,6 +22,7 @@ class PostgresConnect(object):
         :return:
         '''
         self.con = psycopg2.connect(database=self.database, user=self.user,password=self.password,host=self.host)
+        self.cursor = self.con.cursor()
         # self.get_cursor()
 
     def get_cursor(self):
@@ -49,12 +51,20 @@ class PostgresConnect(object):
         :param commit : if commit, commit at the end
         :return:
         '''
-        if args:
-            self.cursor.execute(query,args)
-        else:
-            self.cursor.execute(query)
-        if commit:
-            self.commit()
+        try:
+            if self.cursor.closed:
+                self.get_cursor()
+            if args:
+                self.cursor.execute(query,args)
+            else:
+                self.cursor.execute(query)
+            if commit:
+                self.commit()
+        except:
+            logging.exception('error happened while trying to execute query:{}, args:{}'.format(query,args))
+            self.con.rollback()
+            # self.close_cursor()
+            # self.get_cursor()
 
     def execute_async(self,query,commit = False):
         ''' for parallel processes, check if connection is executing something. execute only if returns false

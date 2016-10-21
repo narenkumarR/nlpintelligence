@@ -96,7 +96,7 @@ def run_main(list_name=None,company_csv_loc=None,desig_loc=None,similar_companie
         except:
             logging.exception('Error while fetching data. Continue without fetching.')
         logging.info('Completed fetching data from prospect db')
-    if extract_urls:
+    if extract_urls: #better to run this process separately
         url_extractor = LkdnUrlExtrMain(visible=visible)
         logging.info('going to find linkedin urls')
         # os.system("pkill -9 firefox")
@@ -106,13 +106,13 @@ def run_main(list_name=None,company_csv_loc=None,desig_loc=None,similar_companie
         time.sleep(120)
         if prospect_db :
             #after finding linkedin_urls, look in prospect db again
-            logging.info('Fetching data in Prospect Database')
+            logging.info('Fetching data in Prospect Database after linkedin url extraction')
             fp = FetchProspectDB()
             try:
                 fp.fetch_data(list_id,prospect_query,desig_list=desig_list)
             except:
                 logging.exception('Error while fetching data. Continue without fetching.')
-            logging.info('Completed fetching data from prospect db')
+            logging.info('Completed fetching data from prospect db (after linkedin url extraction)')
     gc.collect()
     start_time = time.time()
     limit_no_1 = n_threads*n_urls_in_thread
