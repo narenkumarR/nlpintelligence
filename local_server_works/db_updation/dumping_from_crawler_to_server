@@ -4,8 +4,8 @@
 ##############################################################################
 --dump tables directly with where condition. first create the table schema in the server 
 --note: DATE is not necessary here. can use any other name (not the base table name). DATE is used to know when last dump was done by me.
-DROP TABLE IF EXISTS linkedin_company_base_13_10_2016_17_15;
-CREATE TABLE linkedin_company_base_13_10_2016_17_15 (
+DROP TABLE IF EXISTS linkedin_company_base_2016_10_21_12_30;
+CREATE TABLE linkedin_company_base_2016_10_21_12_30 (
     id uuid DEFAULT uuid_generate_v1mc() NOT NULL,
     linkedin_url text,
     company_name text,
@@ -23,8 +23,8 @@ CREATE TABLE linkedin_company_base_13_10_2016_17_15 (
     list_items_url_id uuid,
     created_on timestamp without time zone DEFAULT now()
 );
-DROP TABLE IF EXISTS linkedin_people_base_13_10_2016_17_15;
-CREATE TABLE linkedin_people_base_13_10_2016_17_15 (
+DROP TABLE IF EXISTS linkedin_people_base_2016_10_21_12_30;
+CREATE TABLE linkedin_people_base_2016_10_21_12_30 (
     id uuid DEFAULT uuid_generate_v1mc() NOT NULL,
     linkedin_url text,
     name text,
@@ -46,8 +46,8 @@ CREATE TABLE linkedin_people_base_13_10_2016_17_15 (
 );
 
 --now dump data into above tables
-psql --dbname=postgresql://postgres:postgres@localhost:5432/crawler_service_test -c "copy (select * from crawler.linkedin_company_base where created_on> '2016-09-29 19:00:00'  ) to stdout" | psql --dbname=postgresql://pipecandy_user:pipecandy@192.168.1.142:5432/pipecandy_db1  -c "copy linkedin_company_base_13_10_2016_17_15 from stdin"
-psql --dbname=postgresql://postgres:postgres@localhost:5432/crawler_service_test -c "copy (select * from crawler.linkedin_people_base where created_on> '2016-09-29 19:00:00' ) to stdout" | psql --dbname=postgresql://pipecandy_user:pipecandy@192.168.1.142:5432/pipecandy_db1  -c "copy linkedin_people_base_13_10_2016_17_15 from stdin"
+psql --dbname=postgresql://postgres:postgres@localhost:5432/crawler_service_test -c "copy (select * from crawler.linkedin_company_base where created_on> '2016-10-13 17:15:00' and created_on <= '2016-10-21 12:30:00' ) to stdout" | psql --dbname=postgresql://pipecandy_user:pipecandy@192.168.1.142:5432/pipecandy_db1  -c "copy linkedin_company_base_2016_10_21_12_30 from stdin"
+psql --dbname=postgresql://postgres:postgres@localhost:5432/crawler_service_test -c "copy (select * from crawler.linkedin_people_base where created_on> '2016-10-13 17:15:00' and created_on <= '2016-10-21 12:30:00' ) to stdout" | psql --dbname=postgresql://pipecandy_user:pipecandy@192.168.1.142:5432/pipecandy_db1  -c "copy linkedin_people_base_2016_10_21_12_30 from stdin"
 
 ##############################################################################
 ##############################################################################

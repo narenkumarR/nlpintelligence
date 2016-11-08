@@ -227,6 +227,7 @@ def gen_people_details(list_id,desig_list=None):
             " or (domain like 'instagram.com%' and company_name != 'Instagram') "\
             " or (domain like 'companycheck.co.uk%' and company_name != 'Company Check Ltd') "\
             " or (domain like 'tinyurl.com%' and company_name != 'TinyURL') "\
+            " or (domain like '%bit.ly%') "\
             " or (domain ~* 'wikipedia.org|sites.google.com|plus.google.com|goo.gl|itunes.apple.com|underconstruction.com') "\
             " or (domain in ('none','N','n','http','-','TBD','TBA','www','http:','.','None','NA','0','fb.com','x',"\
             "'ow.ly','na.na','na','http;','goo.gl','1','com') ) ".format(table_name_id)
@@ -234,11 +235,11 @@ def gen_people_details(list_id,desig_list=None):
     con.commit()
     query = "insert into crawler.people_details_for_email_verifier_new "\
             " (list_id,list_items_url_id,full_name,first_name,middle_name,last_name,domain,designation,company_name,"\
-            " company_website, headquarters,industry,company_size,founded,company_linkedin_url,people_linkedin_url)  "\
+            " company_website, headquarters,location_person,industry,company_size,founded,company_linkedin_url,people_linkedin_url)  "\
             "select distinct on (name_cleaned[2],name_cleaned[3],name_cleaned[4],website) "\
             " list_id,list_items_url_id,name as full_name, name_cleaned[2] as first_name, name_cleaned[3] as middle_name, "\
             "name_cleaned[4] as last_name, domain,  trim(designation) as designation,company_name, website as company_website, "\
-            " headquarters,industry,company_size,founded,company_linkedin_url,people_linkedin_url "\
+            " headquarters,location_person,industry,company_size,founded,company_linkedin_url,people_linkedin_url "\
             " from crawler.tmp_table1_email_gen_{} "\
             " on conflict do nothing".format(table_name_id)
     #" where "\
@@ -284,6 +285,7 @@ if __name__ == "__main__":
     con.execute("select id from crawler.list_table where list_name = %s",(list_name,))
     res = con.cursor.fetchall()
     con.close_cursor()
+    con.close_connection()
     if not res:
         raise ValueError('the list name given do not have any records')
     list_id = res[0][0]

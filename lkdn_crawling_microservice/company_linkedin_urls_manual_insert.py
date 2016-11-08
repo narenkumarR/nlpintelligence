@@ -17,7 +17,8 @@ def upload_url_list(csv_loc=None,list_name=None):
                 'should be {},{},{}'.format(company_name_field,company_details_field,linkedin_url_column))
     if list_name is None:
         raise ValueError('Need list name')
-    url_df = pd.read_csv(csv_loc)
+    # url_df = pd.read_csv(csv_loc)
+    url_df = pd.read_csv(csv_loc,sep=None)
     url_df = url_df.fillna('')
     url_list = list(url_df[linkedin_url_column])
     company_dets = [(url_df.iloc[i][company_name_field],url_df.iloc[i][company_details_field]) for i in range(url_df.shape[0])]

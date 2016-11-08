@@ -23,11 +23,15 @@ class SoupUtils(object):
         text = '\n'.join(chunk for chunk in chunks if chunk)
         return text
 
-    def get_all_links_soupinput(self,soup,base_url):
+    def get_all_links_soupinput(self,soup,base_url,merge_urls=True,only_visible=True):
         '''
         :param soup:
+        :param base_url:
+        :param merge_urls:
         :return:
         '''
+        if only_visible:
+            [s.extract() for s in soup(['style', 'script', '[document]', 'head', 'title'])]
         url_list, mail_list = [],[]
         url_tmp = []
         for a in soup.find_all('a', href=True):
@@ -35,7 +39,8 @@ class SoupUtils(object):
             if '@' in url:
                 mail_list.append(url)
             else:
-                url = self.url_cleaner.merge_urls(base_url,url)
+                if merge_urls:
+                    url = self.url_cleaner.merge_urls(base_url,url)
                 url = self.url_cleaner.clean_url(url)
                 if url not in url_tmp:
                     url_list.append((url,a.text))

@@ -13,8 +13,8 @@ from optparse import OptionParser
 from postgres_connect import PostgresConnect
 from linkedin_url_finder import LkdnUrlExtrMain
 from crawling_micro_service.crawler_generic import LinkedinCrawlerThread
-from crawling_micro_service.tables_updation import TableUpdater
-from crawling_micro_service.fetch_prospectsdb_data import FetchProspectDB
+from tables_updation import TableUpdater
+from fetch_prospectsdb_data import FetchProspectDB
 from gen_people_for_email import gen_people_details
 
 from constants import company_name_field,company_details_field,designations_column_name
