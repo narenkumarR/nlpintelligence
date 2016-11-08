@@ -151,11 +151,12 @@ create index on crawler.linkedin_people_redirect_url(url,redirect_url);
 
 
 --email table
-drop table if exists crawler.people_details_for_email_verifier;
-create table crawler.people_details_for_email_verifier (
+drop table if exists crawler.people_details_for_email_verifier_new;
+create table crawler.people_details_for_email_verifier_new (
     id UUID PRIMARY KEY DEFAULT uuid_generate_v1mc(),
     list_id UUID,
     list_items_url_id UUID,
+    full_name text,
     first_name text,
     middle_name text,
     last_name text,
@@ -163,9 +164,17 @@ create table crawler.people_details_for_email_verifier (
     designation text,
     company_name text,
     company_website text,
+    headquarters  text,
+    location_person text,    
+    industry text,
+    company_size text,
+    founded text,
+    company_linkedin_url text,
+    people_linkedin_url text, 
     created_on timestamp default current_timestamp
 );
-create unique index on crawler.people_details_for_email_verifier (list_id,list_items_url_id,first_name,middle_name,last_name,domain,designation);
+alter table crawler.people_details_for_email_verifier_new add primary key (id);
+create unique index on crawler.people_details_for_email_verifier_new (list_id,full_name,domain,designation);
 
 --functions
 CREATE OR REPLACE FUNCTION extract_related_info(in_array text[],look_value integer)

@@ -62,7 +62,8 @@ class CompanyLinkedinURLExtractorSingle(object):
 
     def get_linkedin_url_ddg(self,company_text,additional_text=''):
         '''
-        :param company_text: can be the website of the company or company name
+        :param company_text: this is the website of the company
+        :param additional_text : the name of the company
         :return:
         '''
         # need to make the results better. from now onwards, company_text will be website, and additional_text will be
@@ -80,6 +81,10 @@ class CompanyLinkedinURLExtractorSingle(object):
         #     final_res,final_conf = self.get_best_res_from_ddg_results(res_list,company_text,'')
         #     if final_conf >0 and final_res:
         #         return final_res,final_conf
+        if not additional_text:
+            additional_text = company_text
+            additional_text = re.sub(r'http://|https://|www\.','',additional_text)
+            additional_text = re.split(r'\.co|\.gov|\.',additional_text)[0]
         if additional_text:
             search_query = additional_text+' linkedin'
             search_res = self.ddg_crawler.fetch_results(search_query)

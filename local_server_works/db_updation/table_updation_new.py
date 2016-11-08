@@ -2,6 +2,7 @@ __author__ = 'joswin'
 
 import psycopg2
 from optparse import OptionParser
+from constants import to_database,to_host,to_password,to_user,to_port
 
 class LinkedinDumpUtil(object):
     '''
@@ -11,7 +12,7 @@ class LinkedinDumpUtil(object):
         :return:
         '''
         if not con:
-            self.con = psycopg2.connect(database='pipecandy_db1', user='pipecandy_user',password='pipecandy',host='localhost')
+            self.con = psycopg2.connect(database=to_database, user=to_user,password=to_password,host=to_host)
             # self.cursor = self.con.cursor()
         else:
             self.con = con
@@ -92,7 +93,7 @@ class LinkedinDumpUtil(object):
             " add column location text, add column region text, add column country text".format(table_name)
         self.cursor.execute(query)
         self.con.commit()
-        query = "update {}_domain_tmp set wesite_cleaned = domain".format(table_name)
+        query = "update {}_domain_tmp set website_cleaned = domain".format(table_name)
         self.cursor.execute(query)
         self.con.commit()
         queries = (

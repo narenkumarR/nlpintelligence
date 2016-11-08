@@ -13,6 +13,8 @@ from selenium.webdriver.remote.command import Command
 from constants import firefox_binary_loc
 import os
 
+from timeout import timeout
+
 def get_status(driver):
     try:
         driver.execute(Command.STATUS)
@@ -72,6 +74,7 @@ class SeleniumParser(object):
         self.pid = self.browser.binary.process.pid
         logging.info('selenium crawl: browser started. pid : {}'.format(self.pid))
 
+    @timeout(120)
     def get_url(self,url):
         '''
         :param url:
