@@ -151,6 +151,7 @@ class LinkedinOrganizationService(object):
                 # logging.info(self.soup)
             # else:
             #     self.details['Notes'] = 'Publicaly available'
+            redirect_url = re.split('\?trk',redirect_url)[0]
             self.details['Linkedin URL'] = redirect_url
             self.get_name()
             self.get_description()

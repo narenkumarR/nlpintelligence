@@ -103,7 +103,7 @@ for ind in ind_list:
 
 ##after logging in. use selenium
 from selenium_crawl import SeleniumParser
-sp = SeleniumParser()
+sp = SeleniumParser(visible=True)
 sp.browser.get('https://builtwith.com/login')
 username = sp.browser.find_element_by_id("email")
 password = sp.browser.find_element_by_id("password")
@@ -139,24 +139,33 @@ def find_techs_selenium(url):
         pass
     return out_list
 
+out_dic = {}
+import time
+from random import randint
+import pickle
 for ind in range(tmp.shape[0]):
+    time.sleep(randint(5,15))
     try:
         technology_class = tmp.iloc[ind,1].strip()
         technology_subclass = tmp.iloc[ind,3].strip()
     except:
         print 'error happened for ind : {}'.format(ind)
         continue
+    print(technology_class,technology_subclass)
     link = tmp.iloc[ind,4]
     url = 'https://trends.builtwith.com'+link
     techs = find_techs_selenium(url)
-    dic_key = (technology_class,technology_subclass)
+    dic_key = (technology_class,technology_subclass,link)
     if dic_key in out_dic:
         out_dic[dic_key].extend(techs)
     else:
         out_dic[dic_key] = techs
+    with open('BW_technologies_15Nov.pkl','w') as f:
+        pickle.dump(out_dic,f)
+
 
 import pickle
-with open('BW_technologies_18Oct.pkl','w') as f:
+with open('BW_technologies_15Nov.pkl','w') as f:
     pickle.dump(out_dic,f)
 
 #report creation

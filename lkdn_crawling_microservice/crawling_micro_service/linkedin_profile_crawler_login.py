@@ -3,9 +3,9 @@ File : linkedin_profile_crawler.py
 Created On: 07-Mar-2016
 Author: ideas2it
 """
+import re
 from bs_crawl import BeautifulsoupCrawl
 # import linkedin_parser
-import re
 import selenium_crawl
 # from bs4 import BeautifulSoup
 from selenium.common.exceptions import TimeoutException
@@ -21,7 +21,7 @@ class LinkedinProfileCrawler(object):
     '''Crawl a linkedin profie page
     '''
     def __init__(self,browser='Firefox',visible = True,proxy=False,proxy_ip = None,proxy_port = None,use_tor=None,
-                 login=False):
+                 login=True):
         ''' support for methods other than selenium needs fixes
         :param browser:
         :param visible:
@@ -40,7 +40,8 @@ class LinkedinProfileCrawler(object):
         self.proxy_port = proxy_port
         self.use_tor = use_tor
         self.login = login
-        self.init_selenium_parser(browser,visible,proxy,proxy_ip,proxy_port,use_tor,login)
+        if self.browser:
+            self.init_selenium_parser(browser,visible,proxy,proxy_ip,proxy_port,use_tor,login)
 
     def exit(self):
         self.link_parser.exit()
@@ -76,25 +77,6 @@ class LinkedinProfileCrawler(object):
         if login:
             login_fun(self.link_parser.browser)
 
-    def clean_linkedin_url_pub(self,url):
-        ''' urls like /pub/ need to be cleaned because they are getting blocked
-        :param url:
-        :return:
-        '''
-        url1 = url
-        try:
-            url_index_part = url1.split('/')[-3:]
-            if len(url_index_part[1]) == 2:
-                url_index_part[1] = '0'+url_index_part[1]
-            url_index_part = url_index_part[::-1]
-            url_first_part = url1.split('/')[:-3]
-            url = re.sub('/pub/','/in/','/'.join(url_first_part)+'-'+''.join(url_index_part))
-            logging.info('people url like /pub/ changed from {} to {}'.format(url1,url))
-            return url
-        except:
-            logging.exception('people url like /pub/ could not clean')
-            return url1
-
     def fetch_details_urlinput(self,url,use_selenium = True):
         '''
         :param url:
@@ -102,8 +84,8 @@ class LinkedinProfileCrawler(object):
         :return: dictionary with the fetched details
         '''
         outs = {'Linkedin URL':url,'Original URL':url}
-        if '/pub/' in url: #when pub is there in url
-            url = self.clean_linkedin_url_pub(url)
+        if '/pub/' in url:
+            url = re.sub('/pub/','/in/','/'.join(url.split('/')[:-3])+'-'+''.join(url.split('/')[-3:][::-1]))
         try:
             if use_selenium:
                 soup = self.link_parser.get_soup(url)
@@ -170,7 +152,9 @@ class LinkedinProfileCrawler(object):
         :return:
         '''
         try:
-            return soup.find('div',{'id':'profile'}).find('div',{'class':'profile-overview-content'}).find('h1',{'id':'name'}).text
+            self.person_name=soup.find('div',{'id':'top-card'}).find('div',{'id':'name'}).find('h1').find('span',{'class':'full-name'}).text
+
+            return self.person_name
         except:
             return ''
 
@@ -180,8 +164,8 @@ class LinkedinProfileCrawler(object):
         :return:
         '''
         try:
-            return soup.find('div',{'id':'profile'}).find('div',{'class':'profile-overview-content'})\
-                .find('p',{'class':'headline title'}).text
+            return soup.find('div',{'id':'top-card'}).find('div',{'id':'headline'})\
+                .find('p',{'class':'title'}).text
         except:
             return ''
 
@@ -191,11 +175,18 @@ class LinkedinProfileCrawler(object):
         :return:
         '''
         try:
-            tmp = soup.find('div',{'id':'profile'}).find('div',{'class':'profile-overview-content'})\
-                .find('table',{'class':'extra-info'}).find('tr',{'data-section':'currentPositionsDetails'})\
-                .find('td').find('ol').findAll('li')
-            names = [i.find('a').text for i in tmp]
-            return '|'.join(names)
+            tmp = soup.find('div',{'id':'background'}).find('div',{'id':'background-experience-container'}). \
+                find('div', {'id': 'background-experience'}).findAll('div')
+            for company_list in tmp:
+                cmp_dic = {}
+                try:
+                    company_name = company_list.find('span',{'data-tracking':'mcp_profile_sum'}).find('a').text
+                    return '|'.join(company_name)
+                except:
+                    return ''
+
+            # names = [i.find('a').text for i in tmp]
+
         except:
             return ''
 
@@ -205,10 +196,18 @@ class LinkedinProfileCrawler(object):
         :return:
         '''
         try:
-            tmp = soup.find('div',{'id':'profile'}).find('div',{'class':'profile-overview-content'})\
-                .find('table',{'class':'extra-info'}).find('tr',{'data-section':'currentPositionsDetails'}).findAll('a')
-            links = [i['href'] for i in tmp]
-            return '|'.join(links)
+            tmp = soup.find('div',{'id':'background'}).find('div',{'id':'background-experience-container'}). \
+                find('div', {'id': 'background-experience'}).findAll('div')
+            for company_list in tmp:
+                cmp_dic = {}
+                try:
+                    company_linkedin_page = company_list.find('span',{'data-tracking':'mcp_profile_sum'}).find('a')['href']
+                    return '|'.join(company_linkedin_page)
+                except:
+                    return ''
+
+            # names = [i.find('a').text for i in tmp]
+
         except:
             return ''
 
@@ -218,17 +217,17 @@ class LinkedinProfileCrawler(object):
         :return:
         '''
         try:
-            return soup.find('div',{'id':'profile'}).find('div',{'class':'profile-overview-content'})\
+            return soup.find('div',{'id':'top-card'}).find('div',{'id':'location'})\
                 .find('span',{'class':'locality'}).text
         except:
             return ''
 
     def get_industry(self,soup):
         try:
-            tmp = soup.find('div',{'id':'profile'}).find('div',{'class':'profile-overview-content'})\
-                .findAll('dd',{'class':'descriptor'})
-            if len(tmp)>1:
-                return tmp[1].text
+            tmp = soup.find('div',{'id':'top-card'}).find('div',{'id':'location'})\
+                .find('dd',{'class':'industry'})
+            # if len(tmp)>1:
+            return tmp.text
         except:
             return ''
 
@@ -238,8 +237,10 @@ class LinkedinProfileCrawler(object):
         :return:
         '''
         try:
-            return soup.find('div',{'id':'profile'}).find('div',{'class':'profile-overview-content'})\
-                .find('table',{'class':'extra-info'}).find('tr',{'data-section':'pastPositionsDetails'}).find('td').text
+            tmp= soup.find('div',{'id':'top-card'}).find('div',{'class':'profile-overview-content'})\
+                .find('table',{'class':'Overview for'+self.person_name}).find('tr',{'id':'overview-summary-past'}).find('td').find('ol').findAll('li')
+            cmp_names = [i.find('a').text for i in tmp]
+            return '|'.join(cmp_names)
         except:
             return ''
 
@@ -248,44 +249,63 @@ class LinkedinProfileCrawler(object):
         :param soup:
         :return:
         '''
+        out_list = []
+        edu_dic = {}
         try:
-            return soup.find('div',{'id':'profile'}).find('div',{'class':'profile-overview-content'}).\
-                find('table',{'class':'extra-info'}).find('tr',{'data-section':'educationsDetails'}).find('td').text
+
+            edu_text= soup.find('div',{'id':'background'}).find('div',{'id':'background-education-container'}). \
+                find('div', {'id': 'background-education'}).findAll('div')
+            for edu_info in edu_text:
+                edu_dic = {}
+                try:
+                    edu_dic['institute_name']=edu_info.find('h4').text
+                except:
+                    edu_dic['institute_name']= ''
+                try:
+                    edu_dic['degree']=edu_info.find('h5').find('span',{'class':'degree'}).text
+                except:
+                    edu_dic['degree']= ''
+                out_list.append(edu_dic)
+            return out_list
+
         except:
-            return ''
+            return []
+
 
     def get_summary(self,soup):
         try:
-            return soup.find('section',{'id':'summary'}).find('div',{'class':'description'}).text
+            return soup.find('div',{'id':'background'}).find('div',{'class':'summary'}).text
         except:
             return ''
 
     def get_experience(self,soup):
         try:
             out_list = []
-            exps = soup.find('section',{'id':'experience'}).findAll('li')
+            # exps = soup.find('section',{'id':'experience'}).findAll('li')
+            exps = soup.find('div', {'id': 'background'}).find('div', {'class': 'background-content'}).find('div', {
+                'id': 'background-experience-container'}).find('div',{'id':'background-experience'}).findAll('div')
             for exp in exps:
                 exp_dic = {}
                 try:
-                    exp_dic['Position'] = exp.find('h4').text
+                    exp_dic['Position'] = exp.find('h4').find('a').text.strip()
                 except:
                     # continue  # if no position, continue
                     exp_dic['Position'] = ''
                 try:
-                    exp_dic['Company'] = exp.find('h5',{'class':'item-subtitle'}).text
+                    exp_dic['Company'] = exp.find('h5').find('a').text.strip()
                 except:
                     continue # if no company, continue
                     # exp_dic['Company'] = ''
                 try:
-                    exp_dic['Company Linkedin'] = exp.find('h5',{'class':'item-subtitle'}).find('a')['href']
+                    exp_dic['Company Linkedin'] = exp.find('h5').find('a')['href']
                 except:
                     exp_dic['Company Linkedin'] = ''
                 try:
-                    exp_dic['Date Range'] = str(exp.find('div',{'class':'meta'}).find('span',{'class':'date-range'}).text.encode('ascii','ignore'))
+                    exp_dic['Date Range'] = str(exp.find('span',{'class':'experience-date-locale'}).text.encode('ascii','ignore'))
                 except:
                     exp_dic['Date Range'] = ''
                 try:
-                    exp_dic['Location'] = exp.find('div',{'class':'meta'}).find('span',{'class':'location'}).text
+                    exp_dic['Location'] = exp.find('span',{'class':'locality'}).text
                 except:
                     exp_dic['Location'] = ''
                 try:
@@ -299,30 +319,30 @@ class LinkedinProfileCrawler(object):
 
     def get_skills(self,soup):
         try:
-            return soup.find('section',{'id':'skills'}).find('ul').getText(',')
+            return soup.find('div', {'id': 'background'}).find('div', {'class': 'background-content'}).find('div',{'id':'background-skills-container'}).find('div',{'id':'profile-skills'}).find('ul').getText(',')
         except:
             return ''
 
     def get_related_people(self,soup):
         try:
             try:
-                lis = soup.find('section',{'class':'insights profile-section'}).find('div',{'class':'browse-map'}).findAll('li')
+                lis = soup.find('div',{'class':'right-fixed'}).find('div',{'class':'discovery-panel'}).find('ol').findAll('li')
             except: #new structure
-                lis = soup.find('section',{'class':'insights'}).find('div',{'class':'browse-map'}).findAll('li')
+                lis = soup.find('div',{'class':'insights-browse-map'}).find('ol').findAll('li')
             out_list = []
             for li in lis:
                 li_dic = {}
                 try:
-                    li_dic['Linkedin Page'] = li.find('a')['href']
+                    li_dic['Linkedin Page'] = li.find('dl',{'class':'class="discovery-detail"'}).find('a')['href']
                 except:
                     li_dic['Linkedin Page'] = ''
                 try:
-                    li_dic['Name'] = li.find('h4').text
+                    li_dic['Name'] =li.find('dl',{'class':'class="discovery-detail"'}).find('a').text
                 except:
                     continue # if no name continue
                     # li_dic['Name'] = ''
                 try:
-                    li_dic['Position'] = li.find('p').text
+                    li_dic['Position'] = li.find('dl',{'class':'class="discovery-detail"'}).find('dd').text
                 except:
                     li_dic['Position'] = ''
                 out_list.append(li_dic)
@@ -333,18 +353,18 @@ class LinkedinProfileCrawler(object):
     def get_same_name_people(self,soup):
         try:
             try:
-                lis = soup.find('section',{'class':'insights profile-section'}).find('div',{'class':'name-search'}).findAll('li')
+                lis = soup.find('div',{'class':'insights-browse-map'}).find('ul',{'class':'browse-map-list'}).findAll('li')
             except:
-                lis = soup.find('section',{'class':'insights'}).find('div',{'class':'name-search'}).findAll('li')
+                lis = soup.find('div',{'ul':'browse-map-list'}).findAll('li')
             out_list = []
             for li in lis:
                 li_dic = {}
                 try:
-                    li_dic['Linkedin Page'] = li.find('a')['href']
+                    li_dic['Linkedin Page'] = li.find('h4').find('a')['href']
                 except:
                     li_dic['Linkedin Page'] = ''
                 try:
-                    li_dic['Name'] = li.find('h4').text
+                    li_dic['Name'] = li.find('h4').find('a').text
                 except:
                     continue # if no name continue
                     # li_dic['Name'] = ''
@@ -356,4 +376,3 @@ class LinkedinProfileCrawler(object):
             return out_list
         except:
             return []
-

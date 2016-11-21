@@ -7,7 +7,8 @@ import logging
 from postgres_connect import PostgresConnect
 from constants import desig_list_regex,designations_column_name
 
-def gen_people_details(list_id,desig_list=None):
+def gen_people_details(list_id,desig_list=None,company_base_table = 'crawler.linkedin_company_base',
+                       people_base_table = 'crawler.linkedin_people_base'):
     '''
     :param list_id:
     :param desig_list:
@@ -24,7 +25,7 @@ def gen_people_details(list_id,desig_list=None):
     # all people urls and current company
     con.cursor.execute('drop table if exists crawler.tmp_table_email_gen_{}'.format(table_name_id))
     con.commit()
-    query = " create table crawler.tmp_table_email_gen_{} as "\
+    query = " create table crawler.tmp_table_email_gen_{tab_name_id} as "\
             " (select distinct on (company_linkedin_url,people_linkedin_url) "\
             " list_id,list_items_url_id,company_linkedin_url,people_linkedin_url,name,location_person,designation "\
             " from "\
@@ -33,7 +34,7 @@ def gen_people_details(list_id,desig_list=None):
         "linkedin_url as people_linkedin_url,name ,location as location_person "\
         " ,trim(unnest(crawler.clean_linkedin_url_array(crawler.extract_related_info(string_to_array(experience,'|'),2)))) designation "\
         " ,trim(unnest(crawler.clean_linkedin_url_array(crawler.extract_related_info(string_to_array(experience,'|'),4)))) work_time "\
-                " from crawler.linkedin_people_base a where "\
+                " from {ppl_base_tab} a where "\
         "experience like '%%{{}}%%' and a.list_id = %s  )x "\
                 " where work_time like '%%Present%%' and designation ~* %s )"\
         " union "\
@@ -41,11 +42,11 @@ def gen_people_details(list_id,desig_list=None):
             " list_id,list_items_url_id, "\
         " company_linkedin_url, "\
         "linkedin_url as people_linkedin_url,name,location as location_person,sub_text as designation "\
-            " from crawler.linkedin_people_base a where "\
+            " from {ppl_base_tab} a where "\
         "company_linkedin_url like '%%linkedin%%'  "\
         " and array_length(string_to_array(company_linkedin_url,'|'),1) = 1 "\
             " and a.list_id = %s and a.sub_text ~* %s) "\
-        " ".format(table_name_id)
+        " ".format(tab_name_id=table_name_id,ppl_base_tab=people_base_table)
         # and experience not like '%%{{}}%%' removed in the above query
         # tried to find for cases where company length is >1, but experience is '', all cases are errors in data
         # " union "\
@@ -133,14 +134,15 @@ def gen_people_details(list_id,desig_list=None):
     # people_urls from  company_base
     con.cursor.execute('drop table if exists crawler.tmp_table2_email_gen_{}'.format(table_name_id))
     con.commit()
-    query = " create table crawler.tmp_table2_email_gen_{} as select distinct list_id,list_items_url_id, "\
+    query = " create table crawler.tmp_table2_email_gen_{tab_name_id} as select distinct list_id,list_items_url_id, "\
         " linkedin_url as company_linkedin_url, "\
         "unnest(crawler.clean_linkedin_url_array(crawler.extract_related_info(string_to_array(employee_details,'|'),1))) as people_linkedin_url, "\
         " unnest(crawler.clean_linkedin_url_array(crawler.extract_related_info(string_to_array(employee_details,'|'),2))) as name, "\
         " unnest(crawler.clean_linkedin_url_array(crawler.extract_related_info(string_to_array(employee_details,'|'),3))) as designation, "\
         " company_name,website, headquarters,industry,company_size,founded "\
-        "from crawler.linkedin_company_base a where "\
-        "employee_details like '%%linkedin%%' and a.list_id = %s ".format(table_name_id)
+        "from {comp_base_tab} a where "\
+        "employee_details like '%%linkedin%%' and a.list_id = %s ".format(tab_name_id=table_name_id,
+                                                                          comp_base_tab=company_base_table)
     con.cursor.execute(query,(list_id,))
     # reason this query is like this needs to be specified(forgot!!)
     # this was done so that for people whose designation is missing, try to join with people_base table and get details
@@ -174,7 +176,7 @@ def gen_people_details(list_id,desig_list=None):
             " d.list_id,d.list_items_url_id from "\
             "  crawler.tmp_table_email_gen_{table_id} d "\
             " left join crawler.linkedin_company_redirect_url e on ( d.company_linkedin_url = e.url) "\
-            " left join crawler.linkedin_company_base b on (e.redirect_url = b.linkedin_url or d.company_linkedin_url=b.linkedin_url) "\
+            " left join {comp_base_tab} b on (e.redirect_url = b.linkedin_url or d.company_linkedin_url=b.linkedin_url) "\
             " where e.url is not null or b.linkedin_url is not null "\
             "  ) "\
             " union "\
@@ -189,12 +191,13 @@ def gen_people_details(list_id,desig_list=None):
             " d.company_linkedin_url,c.url as people_linkedin_url,a.location as location_person, "\
             " b.headquarters,b.industry,b.company_size,b.founded,"\
             " d.list_id,d.list_items_url_id from "\
-            " crawler.linkedin_people_base a join crawler.linkedin_people_redirect_url c on a.linkedin_url = c.redirect_url "\
+            " {ppl_base_tab} a join crawler.linkedin_people_redirect_url c on a.linkedin_url = c.redirect_url "\
             " join crawler.tmp_table2_email_gen_{table_id} d on (c.url=d.people_linkedin_url ) "\
-            " join crawler.linkedin_company_base b on d.company_linkedin_url = b.linkedin_url "\
+            " join {comp_base_tab} b on d.company_linkedin_url = b.linkedin_url "\
             " where a.sub_text ~* '{regex}' and (d.designation = '' or d.designation is null ) "\
             " and a.sub_text ilike '%'||b.company_name||'%' ) "\
-            " ".format(table_id=table_name_id,regex=desig_list_reg)
+            " ".format(table_id=table_name_id,regex=desig_list_reg,comp_base_tab=company_base_table,
+                       ppl_base_tab=people_base_table)
     # query = "create table crawler.tmp_table1_email_gen_{} as "\
     #         "select a.name,a.sub_text,b.website,b.company_name,d.list_id,d.list_items_url_id from "\
     #         " crawler.linkedin_people_base a  "\
@@ -241,6 +244,7 @@ def gen_people_details(list_id,desig_list=None):
             "name_cleaned[4] as last_name, domain,  trim(designation) as designation,company_name, website as company_website, "\
             " headquarters,location_person,industry,company_size,founded,company_linkedin_url,people_linkedin_url "\
             " from crawler.tmp_table1_email_gen_{} "\
+            " where name != 'LinkedIn Member' "\
             " on conflict do nothing".format(table_name_id)
     #" where "\
     #        "domain not in ('http://','http://-','http://.','http://...','http://1','') and  "\
@@ -270,6 +274,10 @@ if __name__ == "__main__":
                          dest='desig_loc',
                          help='location of csv containing target designations',
                          default=None)
+    optparser.add_option('-C', '--comptab',
+                         dest='comp_base_table',
+                         help='company base table name',
+                         default='crawler.linkedin_company_base')
     (options, args) = optparser.parse_args()
     list_name = options.list_name
     if not list_name:
@@ -280,6 +288,7 @@ if __name__ == "__main__":
         desig_list = list(inp_df[designations_column_name])
     else:
         desig_list = None
+    comp_base_table = options.comp_base_table
     con = PostgresConnect()
     con.get_cursor()
     con.execute("select id from crawler.list_table where list_name = %s",(list_name,))
@@ -289,4 +298,4 @@ if __name__ == "__main__":
     if not res:
         raise ValueError('the list name given do not have any records')
     list_id = res[0][0]
-    gen_people_details(list_id,desig_list)
+    gen_people_details(list_id,desig_list,company_base_table=comp_base_table)

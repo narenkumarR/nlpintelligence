@@ -243,3 +243,49 @@ name_list = [name_cleaned[0],f_name,m_name,name_cleaned[2],name_cleaned[3]]
 return name_list
 $$;
 
+
+drop table if exists crawler.linkedin_company_base_login;
+CREATE TABLE crawler.linkedin_company_base_login (
+    id UUID PRIMARY KEY DEFAULT uuid_generate_v1mc(),
+    linkedin_url text ,
+    company_name text,
+    company_size text,
+    industry text,
+    company_type text,
+    headquarters text,
+    description text,
+    founded text,
+    specialties text,
+    website text,
+    employee_details text,
+    also_viewed_companies text,
+    employee_count_linkedin text,
+    list_id UUID,
+    list_items_url_id UUID,
+    created_on timestamp default current_timestamp
+);
+create index on crawler.linkedin_company_base_login (linkedin_url);
+
+drop table if exists crawler.linkedin_people_base_login;
+CREATE TABLE crawler.linkedin_people_base_login (
+    id UUID PRIMARY KEY DEFAULT uuid_generate_v1mc(),
+    linkedin_url text ,
+    name text,
+    sub_text text,
+    location text,
+    company_name text,
+    company_linkedin_url text,
+    previous_companies text,
+    education text,
+    industry text,
+    summary text,
+    skills text,
+    experience text,
+    related_people text,
+    same_name_people text,
+    list_id UUID,
+    list_items_url_id UUID,
+    created_on timestamp default current_timestamp
+);
+create index on crawler.linkedin_people_base_login (linkedin_url);
+

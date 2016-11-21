@@ -23,8 +23,8 @@ designations_column_name = 'designations'
 linkedin_url_column = 'linkedin_url'
 
 # linkedin credentials
-linkedin_username = 'gokul.contractiq@gmail.com'
-linkedin_password = 'gokulrao8056'
+linkedin_username = 'raditya.mit@gmail.com'
+linkedin_password = 'pipecandy@1989'
 
 # firefox binary location
 firefox_binary_loc = 'firefox_binaries/firefox-46/firefox'
