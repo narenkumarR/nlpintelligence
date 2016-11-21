@@ -23,7 +23,7 @@ class LkdnUrlExtrMain(object):
         self.cc = CompanyLinkedinURLExtractorMulti(visible=visible)
         self.con = PostgresConnect()
 
-    def run_main(self,list_id=None):
+    def run_main(self,list_id=None,threads=1):
         '''
         :param list_id:
         :return:
@@ -55,7 +55,7 @@ class LkdnUrlExtrMain(object):
         # with open(problematic_urls_file,'w') as f:
         #     f.write('Following Company names had problems:\n')
         # iterating through results
-        for key,linkedin_url,conf,people_urls in self.cc.get_linkedin_url_multi(tmp_dic,n_threads=1,time_out=100):
+        for key,linkedin_url,conf,people_urls in self.cc.get_linkedin_url_multi(tmp_dic,n_threads=threads,time_out=100):
             # key is basically list_items_id from list_items table
             # logging.info('linkedin_url_finder: data from url extractor, key:{},linkedin_url:{},conf:{}'.format(key,linkedin_url,conf))
             if linkedin_url:
@@ -108,7 +108,7 @@ class LkdnUrlExtrMain(object):
         self.con.close_cursor()
         logging.info('completed url extraction process')
 
-    def run_command(self,list_name):
+    def run_command(self,list_name,threads=1):
         '''
         :param list_name:
         :return:
@@ -126,7 +126,7 @@ class LkdnUrlExtrMain(object):
         else:
             list_id = res_list[0][0]
         self.con.close_cursor()
-        self.run_main(list_id)
+        self.run_main(list_id,threads=threads)
 
 if __name__ == "__main__":
     optparser = OptionParser()
@@ -142,11 +142,16 @@ if __name__ == "__main__":
                          dest='visible',
                          help='visible',
                          default=0,type='int')
+    optparser.add_option('-t', '--threads',
+                         dest='threads',
+                         help='no of threads',
+                         default=1,type='int')
     (options, args) = optparser.parse_args()
     list_name = options.list_name
     visible = options.visible
+    threads = options.threads
     # desig_loc = options.desig_loc
 
     extractor = LkdnUrlExtrMain(visible=visible)
-    extractor.run_command(list_name)
+    extractor.run_command(list_name,threads=threads)
 

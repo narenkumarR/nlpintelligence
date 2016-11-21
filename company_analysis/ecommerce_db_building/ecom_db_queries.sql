@@ -70,4 +70,6 @@ update ecommerce_companies_alexa_data_unique set category_cleaned = 'Health_and_
 
 update ecommerce_companies a set alexa_category = b.category_cleaned from ecommerce_companies_alexa_data_unique b where  lower(a.domain)=lower(b.site) and a.domain is not null and b.site is not null;
 
---
+--builtwith based flags creation
+alter table ecommerce_companies add column a_b_testing_present boolean, add column a_b_testing_softwares text[];
+

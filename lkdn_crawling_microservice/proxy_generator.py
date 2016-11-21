@@ -39,10 +39,10 @@ class ProxyGen(object):
             proxy_list.extend(self.get_proxy_free_proxy_list())
         except:
             pass
-        try:
-            proxy_list.extend(self.get_proxy_proxy_list_org())
-        except:
-            pass
+        # try:
+        #     proxy_list.extend(self.get_proxy_proxy_list_org())
+        # except:
+        #     pass
         shuffle(proxy_list)
         return proxy_list
 
@@ -79,7 +79,8 @@ class ProxyGen(object):
         return proxy_list
 
     def get_proxy_free_proxy_list(self):#will work only with selenium
-        soup = self.browser.get_soup('http://free-proxy-list.net/')
+        # soup = self.browser.get_soup('http://free-proxy-list.net/')
+        soup = self.browser.get_soup('http://www.sslproxies.org/')
         proxy_list = []
         tmp = soup.find('div',{'class':'block-settings'}).find('div',{'id':'proxylisttable_wrapper','class':'dataTables_wrapper'}).find('tbody').findAll('tr')
         for tr in tmp:

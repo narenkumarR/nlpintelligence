@@ -1,36 +1,19 @@
---regular concierge query for taking data from crawler db
---getting only for initial list
-select distinct on (a.first_name,a.middle_name,a.last_name,a.domain)
-a.* from crawler.people_details_for_email_verifier_new a join linkedin_company_redirect_url b on 
-(a.company_linkedin_url = b.redirect_url or a.company_linkedin_url = b.url) join list_items_urls c on (b.redirect_url=c.url or b.url=c.url)
-where c.list_id = '36d9542a-6515-11e6-8815-5ff07181793b' and 
-designation ~* 'founder|\yCEO\y|Chief executive officer'
-
---change table names and requirements accordingly
---creating table from linkedin_company_base
-drop table if exists tmp_zarget_similar;
-create table tmp_zarget_similar as 
-select distinct on (b.linkedin_url)  b.* from tmp_zarget_similar_companies a 
- join linkedin_company_domains c using(linkedin_url)
- join linkedin_company_base b using(linkedin_url)
-where 
-c.country in ('UNITED STATES','CANADA','AUSTRALIA','UNITED KINGDOM','NEW ZEALAND','IRELAND')
-;
+create table tmp_madstreetden_oct25 as select distinct on (linkedin_url) * from  (select  b.*,unique_visitors from ecommerce_companies a join linkedin_company_domains c on a.linkedin_name=c.linkedin_name join linkedin_company_base b on b.linkedin_url=c.linkedin_url where unique_visitors >= 1000000 and unique_visitors <= 12000000  order by linkedin_url,website)a;
 
 --creating people table
-drop table if exists tmp_zarget_similar_people;
-create table tmp_zarget_similar_people as 
+drop table if exists tmp_madstreetden_oct25_people;
+create table tmp_madstreetden_oct25_people as 
 select distinct on (name,domain) * from (
 (select  distinct on (e.name,b.domain)
 	e.name,trim(sub_text) as designation,b.domain,a.company_name,a.website as company_website,
 	b.headquarters,b.country,b.region,b.location location_company,founded,company_size,a.industry,trim(a.specialties) as specialties,
 	trim(a.description) description, e.location as location_person,a.linkedin_url as company_linkedin_url,e.linkedin_url as people_linkedin_url
 from 
-tmp_zarget_similar a join linkedin_company_domains b on a.linkedin_url=b.linkedin_url
+tmp_madstreetden_oct25 a join linkedin_company_domains b on a.linkedin_url=b.linkedin_url
 join company_urls_mapper c on a.linkedin_url = c.alias_url join people_company_mapper d on c.base_url = d.company_url
 join linkedin_people_base e on d.people_url = e.linkedin_url
 where 
-sub_text ~* '\yC(E|M)O\y|\yChief (Executive|Marketing) Officer\y|\yFounder\y|\yCo(-| )?Founder\y|\y(Head|AVP\y|VP\y|EVP\y|SVP\y|Director|President).+Marketing\y|\yMarketing.+(Head|AVP\y|VP\y|EVP\y|SVP\y|Director|President)\y'
+sub_text ~* '\yProduct manager\y|\yManager.+Search Recommendation\y|\ySearch Recommendation.+manager\y|\y(Head|AVP\y|VP\y|EVP\y|SVP\y|Director|President).+(Product|Category)\y|\y(Product|Category).+(Head|\yAVP|\yVP|\yEVP|\ySVP|Director|President)\y|\yCXO\y|\yCMO\y|\y(Sr\y|senior) product manager\y|\y(Sr\y|senior) Marketing manager\y'
 and sub_text ilike '%'||a.company_name||'%')
 union
 --using experience , get roles and companies and get matching people
@@ -48,16 +31,16 @@ from
 	trim(unnest(clean_linkedin_url_array(extract_related_info(experience_array,4)))) work_time,
 	a.linkedin_url as company_linkedin_url_orig
 	from
-	tmp_zarget_similar a join linkedin_company_domains b on a.linkedin_url=b.linkedin_url
+	tmp_madstreetden_oct25 a join linkedin_company_domains b on a.linkedin_url=b.linkedin_url
 	join company_urls_mapper c on a.linkedin_url = c.alias_url join people_company_mapper d on c.base_url = d.company_url
 	join linkedin_people_base e on d.people_url = e.linkedin_url 
 	where 
 	experience_array[1] like '%{}%'  
 )x
 join
-tmp_zarget_similar y on x.company_linkedin_url = y.linkedin_url
+tmp_madstreetden_oct25 y on x.company_linkedin_url = y.linkedin_url
 where
-designation ~* '\yC(E|M)O\y|\yChief (Executive|Marketing) Officer\y|\yFounder\y|\yCo(-| )?Founder\y|\y(Head|AVP\y|VP\y|EVP\y|SVP\y|Director|President).+Marketing\y|\yMarketing.+(Head|AVP\y|VP\y|EVP\y|SVP\y|Director|President)\y'
+designation ~* '\yProduct manager\y|\yManager.+Search Recommendation\y|\ySearch Recommendation.+manager\y|\y(Head|AVP\y|VP\y|EVP\y|SVP\y|Director|President).+(Product|Category)\y|\y(Product|Category).+(Head|\yAVP|\yVP|\yEVP|\ySVP|Director|President)\y|\yCXO\y|\yCMO\y|\y(Sr\y|senior) product manager\y|\y(Sr\y|senior) Marketing manager\y'
 and work_time like '%Present%' and company_linkedin_url = company_linkedin_url_orig)
 union
 --people with single url in company linkedin url take directly
@@ -66,10 +49,10 @@ union
 	b.headquarters,b.country,b.region,b.location location_company,founded,company_size,a.industry,trim(a.specialties) as specialties,
 	trim(a.description) description, e.location as location_person,a.linkedin_url as company_linkedin_url,e.linkedin_url as people_linkedin_url
 from 
-tmp_zarget_similar a join linkedin_company_domains b on a.linkedin_url=b.linkedin_url
+tmp_madstreetden_oct25 a join linkedin_company_domains b on a.linkedin_url=b.linkedin_url
 join company_urls_mapper c on a.linkedin_url = c.alias_url join people_company_mapper d on c.base_url = d.company_url
 join linkedin_people_base e on d.people_url = e.linkedin_url
 where 
-sub_text ~* '\yC(E|M)O\y|\yChief (Executive|Marketing) Officer\y|\yFounder\y|\yCo(-| )?Founder\y|\y(Head|AVP\y|VP\y|EVP\y|SVP\y|Director|President).+Marketing\y|\yMarketing.+(Head|AVP\y|VP\y|EVP\y|SVP\y|Director|President)\y'
+sub_text ~* '\yProduct manager\y|\yManager.+Search Recommendation\y|\ySearch Recommendation.+manager\y|\y(Head|AVP\y|VP\y|EVP\y|SVP\y|Director|President).+(Product|Category)\y|\y(Product|Category).+(Head|\yAVP|\yVP|\yEVP|\ySVP|Director|President)\y|\yCXO\y|\yCMO\y|\y(Sr\y|senior) product manager\y|\y(Sr\y|senior) Marketing manager\y'
 and array_length(company_linkedin_url_array,1) = 1)
 )a;

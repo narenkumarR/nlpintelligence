@@ -386,22 +386,18 @@ class LinkedinCompanyCrawlerThread(object):
             inp_list_priority = self.con.cursor.fetchall()
             limit_no = limit_no - len(inp_list_priority)
             # deleting the urls from priority table and inserting to base urls_to_crawl table
-            if inp_list_priority:
-                records_list_template = ','.join(['%s']*len(inp_list_priority))
-                query = "DELETE FROM {} WHERE url in ({}) and list_id = %s ".format(
-                    self.urls_to_crawl_priority,records_list_template)
-                self.con.cursor.execute(query, [i[0] for i in inp_list_priority]+[self.list_id])
-                # self.con.commit()
-                # following query is to make sure this url is not lost when a url in priority table is lost for some reason
-                query = "INSERT INTO {} (url,list_id,list_items_url_id) VALUES {} ON CONFLICT DO NOTHING".format(self.urls_to_crawl_table,
-                                                                                 records_list_template)
-                self.con.cursor.execute(query,[(i[0],self.list_id,i[1]) for i in inp_list_priority])
-                self.con.commit()
+            # if inp_list_priority:
+            #     records_list_template = ','.join(['%s']*len(inp_list_priority))
+            #     query = "DELETE FROM {} WHERE url in ({}) and list_id = %s ".format(
+            #         self.urls_to_crawl_priority,records_list_template)
+            #     self.con.cursor.execute(query, [i[0] for i in inp_list_priority]+[self.list_id])
+            #     # self.con.commit()
+            #     # following query is to make sure this url is not lost when a url in priority table is lost for some reason
+            #     query = "INSERT INTO {} (url,list_id,list_items_url_id) VALUES {} ON CONFLICT DO NOTHING".format(self.urls_to_crawl_table,
+            #                                                                      records_list_template)
+            #     self.con.cursor.execute(query,[(i[0],self.list_id,i[1]) for i in inp_list_priority])
+            #     self.con.commit()
             if limit_no >0 :
-                query = "delete from {} a using {} b where a.url=b.url "\
-                        " and a.list_id=b.list_id and a.list_id = %s".format(self.urls_to_crawl_table,self.finished_urls_table_company)
-                # query = 'select url from linkedin_company_urls_to_crawl limit {}'.format(limit_no)
-                self.con.cursor.execute(query,(self.list_id,))
                 query = "select url,list_items_url_id from {} where list_id = %s "\
                         " offset floor(random() * (select count(*) from {} where list_id = %s)) "\
                         "limit {}".format(self.urls_to_crawl_table,self.urls_to_crawl_table,limit_no)
@@ -577,13 +573,15 @@ class LinkedinProfileCrawlerThread(object):
                 continue
             try:
                 for t_no in range(2):
-                    time.sleep(randint(30,90))
+                    # time.sleep(randint(30,90))
+                    time.sleep(randint(10,20))
                     logging.info('people part: Input URL:{}, thread:{}, try:{}'.format(url,threading.currentThread(),t_no+1))
                     res_1 = {}
                     event = threading.Event()
                     t1 = threading.Thread(target=get_output, args=(crawler,url,res_1,event,))
                     t1.daemon = True
                     t1.start()
+                    # event.wait(timeout=(60+t_no*60)) #first iteration wait for 60 secs. next time 120
                     event.wait(timeout=120)
                     if res_1.get('result','error_happened') != 'error_happened':
                         res = res_1['result']
