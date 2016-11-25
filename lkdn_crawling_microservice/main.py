@@ -12,16 +12,16 @@ from optparse import OptionParser
 
 from postgres_connect import PostgresConnect
 from linkedin_url_finder import LkdnUrlExtrMain
-from crawling_micro_service.crawler_generic import LinkedinCrawlerThread
+from crawling_micro_service.sheduler_combined import LinkedinCrawlerThread
 from tables_updation import TableUpdater
 from fetch_prospectsdb_data import FetchProspectDB
-from gen_people_for_email import gen_people_details
+# from gen_people_for_email import gen_people_details
 
 from constants import company_name_field,company_details_field,designations_column_name
 
 def run_main(list_name=None,company_csv_loc=None,desig_loc=None,similar_companies=1,hours=1,extract_urls=1,
-             prospect_db = 0, prospect_query = '',visible=False,what=0,main_thread=0,n_threads=2,n_urls_in_thread=100,
-             n_iters=0,login=0):
+             prospect_db = 0, prospect_query = '',visible=False,what=0,main_thread=0,n_threads=2,n_urls_in_thread=0,
+             n_iters=0,login=0,browser_name='Firefox'):
     '''
     :param list_name:
     :param company_csv_loc:
@@ -98,12 +98,13 @@ def run_main(list_name=None,company_csv_loc=None,desig_loc=None,similar_companie
         logging.info('Completed fetching data from prospect db')
     if extract_urls: #better to run this process separately
         url_extractor = LkdnUrlExtrMain(visible=visible)
-        logging.info('going to find linkedin urls')
+        logging.info('find linkedin urls')
         # os.system("pkill -9 firefox")
         t1 = multiprocessing.Process(target=url_extractor.run_main, args=(list_id,))
         t1.daemon = True
         t1.start()
         time.sleep(120)
+        # url_extractor.run_main(list_id,threads=1)
         if prospect_db :
             #after finding linkedin_urls, look in prospect db again
             logging.info('Fetching data in Prospect Database after linkedin url extraction')
@@ -127,7 +128,7 @@ def run_main(list_name=None,company_csv_loc=None,desig_loc=None,similar_companie
                 break
         logging.info('starting an iteration of crawling')
         crawler.run_both_single(list_id=list_id,visible=visible,limit_no=limit_no_1,time_out = hours,what=what,
-                                n_threads=n_threads,login=login)
+                                n_threads=n_threads,login=login,browser=browser_name)
         if main_thread:
             # if prospect_db:
             #     logging.info('Fetching data in Prospect Database')
@@ -214,7 +215,7 @@ if __name__ == "__main__":
     optparser.add_option('-k', '--nurls',
                          dest='n_urls',
                          help='no of urls in a thread',
-                         default=100,type='int')
+                         default=0,type='int')
     optparser.add_option('-i', '--iters',
                          dest='n_iters',
                          help='no of iterations. default 0. if 0,program run is based on time',
@@ -223,6 +224,10 @@ if __name__ == "__main__":
                          dest='login',
                          help='login using credentials given in constants file',
                          default=0,type='int')
+    optparser.add_option('-b', '--browser',
+                         dest='browser',
+                         help='browser name (Firefox,Firefox_luminati)',
+                         default='Firefox')
     (options, args) = optparser.parse_args()
     csv_company = options.csv_company
     desig_loc = options.desig_loc
@@ -239,8 +244,9 @@ if __name__ == "__main__":
     n_urls = options.n_urls
     n_iters = options.n_iters
     login = options.login
+    browser = options.browser
     run_main(list_name,csv_company,desig_loc,similar_companies,hours,extract_urls,prospect_db,prospect_query,
              visible=visible,what=what,main_thread = main_thread,n_threads=n_threads,n_urls_in_thread=n_urls,
-             n_iters = n_iters,login=login)
+             n_iters = n_iters,login=login,browser_name=browser)
 
 

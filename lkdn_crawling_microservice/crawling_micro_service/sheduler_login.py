@@ -38,18 +38,18 @@ class LinkedinLoginCrawlerThread(object):
         # to db from different functions causing problem. Need to investigate properly
         self.table_fields_company = ['Linkedin URL','Company Name','Company Size','Industry','Type','Headquarters',
                              'Description Text','Founded','Specialties','Website'
-            ,'Employee Details','Also Viewed Companies','employee_count_linkedin','list_id','list_items_url_id']
+            ,'Employee Details','Also Viewed Companies','Employee count Linkedin','list_id','list_items_url_id']
         self.table_field_names_company = ['linkedin_url','company_name','company_size','industry','company_type','headquarters',
                                   'description','founded','specialties','website','employee_details',
                                   'also_viewed_companies','employee_count_linkedin',
                                   'list_id','list_items_url_id']
         # following not needed because we are not crawling people pages after loggin in currently
-        # self.table_fields_people = ['Linkedin URL','Name','Position','Location','Company','CompanyLinkedinPage',
-        #                          'PreviousCompanies','Education','Industry','Summary','Skills','Experience'
-        #                          ,'Related People','Same Name People','list_id','list_items_url_id']
-        # self.table_field_names_people = ['linkedin_url','name','sub_text','location','company_name','company_linkedin_url',
-        #                           'previous_companies','education','industry','summary','skills','experience',
-        #                           'related_people','same_name_people','list_id','list_items_url_id']
+        self.table_fields_people = ['Linkedin URL','Name','Position','Location','Company','CompanyLinkedinPage',
+                                 'PreviousCompanies','Education','Industry','Summary','Skills','Experience'
+                                 ,'Related People','Same Name People','list_id','list_items_url_id']
+        self.table_field_names_people = ['linkedin_url','name','sub_text','location','company_name','company_linkedin_url',
+                                  'previous_companies','education','industry','summary','skills','experience',
+                                  'related_people','same_name_people','list_id','list_items_url_id']
         if proxy:
             self.proxy_generator = ProxyGen(browser_name=browser,visible=visible,page_load_timeout=60)
             self.proxies = Queue(maxsize=0)
@@ -91,10 +91,209 @@ class LinkedinLoginCrawlerThread(object):
                 return (None,None)
         return self.proxies.get()
 
+    def get_output_company(self,crawler_company,url):
+        '''
+        :param crawler_company:
+        :param url:
+        :return:
+        '''
+        res_1 = {}
+        res_1['result'] = crawler_company.get_organization_details_from_linkedin_link(url,
+                                                                                      designations=self.desig_list,
+                                                                                      next_page=self.no_pages_to_search)
+        return res_1
+
+    def get_output_people(self,crawler_company,crawler_people,url):
+        ''' crawler_company has the browser. crawler_people processes the soup
+        :param crawler_company:
+        :param crawler_people:
+        :param url:
+        :return:
+        '''
+        res_1 = {}
+        soup = crawler_company.link_parser.get_soup(url)
+        res_1['result'] = crawler_people.fetch_details_soupinput(soup)
+        res_1['result']['Linkedin URL'] = crawler_company.link_parser.browser.current_url
+        res_1['result']['Original URL'] = url
+        return res_1
+
+    def worker_company(self,crawler_company,no_errors,n_blocks):
+        '''
+        :param crawler_company: company crawler object
+        :param no_errors: for tracking
+        :return:at multiple places. careful while changing return types
+        '''
+        url,list_items_url_id = self.in_queue_company.get()
+        # logging.info('company part login: Getting info for url: {}'.format(url))
+        # checking if the url is already crawled
+        if self.final_run:
+            query = "select linkedin_url from {} where list_id = %s and linkedin_url = %s limit 1".format(self.company_base_table)
+            try:
+                # self.con.get_cursor()
+                self.con_check.execute(query,(self.list_id,url,))
+                url_pres = self.con_check.cursor.fetchall()
+            except:
+                url_pres = []
+            # self.con.close_cursor()
+            if url_pres :
+                self.in_queue_company.task_done()
+                return no_errors,n_blocks
+        # if url in self.processed_queue.queue or url in self.error_queue.queue:
+        #     continue
+        # logging.info('company part login: Getting info from url: {}'.format(url))
+        try:
+            res_1 = {}
+            for t_no in range(2):
+                time.sleep(randint(5,10))
+                logging.info('company part login: Input URL:{}, thread:{}, try:{}'.format(url,threading.currentThread(),t_no+1))
+                # pdb.set_trace()
+                res_1 = self.get_output_company(crawler_company,url)
+                if res_1.get('result','error_happened') != 'error_happened':
+                    res = res_1['result']
+                    if res.get('Company Name','LinkedIn') != 'LinkedIn':
+                        break
+            if 'result' in res_1:
+                res = res_1['result']
+                if res:
+                    if 'Company Name' in res :
+                        if res['Company Name'] and not (res['Company Name'] == 'LinkedIn' or url.startswith('https://www.linkedin.com/company/1337')
+                                                    or url.startswith('https://www.linkedin.com/company/linkedin')):
+                            self.out_queue_company.put((res,list_items_url_id))
+                            # self.processed_queue.put(url)
+                            no_errors = 0
+                            n_blocks = 0
+                            if self.people_crawl and 'Employee Details' in res:
+                                # put all the people urls into in_queue_people
+                                # here people who are not in connection are included (name will be Linkedin Member for them
+                                # assumption: these people will have similar people from whom we will get the actual people
+                                for emp_dets in res['Employee Details']:
+                                    # logging.info('company part: emp details : {}'.format(emp_dets))
+                                    if emp_dets.get('linkedin_url','') and emp_dets.get('Name','')\
+                                            and re.search('LinkedIn Member',emp_dets.get('Name',''),re.IGNORECASE):
+                                        self.in_queue_people.put((emp_dets['linkedin_url'],list_items_url_id))
+                        else:
+                            logging.info('company part login: res company name is linkedin (default page) for url:{}, thread:{}'.format(url,threading.currentThread()))
+                            no_errors += 1
+                    elif 'Notes' in res:
+                        if res['Notes'] == 'Not Available Pubicly':
+                            logging.info('company part login: Results not available publicly for url:{}, thread:{}'.format(url,threading.currentThread()))
+                            # self.out_queue.put(res)
+                            no_errors += 1
+                        elif res['Notes'] == 'Java script code':
+                            logging.info('company part login: Not proper page, probably javascript for url:{}, thread:{}'.format(url,threading.currentThread()))
+                            # self.out_queue.put(res)
+                            no_errors += 1
+                        elif res['Notes'] == 'Company page not found':
+                            logging.info('company part login: Company page not found for url: {} ,thread: {}'.format(url,threading.currentThread()))
+                            self.out_queue_company.put((res,list_items_url_id))
+                            no_errors = 0
+                            n_blocks = 0
+                        else:
+                            logging.info('company part login: Notes present, but some unknown error for url:{}, thread:{}'.format(url,threading.currentThread()))
+                            # self.out_queue.put(res)
+                            no_errors += 1
+                    else:
+                        logging.info('company part login: res has no company name/Notes keys. url:{}, thread:{}'.format(url,threading.currentThread()))
+                        no_errors += 1
+                else:
+                    logging.info('company part login: res is not present for url:{}, thread:{}'.format(url,threading.currentThread()))
+                    no_errors += 1
+            else:
+                logging.info('company part login: res_1 not None, and no result key for url:{}, thread:{}'.format(url,threading.currentThread()))
+                no_errors += 1
+        except Exception :
+            logging.exception('company part login: Error while execution for url: {0}, thread: {1}'.format(url,threading.currentThread()))
+            time.sleep(1)
+            no_errors += 1
+        if no_errors>0:
+            logging.info('company part login: Something went wrong, '
+                         'could not fetch details for url: {0}, thread id: {1}'.format(url,threading.currentThread()))
+        self.in_queue_company.task_done()
+        return no_errors,n_blocks
+
+    def worker_people(self,crawler_company,crawler_people,no_errors,n_blocks):
+        '''
+        :param crawler_company: company crawler object for getting soup object(we are logging in only in company crawler
+        :param crawler_people: people crawler object
+        :param no_errors:
+        :return:at multiple places. careful while changing return types
+        '''
+        # put a company url if people queue is not empty
+        url,list_items_url_id = self.in_queue_people.get()
+        # checking if the url is already crawled
+        if self.final_run:
+            query = "select linkedin_url from {} where list_id = %s and linkedin_url = %s limit 1".format(self.people_base_table)
+            try:
+                # self.con.get_cursor()
+                self.con_check.execute(query,(self.list_id,url,))
+                url_pres = self.con_check.cursor.fetchall()
+            except:
+                url_pres = []
+            # self.con.close_cursor()
+            if url_pres:
+                self.in_queue_people.task_done()
+                return no_errors,n_blocks
+        # logging.info('people part login: Getting info from url: {}'.format(url))
+        try:
+            res_1 = {}
+            for t_no in range(2):
+                time.sleep(randint(30,90))
+                logging.info('people part login: Input URL:{}, thread:{}, try:{}'.format(url,threading.currentThread(),t_no+1))
+                res_1 = self.get_output_people(crawler_company,crawler_people,url)
+                if res_1.get('result','error_happened') != 'error_happened':
+                    res = res_1['result']
+                    if res.get('Name','LinkedIn') != 'LinkedIn' and res.get('Name','LinkedIn') and 'Notes' not in res:
+                        break
+            if 'result' in res_1:
+                res = res_1['result']
+                if res:
+                    # pdb.set_trace()
+                    if 'Name' in res :
+                        if res['Name'] and ( res['Name'] != 'LinkedIn'):
+                            self.out_queue_people.put((res,list_items_url_id))
+                            no_errors = 0
+                            n_blocks = 0
+                        else:
+                            logging.info('people part login: res_1 company name is missing or linkedin (default page),'
+                                         ' for url:{}, thread:{}'.format(url,threading.currentThread()))
+                            no_errors += 1
+                    elif 'Notes' in res:
+                        if res['Notes'] == 'Not Available Pubicly':
+                            logging.info('people part login: Not publicly available for url:{}, thread:{}'.format(url,threading.currentThread()))
+                            # self.out_queue.put(res)
+                            no_errors += 1
+                        elif res['Notes'] == 'Java script code':
+                            logging.info('people part login: Not proper page, probably javascript for url:{}, thread:{}'.format(url,threading.currentThread()))
+                            # self.out_queue.put(res)
+                            no_errors += 1
+                        else:
+                            logging.info('people part login: Notes present, but some unknown error for url:{}, thread:{}'.format(url,threading.currentThread()))
+                            # self.out_queue.put(res)
+                            no_errors += 1
+                    else:
+                        logging.info('people part login: res present, but Name or Notes keys not present for url:{}, thread:{}'.format(url,threading.currentThread()))
+                        no_errors += 1
+                else:
+                    logging.info('people part login: res not present for url:{}, thread:{}'.format(url,threading.currentThread()))
+                    no_errors += 1
+            else:
+                logging.info('people part login: res_1 not None, but no result key present for url:{}, thread:{}'.format(url,threading.currentThread()))
+                no_errors += 1
+        except Exception :
+            logging.exception('people part login: Error while execution for url: {0}, Thread: {1}'.format(url,threading.currentThread()))
+            time.sleep(1)
+            no_errors += 1
+        self.in_queue_people.task_done()
+        if no_errors>0:
+            logging.info('people part login: Something went wrong, '
+                         'could not fetch details for url: {0}, thread id: {1}'.format(url,threading.currentThread()))
+        return no_errors,n_blocks
+
     def worker_fetch_url(self):
         '''
         :return:
         '''
+        proxy_ip, proxy_port,proxy_dets = None,None,None
         if self.proxy:
             try: #some error happens while getting proxy sometimes. putting it in try
                 logging.info('company part login: No proxies in queue,trying to get proxies')
@@ -105,188 +304,33 @@ class LinkedinLoginCrawlerThread(object):
             except: #if  coming here, run without proxy
                 logging.exception('company part login: Error while getting proxy. Running without proxy ')
                 proxy_ip, proxy_port = None,None
-        else:
-            proxy_ip, proxy_port,proxy_dets = None,None,None
         crawler_company = linkedin_company_crawler_login.LinkedinOrganizationService(self.browser,self.visible,proxy=False,
                                                                   proxy_ip=proxy_ip,proxy_port=proxy_port,
                                                                   use_tor=self.use_tor)
-        # crawler_people = linkedin_profile_crawler_login.LinkedinProfileCrawler()
-        def get_output_company(crawler_company,url,res_1):
-            res_1['result'] = crawler_company.get_organization_details_from_linkedin_link(url,
-                                                                                          designations=self.desig_list,
-                                                                                          next_page=self.no_pages_to_search)
-            
-        # def get_output_people(crawler_company,crawler_people,url,res_1):
-        #     '''crawler_company has the browser. crawler_people processes the soup '''
-        #     soup = crawler_company.link_parser.get_soup(url)
-        #     res_1['result'] = crawler_people.fetch_details_soupinput(soup)
-        #     res_1['Linkedin URL'] = crawler_company.link_parser.browser.current_url
-        #     res_1['Original URL'] = url
-        
+        crawler_people = linkedin_profile_crawler_login.LinkedinProfileCrawler(browser=False)
+        logging.info('Crawler objects created')
         no_errors = 0
         ind = 0
         n_blocks =0
         # self.crawler_queue.put(crawler)
         while self.run_queue:
+            # logging.info('Running queue. ind : {}'.format(ind))
             # we need to crawl company and people simultaneously. after crawling a company page, those urls are put into
             # in_queue_people, and using same browser we will crawl those urls. after each iteration, check if no_errors
             # is 0. if 0 and in_queue_people is not empty, fetch one url from it and run
             ind += 1
             if not self.in_queue_company.empty():
-                # import pdb
-                # pdb.set_trace()
-                url,list_items_url_id = self.in_queue_company.get()
-                # checking if the url is already crawled
-                query = "select linkedin_url from {} where list_id = %s and linkedin_url = %s limit 1".format(self.company_base_table)
-                try:
-                    # self.con.get_cursor()
-                    self.con_check.execute(query,(self.list_id,url,))
-                    url_pres = self.con_check.cursor.fetchall()
-                except:
-                    url_pres = []
-                # self.con.close_cursor()
-                if url_pres:
-                    self.in_queue_company.task_done()
-                    continue
-                # if url in self.processed_queue.queue or url in self.error_queue.queue:
-                #     continue
-                try:
-                    for t_no in range(2):
-                        time.sleep(randint(5,10))
-                        logging.info('company part login: Input URL:{}, thread:{}, try:{}'.format(url,threading.currentThread(),t_no+1))
-                        res_1 = {}
-                        # pdb.set_trace()
-                        get_output_company(crawler_company,url,res_1)
-                        if res_1.get('result','error_happened') != 'error_happened':
-                            res = res_1['result']
-                            if res.get('Company Name','LinkedIn') != 'LinkedIn':
-                                break
-                    if 'result' in res_1:
-                        res = res_1['result']
-                        if res:
-                            if 'Company Name' in res :
-                                if res['Company Name'] and (res['Company Name'] != 'LinkedIn' or url.startswith('https://www.linkedin.com/company/1337') or url.startswith('https://www.linkedin.com/company/linkedin')):
-                                    self.out_queue_company.put((res,list_items_url_id))
-                                    # self.processed_queue.put(url)
-                                    no_errors = 0
-                                    n_blocks = 0
-                                    # if 'Employee Details' in res:
-                                    #     # put all the people urls into in_queue_people
-                                    #     for emp_dets in res['Employee Details']:
-                                    #         if emp_dets.get('linkedin_url','') and emp_dets.get('Name','')\
-                                    #                 and not re.search('LinkedIn Member',emp_dets.get('Name',''),re.IGNORECASE):
-                                    #             self.in_queue_people.put((emp_dets['linkedin_url'],list_items_url_id))
-                                else:
-                                    logging.info('company part login: res company name is linkedin (default page) for url:{}, thread:{}'.format(url,threading.currentThread()))
-                                    no_errors += 1
-                            elif 'Notes' in res:
-                                if res['Notes'] == 'Not Available Pubicly':
-                                    logging.info('company part login: Results not available publicly for url:{}, thread:{}'.format(url,threading.currentThread()))
-                                    # self.out_queue.put(res)
-                                    no_errors += 1
-                                elif res['Notes'] == 'Java script code':
-                                    logging.info('company part login: Not proper page, probably javascript for url:{}, thread:{}'.format(url,threading.currentThread()))
-                                    # self.out_queue.put(res)
-                                    no_errors += 1
-                                elif res['Notes'] == 'Company page not found':
-                                    logging.info('company part login: Company page not found for url: {} ,thread: {}'.format(url,threading.currentThread()))
-                                    self.out_queue_company.put((res,list_items_url_id))
-                                    no_errors = 0
-                                    n_blocks = 0
-                                else:
-                                    logging.info('company part login: Notes present, but some unknown error for url:{}, thread:{}'.format(url,threading.currentThread()))
-                                    # self.out_queue.put(res)
-                                    no_errors += 1
-                            else:
-                                logging.info('company part login: res has no company name/Notes keys. url:{}, thread:{}'.format(url,threading.currentThread()))
-                                no_errors += 1
-                        else:
-                            logging.info('company part login: res is not present for url:{}, thread:{}'.format(url,threading.currentThread()))
-                            no_errors += 1
-                    else:
-                        logging.info('company part login: res_1 not None, and no result key for url:{}, thread:{}'.format(url,threading.currentThread()))
-                        no_errors += 1
-                except Exception :
-                    logging.exception('company part login: Error while execution for url: {0}, thread: {1}'.format(url,threading.currentThread()))
-                    time.sleep(1)
-                    no_errors += 1
-                if no_errors>0:
-                    logging.info('company part login: Something went wrong, '
-                                 'could not fetch details for url: {0}, thread id: {1}'.format(url,threading.currentThread()))
-                self.in_queue_company.task_done()
-            time.sleep(randint(2,7))
-            # todo: following part for crawling people pages. but decided not to do this. Instead, write another \
+                no_errors,n_blocks = self.worker_company(crawler_company,no_errors,n_blocks)
+            else:
+                logging.info('Company queue empty')
+            #  following part for crawling people pages. but decided not to do this. Instead, write another \
             # program which can take name,company name and designation and search in duckduckgo to find the actual
             # linkedin url and crawl it using the without login option
-            # if not self.in_queue_people.empty():
-            #     # put a company url if people queue is not empty
-            #     url,list_items_url_id = self.in_queue_people.get()
-            #     # checking if the url is already crawled
-            #     query = "select linkedin_url from {} where list_id = %s and linkedin_url = %s limit 1".format(self.people_base_table)
-            #     try:
-            #         # self.con.get_cursor()
-            #         self.con_check.execute(query,(self.list_id,url,))
-            #         url_pres = self.con_check.cursor.fetchall()
-            #     except:
-            #         url_pres = []
-            #     # self.con.close_cursor()
-            #     if url_pres:
-            #         self.in_queue_people.task_done()
-            #         continue
-            #     try:
-            #         for t_no in range(2):
-            #             time.sleep(randint(30,90))
-            #             logging.info('people part login: Input URL:{}, thread:{}, try:{}'.format(url,threading.currentThread(),t_no+1))
-            #             res_1 = {}
-            #             get_output_people(crawler_company,crawler_people,url,res_1)
-            #             if res_1.get('result','error_happened') != 'error_happened':
-            #                 res = res_1['result']
-            #                 if res.get('Name','LinkedIn') != 'LinkedIn' and res.get('Name','LinkedIn') and 'Notes' not in res:
-            #                     break
-            #         if 'result' in res_1:
-            #             res = res_1['result']
-            #             if res:
-            #                 # pdb.set_trace()
-            #                 if 'Name' in res :
-            #                     if res['Name'] and ( res['Name'] != 'LinkedIn'):
-            #                         self.out_queue_people.put((res,list_items_url_id))
-            #                         no_errors = 0
-            #                         n_blocks = 0
-            #                     else:
-            #                         logging.info('people part login: res_1 company name is missing or linkedin (default page),'
-            #                                      ' for url:{}, thread:{}'.format(url,threading.currentThread()))
-            #                         no_errors += 1
-            #                 elif 'Notes' in res:
-            #                     if res['Notes'] == 'Not Available Pubicly':
-            #                         logging.info('people part login: Not publicly available for url:{}, thread:{}'.format(url,threading.currentThread()))
-            #                         # self.out_queue.put(res)
-            #                         no_errors += 1
-            #                     elif res['Notes'] == 'Java script code':
-            #                         logging.info('people part login: Not proper page, probably javascript for url:{}, thread:{}'.format(url,threading.currentThread()))
-            #                         # self.out_queue.put(res)
-            #                         no_errors += 1
-            #                     else:
-            #                         logging.info('people part login: Notes present, but some unknown error for url:{}, thread:{}'.format(url,threading.currentThread()))
-            #                         # self.out_queue.put(res)
-            #                         no_errors += 1
-            #                 else:
-            #                     logging.info('people part login: res present, but Name or Notes keys not present for url:{}, thread:{}'.format(url,threading.currentThread()))
-            #                     no_errors += 1
-            #             else:
-            #                 logging.info('people part login: res not present for url:{}, thread:{}'.format(url,threading.currentThread()))
-            #                 no_errors += 1
-            #         else:
-            #             logging.info('people part login: res_1 not None, but no result key present for url:{}, thread:{}'.format(url,threading.currentThread()))
-            #             no_errors += 1
-            #     except Exception :
-            #         logging.exception('people part login: Error while execution for url: {0}, Thread: {1}'.format(url,threading.currentThread()))
-            #         time.sleep(1)
-            #         no_errors += 1
-            #     self.in_queue_people.task_done()
-            #     if no_errors>0:
-            #         logging.info('people part login: Something went wrong, '
-            #                      'could not fetch details for url: {0}, thread id: {1}'.format(url,threading.currentThread()))
-                
+            if self.people_crawl:
+                if not self.in_queue_people.empty():
+                    no_errors,n_blocks = self.worker_people(crawler_company,crawler_people,no_errors,n_blocks)
+                else:
+                    logging.info('people queue empty')
             if ind%10 == 0 :
                 time.sleep(randint(2,6))
                 if ind%50 == 0 :
@@ -484,25 +528,23 @@ class LinkedinLoginCrawlerThread(object):
                     continue
                 self.save_to_table_company(res,list_items_url_id)
                 self.out_queue_company.task_done()
-            # if not self.out_queue_people.empty():
-            #     res,list_items_url_id = self.out_queue_people.get()
-            #     if not list_items_url_id:
-            #         logging.info('people part: list_items_url_id is not present for res: {}'.format(res))
-            #         continue
-            #     self.save_to_table_people(res,list_items_url_id)
-            #     self.out_queue_people.task_done()
+            if self.people_crawl and not self.out_queue_people.empty():
+                res,list_items_url_id = self.out_queue_people.get()
+                if not list_items_url_id:
+                    logging.info('people part: list_items_url_id is not present for res: {}'.format(res))
+                    continue
+                self.save_to_table_people(res,list_items_url_id)
+                self.out_queue_people.task_done()
 
-    def run(self,n_threads=1,limit_no=2000,
-            company_urls_to_crawl_table='crawler.linkedin_company_urls_to_crawl_priority',
+    def run(self,n_threads=1,company_urls_to_crawl_table='crawler.linkedin_company_urls_to_crawl_priority',
             company_base_table='crawler.linkedin_company_base',
             people_base_table='crawler.linkedin_people_base',
             people_urls_to_crawl_table = 'crawler.linkedin_people_urls_to_crawl_priority',
             finished_urls_table_company = 'crawler.linkedin_company_finished_urls',
             finished_urls_table_people = 'crawler.linkedin_people_finished_urls',
-            list_id = None,desig_list = [],no_pages_to_search=2):
+            list_id = None,desig_list = [],no_pages_to_search=2,final_run=False,people_crawl=False):
         '''
         :param n_threads:
-        :param limit_no:
         :param company_urls_to_crawl_table:
         :param company_base_table:
         :param people_base_table:
@@ -512,6 +554,9 @@ class LinkedinLoginCrawlerThread(object):
         :param list_id:
         :param desig_list:
         :param no_pages_to_search: while searching in linkedin for people from a company, how many pages to search
+        :param final_run : if true, take all companies not present in people table . So, this should be run only
+        after generating people after crawling without logging in
+        :param people_crawl: crawl people urls also?
         :return:
         '''
         # logging.basicConfig(filename=log_file_loc, level=logging.INFO,format='%(asctime)s %(message)s')
@@ -526,26 +571,39 @@ class LinkedinLoginCrawlerThread(object):
         self.list_id = list_id
         self.desig_list = desig_list
         self.no_pages_to_search = no_pages_to_search
+        self.final_run = final_run
+        self.people_crawl = people_crawl
         # self.crawler_queue = Queue(maxsize=0)
         # self.con.get_cursor() #no need to get cursor separately
         # first look at priority table
         query = "select a.url,a.list_items_url_id from {} a left join {} b on a.url = b.url and a.list_id = b.list_id "\
-                "where a.list_id = %s and b.url is NULL limit {}".format(self.company_urls_to_crawl_table,
-                                                                         self.finished_urls_table_company,limit_no)
+                "where a.list_id = %s and b.url is NULL ".format(self.company_urls_to_crawl_table,
+                                                                         self.finished_urls_table_company)
         self.con.cursor.execute(query,(self.list_id,))
         inp_list_priority = self.con.cursor.fetchall()
         # take all company urls with employee details null in base w/o login table and not present in base login table
         query = " select a.url,a.id from {list_items_urls} a join {redirect_table} b on (a.url=b.url or a.url=b.redirect_url) " \
                 " join {comp_base_orgi} c on a.list_id=c.list_id and (b.redirect_url=c.linkedin_url or a.url=c.linkedin_url) " \
                 " left join {comp_base_login} d on a.list_id=d.list_id and (b.redirect_url=d.linkedin_url or a.url=d.linkedin_url) "\
-                " where a.list_id= %s and c.employee_details = '' " \
-                " and d.linkedin_url is null limit {limit_no} ".format(list_items_urls='crawler.list_items_urls',
+                " where a.list_id= %s and (c.employee_details = '' or c.website='NULL') " \
+                " and d.linkedin_url is null  ".format(list_items_urls='crawler.list_items_urls',
                                                                 redirect_table='crawler.linkedin_company_redirect_url',
                                                                 comp_base_orgi=self.company_base_table_orig,
-                                                                comp_base_login=self.company_base_table,
-                                                                limit_no=limit_no)
+                                                                comp_base_login=self.company_base_table
+                                                                )
         self.con.cursor.execute(query,(self.list_id,))
         inp_list_priority.extend(self.con.cursor.fetchall())
+        # get people urls to crawl
+        if self.final_run:
+            query = " select a.url,a.id from {list_items_urls} a join {redirect_table} b on (a.url=b.url or a.url=b.redirect_url) " \
+                    " left join {ppl_for_email_tab} c on " \
+                    " a.list_id=c.list_id and (a.url=c.company_linkedin_url or b.redirect_url = c.company_linkedin_url) "\
+                    " where a.list_id=%s and c.company_linkedin_url is null ".format(
+                list_items_urls='crawler.list_items_urls',redirect_table='crawler.linkedin_company_redirect_url',
+                ppl_for_email_tab = 'crawler.people_details_for_email_verifier_new'
+            )
+            self.con.cursor.execute(query,(self.list_id,))
+            inp_list_priority.extend(self.con.cursor.fetchall())
         inp_list = inp_list_priority
         inp_list = [(i[0],i[1]) for i in inp_list]
         inp_list = list(set(inp_list))
@@ -557,8 +615,9 @@ class LinkedinLoginCrawlerThread(object):
         self.run_write_queue = True
         self.in_queue_company = Queue(maxsize=0)
         self.out_queue_company = Queue(maxsize=0)
-        # self.in_queue_people = Queue(maxsize=0)
-        # self.out_queue_people = Queue(maxsize=0)
+        # if self.people_crawl:
+        self.in_queue_people = Queue(maxsize=0)
+        self.out_queue_people = Queue(maxsize=0)
         # self.processed_queue = Queue(maxsize=0)
         # self.error_queue = Queue(maxsize=0)
         self.gen_proxies()
@@ -574,15 +633,18 @@ class LinkedinLoginCrawlerThread(object):
         for i in inp_list:
             self.in_queue_company.put(i)
         del inp_list
+        # for i in ppl_crawl_list:
+        #     self.in_queue_people.put(i)
+        # del ppl_crawl_list
         # while (not self.in_queue_company.empty() or not self.in_queue_people.empty()) and self.run_queue:
-        while not self.in_queue_company.empty()  and self.run_queue:
+        while not (self.in_queue_company.empty() and self.in_queue_people.empty()) and self.run_queue:
             try:
-                time.sleep(2)
+                time.sleep(200)
             except :
                 # self.run_queue = False
                 break
         self.run_queue = False
-        time.sleep(60)
+        time.sleep(200) #waiting for all threads to finish
         logging.info('company part login: crawling stopped, trying to save already crawled results. '
                      'No of results left in out queue : {}'.format(len(self.out_queue_company.queue)))
         if not self.out_queue_company.empty():

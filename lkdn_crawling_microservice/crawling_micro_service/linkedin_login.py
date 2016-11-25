@@ -10,6 +10,7 @@ def login_fun(browser):
     '''
     try:
         browser.get('https://www.linkedin.com/')
+        time.sleep(10)
         username_field = browser.find_element_by_id("login-email")
         password_field = browser.find_element_by_id("login-password")
         username_field.send_keys(linkedin_username)

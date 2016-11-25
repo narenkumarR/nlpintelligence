@@ -9,7 +9,17 @@ class ProxyGen(object):
     '''
     '''
     def __init__(self,browser_name='Firefox',visible=True,page_load_timeout=60,parser='selenium'):
-        self.browser_name = browser_name
+        '''
+        :param browser_name:
+        :param visible:
+        :param page_load_timeout:
+        :param parser:
+        :return:
+        '''
+        if browser_name == 'Firefox_luminati':
+            self.browser_name = 'Firefox'
+        else:
+            self.browser_name = browser_name
         self.visible = visible
         self.page_load_timeout = page_load_timeout
         self.parser = parser

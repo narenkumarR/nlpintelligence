@@ -72,7 +72,7 @@ class LinkedinOrganizationService(object):
         :return:
         '''
         # print('class intializing')
-        self._crawler = BeautifulsoupCrawl.single_wp
+        self._crawler = BeautifulsoupCrawl.get_soup
         self.browser = browser
         self.visible = visible
         self.proxy = proxy
@@ -188,8 +188,8 @@ class LinkedinOrganizationService(object):
         details['Description Text'] = self.get_description(soup)
         self.get_details(soup,details)
         details['Also Viewed Companies'] = self.get_also_viewed(soup)
-        details['Employee Details'] = self.get_employees(soup,designations,next_page)
         details['Employee count Linkedin'] = self.get_linkedin_employees_count(soup)
+        details['Employee Details'] = self.get_employees(soup,designations,next_page)
         return details
 
     # @dec_fun
@@ -260,13 +260,15 @@ class LinkedinOrganizationService(object):
         # out_list = []
         # for tmp in linkedin_emp_count:
         try:
-            linkedin_emp_count_list = linkedin_emp_count.find('ul',{'class':'stats'}).find_all('li')
-            if len(linkedin_emp_count_list) == 1:
-                # self.details['Employee count Linkedin'] = ''
-                return ''
-            else:
-                # self.details['Employee count Linkedin'] = linkedin_emp_count_list[1].find('a').text.strip()
-                return linkedin_emp_count_list[1].find('a').text.strip()
+            linkedin_emp_count_list = linkedin_emp_count.find('ul', {'class': 'stats'}).find_all('li')
+            for emp_count in linkedin_emp_count_list:
+                if 'Employees on LinkedIn' in emp_count.find('span').text.strip():
+                    # self.details['Employee count Linkedin'] = ''
+                    return emp_count.find('a').text.strip()
+
+                # else:
+                #     # self.details['Employee count Linkedin'] = linkedin_emp_count_list[1].find('a').text.strip()
+                #     return ''
         except:
             # self.details['Employee count Linkedin'] = ''
            # logging.info('out_list : {}'.format(out_list))

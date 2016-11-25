@@ -32,7 +32,7 @@ class LinkedinProfileCrawler(object):
         :return:
         '''
         # print('class intializing')
-        self._crawler = BeautifulsoupCrawl.single_wp
+        self._crawler = BeautifulsoupCrawl.get_soup
         self.browser = browser
         self.visible = visible
         self.proxy = proxy
@@ -86,6 +86,14 @@ class LinkedinProfileCrawler(object):
             url_index_part = url1.split('/')[-3:]
             if len(url_index_part[1]) == 2:
                 url_index_part[1] = '0'+url_index_part[1]
+            if len(url_index_part[1]) == 1:
+                url_index_part[1] = '00'+url_index_part[1]
+            if len(url_index_part[2]) == 2:
+                url_index_part[2] = '0'+url_index_part[2]
+            if len(url_index_part[2]) == 1:
+                url_index_part[2] = '00'+url_index_part[2]
+            if url_index_part[0] == '0':
+                url_index_part[0]=''
             url_index_part = url_index_part[::-1]
             url_first_part = url1.split('/')[:-3]
             url = re.sub('/pub/','/in/','/'.join(url_first_part)+'-'+''.join(url_index_part))

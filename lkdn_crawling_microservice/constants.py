@@ -23,8 +23,8 @@ designations_column_name = 'designations'
 linkedin_url_column = 'linkedin_url'
 
 # linkedin credentials
-linkedin_username = 'raditya.mit@gmail.com'
-linkedin_password = 'pipecandy@1989'
+linkedin_username = 'joswinkj@gmail.com'
+linkedin_password = 'joswinkj'
 
 # firefox binary location
 firefox_binary_loc = 'firefox_binaries/firefox-46/firefox'
@@ -74,7 +74,8 @@ common_company_wrds = ['limited', 'all', 'just', 'being', 'over', 'both', 'throu
                        'then', 'is', 'in', 'am', 'it', 'an', 'as', 'itself', 'at', 'have', 'further', 'technology',
                        'their', 'if', 'again', 'no', 'media', 'agency', 'when', 'same', 'any', 'how', 'other', 'which',
                        'digital',  'inc','inc.', 'development', 'who', 'most', 'services', 'such', 'why', 'engineering',
-                        'center', 'medical', 'having', 'so', 'corporation', 'the', 'yours', 'once','nan','NaN']
+                        'center', 'medical', 'having', 'so', 'corporation', 'the', 'yours', 'once','nan','NaN',
+                       'division']
 
 company_common_reg = re.compile(r'\b'+r'\b|\b'.join(common_company_wrds)+r'\b')
 
@@ -82,3 +83,15 @@ company_common_reg = re.compile(r'\b'+r'\b|\b'.join(common_company_wrds)+r'\b')
 urls_to_crawl_table = 'linkedin_company_urls_to_crawl_priority'
 initial_urls_table = 'linkedin_company_urls_to_crawl_initial_list'
 #end : these table names are set based on the crawling_micro_service code. Do not change these before changing it there also
+
+user_agents = ['Mozilla/5.0 (Windows; U; MSIE 9.0; Windows NT 9.0; en-US)',
+               "Mozilla/5.0 (compatible; MSIE 10.0; Macintosh; Intel Mac OS X 10_7_3; Trident/6.0)'",
+               "Mozilla/5.0 (compatible; MSIE 8.0; Windows NT 6.1; Trident/4.0; GTB7.4; InfoPath.2; SV1; .NET CLR 3.3.69573; WOW64; en-US)",
+               "Mozilla/5.0 (Windows NT 6.1) AppleWebKit/537.2 (KHTML, like Gecko) Chrome/22.0.1216.0 Safari/537.2'",
+               "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_7_4) AppleWebKit/537.13 (KHTML, like Gecko) Chrome/24.0.1290.1 Safari/537.13",
+               "Mozilla/5.0 (X11; CrOS i686 2268.111.0) AppleWebKit/536.11 (KHTML, like Gecko) Chrome/20.0.1132.57 Safari/536.11",
+               "Mozilla/5.0 (Windows NT 6.2; Win64; x64; rv:16.0.1) Gecko/20121011 Firefox/16.0.1",
+               "Mozilla/5.0 (X11; Ubuntu; Linux i686; rv:15.0) Gecko/20100101 Firefox/15.0.1",
+               "Mozilla/5.0 (iPad; CPU OS 6_0 like Mac OS X) AppleWebKit/536.26 (KHTML, like Gecko) Version/6.0 Mobile/10A5355d Safari/8536.25",
+               "Mozilla/5.0 (X11; Linux x86_64; rv:41.0) Gecko/20100101 Firefox/41.0"]
+# user_agents = ['Mozilla/5.0 (Linux; Android 5.1; Archos Diamond S Build/LMY47D; wv) AppleWebKit/537.36 (KHTML, like Gecko) Version/4.0 Chrome/51.0.2704.81 Mobile Safari/537.36']

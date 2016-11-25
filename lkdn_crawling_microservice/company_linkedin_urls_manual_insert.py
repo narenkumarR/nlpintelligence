@@ -1,6 +1,7 @@
 __author__ = 'joswin'
 
 import pandas as pd
+import re
 from optparse import OptionParser
 
 from postgres_connect import PostgresConnect
@@ -21,6 +22,9 @@ def upload_url_list(csv_loc=None,list_name=None):
     url_df = pd.read_csv(csv_loc,sep=None)
     url_df = url_df.fillna('')
     url_list = list(url_df[linkedin_url_column])
+    if url_list:
+        url_list = ['https://www.linkedin.com/company/'+re.split('/',re.split(r'linkedin\.com/',url)[-1])[1]
+                        if url else ''  for url in url_list ]
     company_dets = [(url_df.iloc[i][company_name_field],url_df.iloc[i][company_details_field]) for i in range(url_df.shape[0])]
     con = PostgresConnect()
     con.get_cursor()
@@ -37,9 +41,9 @@ def upload_url_list(csv_loc=None,list_name=None):
     # prob with getting correct list_items_id while inserting- insert the name to list_item table
     if url_list and company_dets:
         records_list_template = ','.join(['%s']*len(company_dets))
-        insert_query = "INSERT INTO {} (list_id,list_input,list_input_additional) VALUES {} "\
+        insert_query = "INSERT INTO {} (list_id,list_input,list_input_additional,url_extracted) VALUES {} "\
                         "ON CONFLICT DO NOTHING".format('crawler.list_items',records_list_template)
-        urls_to_crawl1 = [(list_id,i[0],i[1]) for i in company_dets]
+        urls_to_crawl1 = [(list_id,i[0],i[1],0) for i in company_dets]
         con.cursor.execute(insert_query, urls_to_crawl1)
         con.commit()
         # now insert urls directly into the list_items_urls table
@@ -51,9 +55,17 @@ def upload_url_list(csv_loc=None,list_name=None):
                 value = name_val[1]
                 query = "insert into crawler.list_items_urls (list_id,list_items_id,url) "\
                         " select  list_id,id as list_items_id,%s as url "\
-                        " from {} where list_input = %s and list_input_additional = %s "\
-                        " on conflict do nothing ".format('crawler.list_items')
-                con.cursor.execute(query,(url,name,value,))
+                        " from {list_items_table} where list_input = %s and list_input_additional = %s " \
+                        " and list_id = %s "\
+                        " on conflict do nothing ".format(list_items_table='crawler.list_items')
+                con.cursor.execute(query,(url,name,value,list_id,))
+                con.commit()
+                # update the url_extracted column also
+                query = " update {list_items_table} set url_extracted = 1 " \
+                        " where list_id = %s and list_input = %s and list_input_additional = %s  ".format(
+                    list_items_table='crawler.list_items'
+                )
+                con.cursor.execute(query,(list_id,name,value,))
                 con.commit()
             except Exception,e:
                 print('error happened for url:{},name_val:{}'.format(url,name_val))

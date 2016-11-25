@@ -100,6 +100,7 @@ class CompanyLinkedinURLExtractorSingle(object):
         if additional_text:
             search_query = additional_text+' linkedin'
             search_res = self.ddg_crawler.fetch_results(search_query) # go to ddg and get all results in list
+            time.sleep(4)
             conf = 90
             res_list,people_list = [],[]
             for dic1 in search_res:
@@ -138,13 +139,14 @@ class CompanyLinkedinURLExtractorSingle(object):
             text_1 = re.sub(' +',' ',text).lower()
             text_1 = company_common_reg.sub(' ',text_1)
             text_1 = re.sub(' +',' ',text_1)
+            text_2 = re.sub(' ','',text_1)
             if re.search(company_text,text_1):
                 # res_list_new.append((url,conf,100)) #add 100 as match for text
                 return url,90 #return url with confidence 100
             else:
                 match_cnt = 0
                 for wrd in company_text_wrds:
-                    if re.search(wrd,text_1):
+                    if re.search(wrd,text_1) or re.search(wrd,text_2):
                         match_cnt += 1
                 if match_cnt > max_count:
                     res_list_new = [url]
@@ -396,7 +398,7 @@ class CompanyLinkedinURLExtractorMulti(object):
             worker.join(timeout=1)
         for link_extractor in worker_link_extractors:
             link_extractor.crawler.browser.quit()
-            link_extractor.ddg_crawler.crawler.browser.quit()
+            # link_extractor.ddg_crawler.crawler.browser.quit()
         # try to yield from out_queue again if anything is remaining in the queue
         logging.info('company extraction: trying to fetch from out queue again')
         while not self.out_queue.empty() or not self.in_queue.empty():

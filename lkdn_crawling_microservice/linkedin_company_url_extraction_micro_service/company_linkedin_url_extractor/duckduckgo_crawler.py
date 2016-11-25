@@ -12,8 +12,8 @@ class DuckduckgoCrawler(object):
     '''
     '''
     def __init__(self,visible=False):
-        # self.crawler = BeautifulsoupCrawl()
-        self.crawler = SeleniumParser(visible=visible)
+        self.crawler = BeautifulsoupCrawl()
+        # self.crawler = SeleniumParser(visible=visible)
 
     def fetch_results(self,query,timeout=30):
         '''

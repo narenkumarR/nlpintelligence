@@ -18,6 +18,7 @@ create table crawler.list_items(id UUID PRIMARY KEY DEFAULT uuid_generate_v1mc()
     list_id UUID,
     list_input text,
     list_input_additional text,
+    url_extracted BIGINT,
     created_on timestamp default current_timestamp);
 create unique index on crawler.list_items (list_id,list_input,list_input_additional);
 
