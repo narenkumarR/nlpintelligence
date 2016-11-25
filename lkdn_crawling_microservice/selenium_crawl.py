@@ -6,11 +6,13 @@ from selenium import webdriver
 from pyvirtualdisplay import Display
 import httplib
 import socket
+import time
+import random
 from selenium.webdriver.firefox.firefox_binary import FirefoxBinary
 
 from selenium.webdriver.remote.command import Command
 # from selenium.common.exceptions import TimeoutException
-from constants import firefox_binary_loc
+from constants import firefox_binary_loc,user_agents
 import os
 
 def get_status(driver):
@@ -45,6 +47,18 @@ class SeleniumParser(object):
             self.display = None
         if browser == 'PhantomJS':
             self.browser = webdriver.PhantomJS(browser_loc)
+            self.pid = self.browser.binary.process.pid
+        elif browser == 'Firefox_luminati':
+            firefox_profile = webdriver.FirefoxProfile('firefox_profile')
+            self.user_agent = random.choice(user_agents)
+            firefox_profile.set_preference("general.useragent.override", self.user_agent)
+            # firefox_profile.set_preference("webdriver.log.file", "/tmp/firefox_console")
+            firefox_profile.update_preferences()
+            f = open('firefox_logs/{}firefox_binary.log'.format(random.randint(1,9)),'a')
+            self.browser = webdriver.Firefox(firefox_binary=FirefoxBinary(firefox_binary_loc,log_file=f),
+                                             firefox_profile=firefox_profile)
+            time.sleep(random.choice(range(7,23,3)))
+            self.pid = self.browser.binary.process.pid
         else:
             firefox_profile = webdriver.FirefoxProfile()
             firefox_profile.set_preference("browser.privatebrowsing.autostart", True)
@@ -72,8 +86,8 @@ class SeleniumParser(object):
                 firefox_profile.set_preference( "network.proxy.socks_port", 9050 )
                 firefox_profile.set_preference( "network.proxy.socks_remote_dns", True )
                 self.browser = webdriver.Firefox(firefox_binary=FirefoxBinary(firefox_binary_loc),firefox_profile=firefox_profile)
-        self.browser.set_page_load_timeout(page_load_timeout)
-        self.pid = self.browser.binary.process.pid
+                self.browser.set_page_load_timeout(page_load_timeout)
+            self.pid = self.browser.binary.process.pid
         logging.info('selenium crawl: browser started. pid : {}'.format(self.pid))
 
     def get_url(self,url):

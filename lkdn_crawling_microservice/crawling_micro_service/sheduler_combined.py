@@ -9,7 +9,7 @@ import sys
 import gc
 import logging
 
-import crawler,crawler_login
+import sheduler_company,sheduler_people,sheduler_login
 
 class LinkedinCrawlerThread(object):
     def __init__(self):
@@ -46,7 +46,7 @@ class LinkedinCrawlerThread(object):
         else:
             with open(url_file,'r') as f:
                 urls = pickle.load(f)
-        cc = crawler.LinkedinCompanyCrawlerThread(browser,visible=visible,proxy=proxy,use_tor=use_tor,use_db=use_db,login=login)
+        cc = sheduler_company.LinkedinCompanyCrawlerThread(browser,visible=visible,proxy=proxy,use_tor=use_tor,use_db=use_db,login=login)
         gc.collect()
         logging.info('starting the main run call for company process')
         cc.run(urls,res_file,log_file,n_threads,limit_no=limit_no,urls_to_crawl_table=urls_to_crawl_table,
@@ -83,7 +83,7 @@ class LinkedinCrawlerThread(object):
         else:
             with open(url_file,'r') as f:
                 urls = pickle.load(f)
-        cc = crawler.LinkedinProfileCrawlerThread(browser,visible=visible,proxy=proxy,use_tor=use_tor,use_db=use_db,login=login)
+        cc = sheduler_people.LinkedinProfileCrawlerThread(browser,visible=visible,proxy=proxy,use_tor=use_tor,use_db=use_db,login=login)
         gc.collect()
         logging.info('starting the main run call for people process')
         cc.run(urls,res_file,log_file,n_threads,limit_no=limit_no,urls_to_crawl_table=urls_to_crawl_table,
@@ -104,10 +104,10 @@ class LinkedinCrawlerThread(object):
         '''
         n_threads = 1
         logging.info('crawler_generic: login process starting')
-        cc = crawler_login.LinkedinLoginCrawlerThread(browser=browser,visible=visible,proxy=proxy,use_tor=use_tor)
+        cc = sheduler_login.LinkedinLoginCrawlerThread(browser=browser,visible=visible,proxy=proxy,use_tor=use_tor)
         gc.collect()
         logging.info('starting the main run call for company process')
-        cc.run(n_threads=n_threads,limit_no=limit_no,
+        cc.run(n_threads=n_threads,
             company_urls_to_crawl_table='crawler.linkedin_company_urls_to_crawl_priority',
             company_base_table='crawler.linkedin_company_base_login',
             people_base_table='crawler.linkedin_people_base_login',
@@ -122,7 +122,7 @@ class LinkedinCrawlerThread(object):
         pass
 
     def run_both_single(self,crawled_loc='crawled_res/',browser = 'Firefox',visible=False,
-                         proxy=True,limit_no=100,n_threads=2,use_tor=False,use_db=True,
+                         proxy=True,limit_no=0,n_threads=2,use_tor=False,use_db=True,
                          urls_to_crawl_people='crawler.linkedin_people_urls_to_crawl',
                          urls_to_crawl_people_priority='crawler.linkedin_people_urls_to_crawl_priority',
                          people_base_table='crawler.linkedin_people_base',

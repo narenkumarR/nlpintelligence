@@ -35,16 +35,16 @@ class LkdnUrlExtrMain(object):
         query = "select a.id as list_items_id, a.list_input,a.list_input_additional "\
                 "from crawler.list_items a left join crawler.list_items_urls b "\
                 "on a.list_id=b.list_id and a.id = b.list_items_id "\
-            "where a.list_id = %s and (b.list_id is null or b.url = '')"
+            "where a.list_id = %s and (b.list_id is null or b.url = '' or a.url_extracted is null or a.url_extracted != 1) "
         self.con.execute(query,(list_id,))
         in_list = self.con.cursor.fetchall()
         # also extract company name for companies for which employee details is null. For these companies, searching
         # in ddg
-        query = " select distinct on (company_name) list_items_id,'' list_input,company_name as list_input_additional " \
-                " from crawler.linkedin_company_base a join crawler.list_items_urls b on a.list_id=b.list_id and " \
-                " a.list_items_url_id = b.id where a.list_id=%s and employee_details is null "
-        self.con.execute(query,(list_id,))
-        in_list.extend(self.con.cursor.fetchall())
+        # query = " select distinct on (company_name) list_items_id,'' list_input,company_name as list_input_additional " \
+        #         " from crawler.linkedin_company_base a join crawler.list_items_urls b on a.list_id=b.list_id and " \
+        #         " a.list_items_url_id = b.id where a.list_id=%s and employee_details is null "
+        # self.con.execute(query,(list_id,))
+        # in_list.extend(self.con.cursor.fetchall())
         if not in_list:
             return
         # logging.info('companies for which url needs to be find : {}'.format(in_list))
@@ -72,6 +72,12 @@ class LkdnUrlExtrMain(object):
                                 " (select 1 from {} where list_id =%s " \
                                 " and list_items_id=%s)".format(list_items_urls_table,list_items_urls_table)
                 self.con.cursor.execute(insert_query, (list_id,key,linkedin_url,list_id,key,))
+                self.con.commit()
+                query = " update {list_items_table} set url_extracted = 1 " \
+                        " where list_id = %s and id = %s  ".format(
+                    list_items_table='crawler.list_items'
+                )
+                self.con.cursor.execute(query,(list_id,key,))
                 self.con.commit()
                 # get list_items_url_id
                 query = " select id from {} where list_id = %s and list_items_id = %s ".format(list_items_urls_table)

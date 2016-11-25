@@ -69,7 +69,7 @@ class LinkedinOrganizationService(object):
         :return:
         '''
         # print('class intializing')
-        self._crawler = BeautifulsoupCrawl.single_wp
+        self._crawler = BeautifulsoupCrawl.get_soup
         self.browser = browser
         self.visible = visible
         self.proxy = proxy
