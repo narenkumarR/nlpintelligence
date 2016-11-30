@@ -45,12 +45,16 @@ class LinkedinProfileCrawlerThread(object):
         if self.proxy:
             self.proxy_generator = ProxyGen(browser_name=browser,visible=visible,page_load_timeout=60)
         self.proxies = Queue(maxsize=0)
-        self.sleep_time_min = 60
-        self.sleep_time_max = 120
+        if self.browser == 'Firefox luminati':
+            self.sleep_time_min = 60
+            self.sleep_time_max = 120
+        else:
+            self.sleep_time_min = 20
+            self.sleep_time_max = 40
         if self.browser == 'Firefox_luminati':
             self.error_limit = 2
         else:
-            self.error_limit = 6
+            self.error_limit = 3
 
     def gen_proxies(self):
         '''
