@@ -62,7 +62,7 @@ problematic_urls_file = 'prob_files.txt'
 
 # this is for constructing regular expression.
 nltk_stops = stopwords.words()
-wrds_to_remove = [   'pty', 'llc', 'pvt(\.)?','private', 'corp(\.)?','corporation',
+wrds_to_remove = ['pty', 'llc', 'pvt(\.)?','private', 'corp(\.)?','corporation',
                        'ltd(\.)?', 'limited','co(\.)?',
                          'inc(\.)?'
                        ]

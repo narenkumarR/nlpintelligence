@@ -51,8 +51,12 @@ class LinkedinCompanyCrawlerThread(object):
         self.proxies = Queue(maxsize=0)
             # self.proxies.put((None,None)) #try with actual ip first time
             # self.gen_proxies() # logging problem if this runs before init. put this in run call
-        self.sleep_time_min = 60
-        self.sleep_time_max = 120
+        if self.browser == 'Firefox luminati':
+            self.sleep_time_min = 60
+            self.sleep_time_max = 120
+        else:
+            self.sleep_time_min = 20
+            self.sleep_time_max = 40
         if self.browser == 'Firefox luminati':
             self.error_limit = 2
         else:

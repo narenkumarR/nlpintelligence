@@ -45,7 +45,7 @@ class CompanyLinkedinURLExtractorSingle(object):
         '''
         logging.info('company extraction: trying for company : {}'.format(inp_tuple))
         company_url,additional_text = inp_tuple
-        logging.info('get_linkedin_url url:{}'.format(company_url))
+        # logging.info('get_linkedin_url url:{}'.format(company_url))
         # if re.search('http',company_url) or re.search('www',company_url) or re.search('\.co',company_url):
         #     if not re.search('www',company_url) and not re.search('http',company_url):
         #         company_url = 'http://www.'+company_url
@@ -65,10 +65,17 @@ class CompanyLinkedinURLExtractorSingle(object):
         #         logging.exception('get_linkedin_url: error happened while processing company url:{}.'
         #                           ' try duckduckgo'.format(company_url))
         res,conf,people_urls = self.get_linkedin_url_ddg(company_url,additional_text)
+        if not res or conf == 0:
+            res,conf,people_urls = self.get_linkedin_url_ddg(company_url,'') #if additional_text (company name)
+                                                                                # could not find, try with only website
         if res and conf>0 :
             # first check if input is not linkedin and url found is for linkedin
-            if re.search('/company/1337|/company/linkedin|/company-beta/1337',res,re.IGNORECASE) and \
-                not re.search('linkedin',additional_text,re.IGNORECASE) and not re.search('linkedin',company_url,re.IGNORECASE):
+            if re.search('/company/1337|/company/linkedin|/company-beta/1337|/company/facebook|github|'\
+                         '/company/google|/company/twitter|/company/yahoo|/company/myspace|/company/yelp|'\
+                         '/company/youtube|/company/vimeo|/company/instagram',res,re.IGNORECASE) and \
+                not re.search('linkedin|facebook|google|twitter|yahoo|myspace|yelp|youtube|vimeo|instagram|github',
+                              additional_text,re.IGNORECASE) :
+                logging.info('Could not find linkedin url for company : {} ,name: {}'.format(company_url,additional_text))
                 return '',0,[]
             logging.info('Found linkedin url for domain: {} ,name: {} ,url: {}'.format(company_url,additional_text,res))
             return res,conf,people_urls
@@ -100,8 +107,10 @@ class CompanyLinkedinURLExtractorSingle(object):
         time.sleep(randint(5,10))
         if not additional_text:
             additional_text = company_text
-            additional_text = re.sub(r'http://|https://|www\.','',additional_text)
-            additional_text = re.split(r'\.co|\.gov|\.',additional_text)[0]
+            additional_text = re.sub(r'http://(app\.)?|https://(app\.)?|www\.(app\.)?','',additional_text)
+            # additional_text = re.split(r'\.co.{0,4}$|\.[a-zA-Z/]+$|\.gov|\.in$|\.us$',additional_text)[0]\
+            additional_text = re.split('\.',re.split('/',re.sub(r'http://|https://|www\.','',additional_text))[0])[0]
+            logging.info('url cleaning from {} to {}'.format(company_text,additional_text))
         if additional_text:
             additional_text = re.sub(' +',' ',additional_text)
             additional_text = company_common_reg.sub(' ',additional_text)
@@ -156,7 +165,7 @@ class CompanyLinkedinURLExtractorSingle(object):
             url_text_1 = re.sub(' +',' ',url_text).lower()
             url_text_1 = company_common_reg.sub(' ',url_text_1)
             url_text_1 = re.sub(regex_to_sub,'',url_text_1)
-            if re.search(company_text_without_space,text_2) or re.search(company_text_without_space,url_text_1):
+            if  re.search(company_text_without_space,url_text_1): #re.search(company_text_without_space,text_2) or
                 # res_list_new.append((url,conf,100)) #add 100 as match for text
                 return url,90 #return url with confidence 100
         return '',0
