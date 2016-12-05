@@ -127,7 +127,8 @@ class LkdnUrlExtrMain(object):
         :param list_name:
         :return:
         '''
-        logging.basicConfig(filename='log_file_linkedin_url_extractor.log', level=logging.INFO,format='%(asctime)s %(message)s')
+        logging.basicConfig(filename='log_file_linkedin_url_extractor_{}.log'.format(list_name),
+                            level=logging.INFO,format='%(asctime)s %(message)s')
         logging.info('started linkedin url extraction process from command line')
         if list_name is None:
             raise ValueError('Need list_name input')

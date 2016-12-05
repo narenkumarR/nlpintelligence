@@ -26,6 +26,8 @@ linkedin_url_column = 'linkedin_url'
 # linkedin credentials
 linkedin_username = 'joswinkj@gmail.com'
 linkedin_password = 'joswinkj'
+linkedin_dets = [('joswinkj@gmail.com','joswinkj'),('sujay.seetharaman@gmail.com','qatar2022**'),
+                ('raditya.mit@gmail.com','pipecandy@1989') ]
 
 # firefox binary location
 firefox_binary_loc = 'firefox_binaries/firefox-46/firefox'

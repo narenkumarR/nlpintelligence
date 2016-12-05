@@ -4,7 +4,7 @@ import datetime
 import time
 import re
 import pickle
-import multiprocessing
+import multiprocessing,threading
 import sys
 import gc
 import logging
@@ -121,7 +121,7 @@ class LinkedinCrawlerThread(object):
         '''
         pass
 
-    def run_both_single(self,crawled_loc='crawled_res/',browser = 'Firefox',visible=False,
+    def run_both_single_old(self,crawled_loc='crawled_res/',browser = 'Firefox',visible=False,
                          proxy=True,limit_no=0,n_threads=2,use_tor=False,use_db=True,
                          urls_to_crawl_people='crawler.linkedin_people_urls_to_crawl',
                          urls_to_crawl_people_priority='crawler.linkedin_people_urls_to_crawl_priority',
@@ -203,13 +203,94 @@ class LinkedinCrawlerThread(object):
                 worker_people.join(timeout=time_out*60*60)
             if what == 0 or what == 2:
                 if worker_people.is_alive():
+                    logging.info('sheduler combined: worker_people still alive, terminate')
                     worker_people.terminate()
             if what == 0 or what == 1:
                 if worker_company.is_alive():
+                    logging.info('sheduler combined: worker_company still alive, terminate')
                     worker_company.terminate()
         time.sleep(10)
         logging.info('finished crawling process')
         logging.info('exiting from the crawling process')
+
+    def run_both_single(self,browser = 'Firefox',visible=False,
+                         proxy=True,limit_no=0,n_threads=2,use_tor=False,
+                         urls_to_crawl_people='crawler.linkedin_people_urls_to_crawl',
+                         urls_to_crawl_people_priority='crawler.linkedin_people_urls_to_crawl_priority',
+                         people_base_table='crawler.linkedin_people_base',
+                         urls_to_crawl_company = 'crawler.linkedin_company_urls_to_crawl',
+                         urls_to_crawl_company_priority='crawler.linkedin_company_urls_to_crawl_priority',
+                         company_base_table='crawler.linkedin_company_base',
+                         finished_urls_table_company = 'crawler.linkedin_company_finished_urls',
+                         finished_urls_table_people = 'crawler.linkedin_people_finished_urls',
+                         list_id = None,time_out = 1,what=0,login=False):
+        '''
+        :param browser: Browser to be used in selenium. Support for Firefox and phantomjs currently
+        :param visible: Run in background if False
+        :param proxy: Use proxies if True. This does not work properly. But set this to True
+        :param limit_no: no of urls in a single run
+        :param n_threads: no of threads
+        :param use_tor: if True, use tor
+        :param use_db: if True, use database (postgres)
+        :param urls_to_crawl_people:
+        :param urls_to_crawl_people_priority:
+        :param people_base_table:
+        :param urls_to_crawl_company:
+        :param urls_to_crawl_company_priority:
+        :param company_base_table:
+        :param finished_urls_table_company:
+        :param finished_urls_table_people:
+        :param list_id:
+        :return:
+        '''
+        logging.info('started crawling process')
+        if not list_id:
+            raise ValueError('Need to give list id')
+        if use_tor:
+            proxy = False
+        use_db = True
+        if login: #better to use login separately
+            worker_login = multiprocessing.Process(target=self.run_crawler_login_single,
+                                                   args=(list_id,visible,proxy,use_tor,browser,n_threads,limit_no))
+            worker_login.daemon = True
+            worker_login.start()
+            worker_login.join(timeout=time_out*60*60)
+            if worker_login.is_alive():
+                worker_login.terminate()
+        else:
+            if what == 0 or what == 1:
+                comp_crawler = sheduler_company.LinkedinCompanyCrawlerThread(browser,visible=visible,proxy=proxy,
+                                                                   use_tor=use_tor,use_db=use_db,login=login)
+                worker_company = threading.Thread(target=comp_crawler.run,
+                                    kwargs={'n_threads':n_threads,'limit_no':limit_no,
+                                            'list_id':list_id})
+                worker_company.daemon = True
+                worker_company.start()
+            if what == 0 or what == 2:
+                ppl_crawler = sheduler_people.LinkedinProfileCrawlerThread(browser,visible=visible,proxy=proxy,
+                                                                           use_tor=use_tor,use_db=use_db,login=login)
+                worker_people = threading.Thread(target=ppl_crawler.run,
+                                    kwargs={'n_threads':n_threads,'limit_no':limit_no,
+                                            'list_id':list_id})
+                worker_people.daemon = True
+                worker_people.start()
+            gc.collect()
+            if what == 0 :
+                worker_people.join(timeout=time_out*60*60)
+                worker_company.join(timeout=600)
+                comp_crawler.stop_run_external()
+                ppl_crawler.stop_run_external()
+            elif what == 1:
+                worker_company.join(timeout=time_out*60*60)
+                comp_crawler.stop_run_external()
+            else:
+                worker_people.join(timeout=time_out*60*60)
+                ppl_crawler.stop_run_external()
+            time.sleep(480)
+        time.sleep(10)
+        logging.info('finished crawling process')
+        logging.info('exiting from the crawling process')
+        return
 
 if __name__ == '__main__':
     cc = LinkedinCrawlerThread()

@@ -168,8 +168,8 @@ class LinkedinLoginCrawlerThread(object):
                                 # assumption: these people will have similar people from whom we will get the actual people
                                 for emp_dets in res['Employee Details']:
                                     # logging.info('company part: emp details : {}'.format(emp_dets))
-                                    if emp_dets.get('linkedin_url','') and emp_dets.get('Name','')\
-                                            and re.search('LinkedIn Member',emp_dets.get('Name',''),re.IGNORECASE):
+                                    if emp_dets.get('linkedin_url','') and emp_dets.get('Name',''):
+                                        # and not re.search('LinkedIn Member',emp_dets.get('Name',''),re.IGNORECASE)
                                         self.in_queue_people.put((emp_dets['linkedin_url'],list_items_url_id))
                         else:
                             logging.info('company part login: res company name is linkedin (default page) for url:{}, thread:{}'.format(url,threading.currentThread()))
@@ -339,7 +339,20 @@ class LinkedinLoginCrawlerThread(object):
                     #                                                          len(self.in_queue.queue)))
                     time.sleep(randint(10,20))
                 if ind%100 == 0:
-                    time.sleep(randint(50,70))
+                    crawler_company.exit()
+                    time.sleep(randint(50,90))
+                    try:
+                        # logging.info('company part login: trying to kill firefox : pid:{}'.format(crawler_company.link_parser.pid))
+                        os.system('kill -9 {}'.format(crawler_company.link_parser.pid))
+                    except:
+                        logging.exception('company part login: Couldnt kill firefox')
+                        pass
+                    logging.info('company part login: Getting proxy ip details, thread: {0}'.format(threading.currentThread()))
+                    proxy_dets = self.get_proxy()
+                    logging.info('company part login: proxy to be used: {0}, thread:{1}'.format(proxy_dets,threading.currentThread()))
+                    proxy_ip,proxy_port = proxy_dets[0],proxy_dets[1]
+                    crawler_company.init_selenium_parser(self.browser,self.visible,proxy=self.proxy,
+                                                 proxy_ip=proxy_ip,proxy_port=proxy_port,use_tor=self.use_tor)
             if no_errors == 6:
                 no_errors = no_errors - 1
                 n_blocks += 1
@@ -387,7 +400,6 @@ class LinkedinLoginCrawlerThread(object):
                                 logging.exception('company part login: could not start crawler, thread:{0}'.format(threading.currentThread()))
                                 self.run_queue = False # stop crawling if it reaches here
                                 # break #stop this thread??
-                # self.error_queue.put(url)
 
         logging.info('company part login: exiting crawler, thread:{}'.format(threading.currentThread()))
         crawler_company.exit()

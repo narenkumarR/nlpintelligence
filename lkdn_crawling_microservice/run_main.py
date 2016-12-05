@@ -120,7 +120,7 @@ if __name__ == "__main__":
         try:
             # os.system('pkill -9 firefox')
             # os.system('pkill -9 Xvfb')
-            # os.system("find /tmp/* -maxdepth 1 -type d -name 'tmp*' |  xargs rm -rf")
+            # os.system("find /tmp/* -maxdepth 0 -type d -name 'tmp*' |  xargs rm -rf")
             # os.system("find /tmp/* -maxdepth 0 -type f -name 'tmpaddon*' | xargs rm -rf")
             os.system('python main.py -n {list_name} -f {csv_company} -d {desig_loc} -s {similar_companies} '
                       '-t {hours} -u {extract_urls} -p {prospect_db} -q "{prospect_query}" -v {visible} -w {what}'
@@ -152,6 +152,10 @@ if __name__ == "__main__":
         list_name=list_name,desig_loc=desig_loc
     ))
     if login:
+        print('generating people details using login table')
+        os.system("python gen_people_for_email.py -n {list_name} -d {desig_loc} -C {comp_login_table}".format(
+            list_name=list_name,desig_loc=desig_loc,comp_login_table='crawler.linkedin_company_base_login'
+        ))
         print('running the crawler with loggin in')
         os.system("python main_login.py -n {list_name} -d {desig_loc_login} -v {visible} -f 1 -P 1".format(
             list_name=list_name,desig_loc_login=desig_loc_login,visible=visible
