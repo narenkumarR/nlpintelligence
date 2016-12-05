@@ -29,7 +29,8 @@ class CompanyLinkedinURLExtractorSingle(object):
 
     def init_crawler(self,visible=False):
         ''' '''
-        self.crawler = SeleniumParser(page_load_timeout=50, visible=visible)
+        # self.crawler = SeleniumParser(page_load_timeout=50, visible=visible)
+        self.crawler = BeautifulsoupCrawl()
         self.ddg_crawler = DuckduckgoCrawler(visible=visible,headers=choice(user_agents))
 
     def exit_crawler(self):

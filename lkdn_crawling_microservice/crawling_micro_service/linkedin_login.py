@@ -2,13 +2,15 @@ __author__ = 'joswin'
 
 import time
 import logging
-from constants import linkedin_username,linkedin_password
+import random
+from constants import linkedin_dets
 
 def login_fun(browser):
     '''
     :return:
     '''
     try:
+        linkedin_username,linkedin_password = random.choice(linkedin_dets)
         browser.get('https://www.linkedin.com/')
         time.sleep(10)
         username_field = browser.find_element_by_id("login-email")

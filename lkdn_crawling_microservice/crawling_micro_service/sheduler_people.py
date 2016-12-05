@@ -109,6 +109,8 @@ class LinkedinProfileCrawlerThread(object):
             crawler = linkedin_profile_crawler.LinkedinProfileCrawler(self.browser,self.visible,proxy=False,
                                                                       proxy_ip=proxy_ip,proxy_port=proxy_port,
                                                                       use_tor=self.use_tor,login=self.login)
+        self.browser_objects.put(crawler)
+        self.browser_profile_paths.put(crawler.link_parser.firefox_profile_path)
         def get_output(crawler,url,res_1,event):
             res_1['result'] = crawler.fetch_details_urlinput(url)
             event.set()
@@ -161,6 +163,7 @@ class LinkedinProfileCrawlerThread(object):
                     if res:
                         if 'Name' in res :
                             if res['Name'] and (not self.login and res['Name'] != 'LinkedIn'):
+                                logging.info('people part: fetched succesfully, url:{}'.format(url))
                                 self.out_queue.put((res,list_items_url_id))
                                 no_errors = 0
                                 n_blocks = 0
@@ -240,6 +243,8 @@ class LinkedinProfileCrawlerThread(object):
                                 crawler = linkedin_profile_crawler.LinkedinProfileCrawler(self.browser,self.visible,proxy=self.proxy,
                                                                       proxy_ip=proxy_ip,proxy_port=proxy_port,use_tor=self.use_tor,
                                                                       login=self.login)
+                                self.browser_objects.put(crawler)
+                                self.browser_profile_paths.put(crawler.link_parser.firefox_profile_path)
                                 # self.crawler_queue.put(crawler)
                             except:
                                 logging.exception('People part: could not start crawler')
@@ -368,7 +373,7 @@ class LinkedinProfileCrawlerThread(object):
                     f.write(str(res)+'\n')
             self.out_queue.task_done()
 
-    def run(self,inp_list,out_loc,log_file_loc,n_threads=2,limit_no=2000,urls_to_crawl_table='crawler.linkedin_people_urls_to_crawl',
+    def run(self,inp_list=[],out_loc='',log_file_loc='',n_threads=2,limit_no=2000,urls_to_crawl_table='crawler.linkedin_people_urls_to_crawl',
             urls_to_crawl_priority='crawler.linkedin_people_urls_to_crawl_priority',base_table='crawler.linkedin_people_base',
             urls_to_crawl_table_company = 'crawler.linkedin_company_urls_to_crawl',
             finished_urls_table_company = 'crawler.linkedin_company_finished_urls',
@@ -381,6 +386,8 @@ class LinkedinProfileCrawlerThread(object):
         '''
         # logging.basicConfig(filename=log_file_loc, level=logging.INFO,format='%(asctime)s %(message)s')
         if self.use_db:
+            if not list_id:
+                raise ValueError('people part: Need list id ')
             self.urls_to_crawl_table = urls_to_crawl_table
             self.urls_to_crawl_priority = urls_to_crawl_priority
             self.base_table = base_table
@@ -433,6 +440,8 @@ class LinkedinProfileCrawlerThread(object):
         # self.processed_queue = Queue(maxsize=0)
         self.gen_proxies() # generating proxies first. If this is not done, all threads will independantly try to generate
         logging.info('People part: starting threads, no of threads: {}'.format(n_threads))
+        self.browser_objects = Queue(maxsize=0) #fix browsers not closing issue
+        self.browser_profile_paths = Queue(maxsize=0)
         for i in range(n_threads):
             worker = threading.Thread(target=self.worker_fetch_url)
             worker.setDaemon(True)
@@ -471,12 +480,40 @@ class LinkedinProfileCrawlerThread(object):
         #     except:
         #         continue
         logging.info('Finished people part. No of results left in out queue : {}'.format(len(self.out_queue.queue)))
-        # logging._removeHandlerRef()
-        time.sleep(5)
+        self.final_cleanup()
+        return
+
+    def final_cleanup(self):
+        '''
+        :return:
+        '''
+        logging.info('people part: running cleanup')
+        while not self.browser_objects.empty():
+            try:
+                crawler = self.browser_objects.get()
+                crawler.exit()
+                del crawler
+            except:
+                logging.exception('Error while trying to clean up selenium objects')
+                continue
+        while not self.browser_profile_paths.empty():
+            try:
+                prof_loc = self.browser_profile_paths.get()
+                os.system('rm -rf {}'.format(prof_loc))
+            except:
+                logging.exception('Error while trying to delete tmp folder')
+                continue
+
         if self.use_db:
             self.con.close_cursor()
             self.con.close_connection()
             self.con_check.close_cursor()
             self.con_check.close_connection()
+        logging.info('people part: completed cleanup')
         return
 
+    def stop_run_external(self):
+        ''' Use to stop the run. Will not stop immediately though
+        :return:
+        '''
+        self.run_queue = False

@@ -61,6 +61,7 @@ class SeleniumParser(object):
             self.pid = self.browser.binary.process.pid
         else:
             firefox_profile = webdriver.FirefoxProfile()
+            self.firefox_profile_path = firefox_profile.path
             firefox_profile.set_preference("browser.privatebrowsing.autostart", True)
             firefox_profile.set_preference( "permissions.default.image", 2 )
             if not use_tor:
@@ -143,7 +144,11 @@ class SeleniumParser(object):
         if self.display:
             self.display.stop()
         try:
-            logging.info('selenium_crawl: trying to kill firefox : pid:{}'.format(self.pid))
+            logging.info('selenium_crawl: trying to kill firefox : pid:{},'
+                         'profile_path: {}'.format(self.pid,self.firefox_profile_path))
             os.system('kill -9 {}'.format(self.pid))
+            os.system('rm -rf {}'.format(self.firefox_profile_path))
         except:
+            logging.exception('Selenium_crawl: could not kill firefox: '
+                              'pid: {}, profile_path: {}'.format(self.pid,self.firefox_profile_path))
             pass
