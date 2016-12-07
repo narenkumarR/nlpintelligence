@@ -78,10 +78,10 @@ class CompanyLinkedinURLExtractorSingle(object):
                               additional_text,re.IGNORECASE) :
                 logging.info('Could not find linkedin url for company : {} ,name: {}'.format(company_url,additional_text))
                 return '',0,[]
-            logging.info('Found linkedin url for domain: {} ,name: {} ,url: {}'.format(company_url,additional_text,res))
+            logging.info(u'Found linkedin url for domain: {} ,name: {} ,url: {}'.format(company_url,additional_text,res))
             return res,conf,people_urls
         else:
-            logging.info('Could not find linkedin url for company : {} ,name: {}'.format(company_url,additional_text))
+            logging.info(u'Could not find linkedin url for company : {} ,name: {}'.format(company_url,additional_text))
             return '',0,[]
 
     def get_linkedin_url_ddg(self,company_text,additional_text=''):

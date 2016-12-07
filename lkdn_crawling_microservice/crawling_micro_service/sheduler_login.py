@@ -50,9 +50,9 @@ class LinkedinLoginCrawlerThread(object):
         self.table_field_names_people = ['linkedin_url','name','sub_text','location','company_name','company_linkedin_url',
                                   'previous_companies','education','industry','summary','skills','experience',
                                   'related_people','same_name_people','list_id','list_items_url_id']
+        self.proxies = Queue(maxsize=0)
         if proxy:
             self.proxy_generator = ProxyGen(browser_name=browser,visible=visible,page_load_timeout=60)
-            self.proxies = Queue(maxsize=0)
             # self.proxies.put((None,None)) #try with actual ip first time
             # self.gen_proxies() # logging problem if this runs before init. put this in run call
 
@@ -62,7 +62,7 @@ class LinkedinLoginCrawlerThread(object):
         '''
         logging.info('company part login: trying to get proxies')
         if not self.proxy:
-            return [(None,None)]
+            return
         else:
             try:
                 self.proxy_generator.activate_browser()
