@@ -46,6 +46,8 @@ class CompanyLinkedinURLExtractorSingle(object):
         '''
         logging.info('company extraction: trying for company : {}'.format(inp_tuple))
         company_url,additional_text = inp_tuple
+        company_url = re.sub(r'\?+',' ',company_url.encode('ascii','replace'))
+        additional_text = re.sub(r'\?+',' ',additional_text.encode('ascii','replace'))
         # logging.info('get_linkedin_url url:{}'.format(company_url))
         # if re.search('http',company_url) or re.search('www',company_url) or re.search('\.co',company_url):
         #     if not re.search('www',company_url) and not re.search('http',company_url):
