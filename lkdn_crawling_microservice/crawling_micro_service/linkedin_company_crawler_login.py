@@ -240,7 +240,7 @@ class LinkedinOrganizationService(object):
             try:
                logging.info('company_part:employee_details_in_linkedin_count went to exception. try the logging option')
                linkedin_emp_count = soup.find('div', {'class': 'how-connected'})
-               logging.info('plist len loggin option 1 {}'.format(len(linkedin_emp_count)))
+               # logging.info('plist len loggin option 1 {}'.format(len(linkedin_emp_count)))
             except:
                logging.info('went to exception while trying loggin')
                # self.details['Employee count Linkedin'] = ''

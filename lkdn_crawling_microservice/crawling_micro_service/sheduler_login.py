@@ -127,7 +127,8 @@ class LinkedinLoginCrawlerThread(object):
         # logging.info('company part login: Getting info for url: {}'.format(url))
         # checking if the url is already crawled
         if self.final_run:
-            query = "select linkedin_url from {} where list_id = %s and linkedin_url = %s limit 1".format(self.company_base_table)
+            query = "select linkedin_url from {} where list_id = %s and linkedin_url = %s and " \
+                    " employee_details != '' limit 1".format(self.company_base_table)
             try:
                 # self.con.get_cursor()
                 self.con_check.execute(query,(self.list_id,url,))
@@ -168,7 +169,8 @@ class LinkedinLoginCrawlerThread(object):
                                 # assumption: these people will have similar people from whom we will get the actual people
                                 for emp_dets in res['Employee Details']:
                                     # logging.info('company part: emp details : {}'.format(emp_dets))
-                                    if emp_dets.get('linkedin_url','') and emp_dets.get('Name',''):
+                                    if emp_dets.get('linkedin_url','') and emp_dets.get('Name','') and \
+                                        '#' not in emp_dets.get('linkedin_url',''):
                                         # and not re.search('LinkedIn Member',emp_dets.get('Name',''),re.IGNORECASE)
                                         self.in_queue_people.put((emp_dets['linkedin_url'],list_items_url_id))
                         else:
