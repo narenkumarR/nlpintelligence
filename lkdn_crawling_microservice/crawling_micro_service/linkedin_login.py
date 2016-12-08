@@ -18,7 +18,7 @@ def login_fun(browser):
         username_field.send_keys(linkedin_username)
         password_field.send_keys(linkedin_password)
         browser.find_element_by_name("submit").click()
-        time.sleep(30)
+        time.sleep(50)
     except:
         logging.exception('Login failed. continue without logging in')
         pass

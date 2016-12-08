@@ -46,8 +46,8 @@ class CompanyLinkedinURLExtractorSingle(object):
         '''
         logging.info('company extraction: trying for company : {}'.format(inp_tuple))
         company_url,additional_text = inp_tuple
-        company_url = re.sub(r'\?+',' ',company_url.encode('ascii','replace'))
-        additional_text = re.sub(r'\?+',' ',additional_text.encode('ascii','replace'))
+        # company_url = re.sub(r'\?+',' ',company_url.decode('ascii','replace').encode('ascii','replace'))
+        additional_text = re.sub(r'\?+',' ',additional_text.decode('ascii','replace').encode('ascii','replace'))
         # logging.info('get_linkedin_url url:{}'.format(company_url))
         # if re.search('http',company_url) or re.search('www',company_url) or re.search('\.co',company_url):
         #     if not re.search('www',company_url) and not re.search('http',company_url):
@@ -291,7 +291,7 @@ class CompanyLinkedinURLExtractorMulti(object):
         for worker in workers:
             worker.join(timeout=1)
         for link_extractor in worker_link_extractors:
-            link_extractor.crawler.browser.quit()
+            link_extractor.crawler.exit()
             # link_extractor.ddg_crawler.crawler.browser.quit()
         # try to yield from out_queue again if anything is remaining in the queue
         logging.info('company extraction: trying to fetch from out queue again')
