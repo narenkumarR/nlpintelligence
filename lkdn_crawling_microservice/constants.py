@@ -62,11 +62,12 @@ desig_list_regex ='\y' + '\y|\y'.join(desig_list) + '\y'
 # con_string = 'postgresql://postgres:postgres@localhost:5432/builtwith_data'
 problematic_urls_file = 'prob_files.txt'
 
-# this is for constructing regular expression.
+# this is for constructing regular expression (in company linkedin url extraction process)
+# todo: change the variable name to reflect that this is used by company linkedin url extraction process
 nltk_stops = stopwords.words()
 wrds_to_remove = ['pty', 'llc', 'pvt(\.)?','private', 'corp(\.)?','corporation',
                        'ltd(\.)?', 'limited','co(\.)?',
-                         'inc(\.)?'
+                         'inc(\.)?','\bAG\b'
                        ]
 common_company_wrds = list(set(nltk_stops+wrds_to_remove))
 company_common_reg = re.compile(r'\b'+r'\b|\b'.join(common_company_wrds)+r'\b',re.IGNORECASE)

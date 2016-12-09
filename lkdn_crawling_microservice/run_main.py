@@ -109,12 +109,12 @@ if __name__ == "__main__":
     else:
         n_iter = 0
     if csv_company:
-        print('inserting details into table')
+        print('list_name:{} inserting details into table'.format(list_name))
         os.system('python company_linkedin_urls_manual_insert.py -n {list_name} -f {csv_company}'.format(
             list_name=list_name,csv_company=csv_company
         ))
     while True:
-        print('running an iteration of crawling : iter remaining:{}'.format(n_iters))
+        print('list_name:{} running an iteration of crawling: iter remaining:{}'.format(list_name,n_iters))
         if not crawl_normal:
             break
         try:
@@ -147,24 +147,24 @@ if __name__ == "__main__":
             # os.system("find /tmp/* -maxdepth 0 -type f -name 'tmpaddon*' | xargs rm -rf")
             break
     # gen people details
-    print('generating people details')
+    print('list_name:{} generating people details'.format(list_name))
     os.system("python gen_people_for_email.py -n {list_name} -d {desig_loc} ".format(
         list_name=list_name,desig_loc=desig_loc
     ))
     if login:
-        print('generating people details using login table')
+        print('list_name:{} generating people details using login table'.format(list_name))
         os.system("python gen_people_for_email.py -n {list_name} -d {desig_loc} -C {comp_login_table}".format(
             list_name=list_name,desig_loc=desig_loc,comp_login_table='crawler.linkedin_company_base_login'
         ))
-        print('running the crawler with loggin in')
+        print('list_name:{} running the crawler with loggin in'.format(list_name))
         os.system("python main_login.py -n {list_name} -d {desig_loc_login} -v {visible} -f 1 -P 1".format(
             list_name=list_name,desig_loc_login=desig_loc_login,visible=visible
         ))
-        print('generating people details after logging in')
+        print('list_name:{} generating people details after logging in'.format(list_name))
         os.system("python gen_people_for_email.py -n {list_name} -d {desig_loc} -C {comp_login_table}".format(
             list_name=list_name,desig_loc=desig_loc,comp_login_table='crawler.linkedin_company_base_login'
         ))
     # save results to file
     if out_file:
-        print('saving results into file')
+        print('list_name:{} saving results into file'.format(list_name))
         os.system("python save_output_to_file.py -n {list_name} -o {out_file}".format(list_name=list_name,out_file=out_file))

@@ -17,7 +17,7 @@ def run_main_login(list_name=None,desig_loc=None,visible=False,no_pages_to_searc
     :return:
     '''
     list_table = 'crawler.list_table'
-    logging.basicConfig(filename='log_file_login_{}.log'.format(list_name), level=logging.INFO,format='%(asctime)s %(message)s')
+    logging.basicConfig(filename='logs/log_file_login_{}.log'.format(list_name), level=logging.INFO,format='%(asctime)s %(message)s')
     logging.info('started main program ')
     con = PostgresConnect()
     con.get_cursor()
