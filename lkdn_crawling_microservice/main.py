@@ -36,7 +36,7 @@ def run_main(list_name=None,company_csv_loc=None,desig_loc=None,similar_companie
     :param main_thread: if 1, table updation will be run else only crawling
     :return:
     '''
-    logging.basicConfig(filename='log_file_{}.log'.format(list_name), level=logging.INFO,format='%(asctime)s %(message)s')
+    logging.basicConfig(filename='logs/log_file_{}.log'.format(list_name), level=logging.INFO,format='%(asctime)s %(message)s')
     logging.info('started main program. n_iter:{}'.format(n_iters))
     if not list_name:
         raise ValueError('list name must be provided')

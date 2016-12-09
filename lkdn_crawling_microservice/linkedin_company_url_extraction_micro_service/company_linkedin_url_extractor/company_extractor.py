@@ -1,13 +1,13 @@
 __author__ = 'joswin'
 
 from bs_crawl import BeautifulsoupCrawl
-from selenium_crawl import SeleniumParser
+# from selenium_crawl import SeleniumParser
 from duckduckgo_crawler import DuckduckgoCrawler
-from urlparse import urljoin
+# from urlparse import urljoin
 from random import shuffle,choice,randint
+import tldextract
 
 import re
-import logging
 import threading
 import logging
 import time
@@ -109,10 +109,8 @@ class CompanyLinkedinURLExtractorSingle(object):
         #         return final_res,final_conf
         time.sleep(randint(5,10))
         if not additional_text:
-            additional_text = company_text
-            additional_text = re.sub(r'http://(app\.)?|https://(app\.)?|www\.(app\.)?','',additional_text)
-            # additional_text = re.split(r'\.co.{0,4}$|\.[a-zA-Z/]+$|\.gov|\.in$|\.us$',additional_text)[0]\
-            additional_text = re.split('\.',re.split('/',re.sub(r'http://|https://|www\.','',additional_text))[0])[0]
+            ext = tldextract.extract(company_text)
+            additional_text = ext.domain
             logging.info('url cleaning from {} to {}'.format(company_text,additional_text))
         if additional_text:
             additional_text = re.sub(' +',' ',additional_text)
