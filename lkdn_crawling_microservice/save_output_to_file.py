@@ -1,14 +1,28 @@
 __author__ = 'joswin'
 
 import pandas as pd
+import report_generation
 from optparse import OptionParser
 from postgres_connect import PostgresConnect
 from constants import designations_column_name,desig_list_regex
+from pandas import ExcelWriter
 
 ppl_table_fields = ['input_website','input_company_name','id', 'list_id', 'list_items_url_id', 'full_name',
                     'first_name', 'middle_name', 'last_name',
                     'domain', 'designation', 'company_name', 'company_website', 'headquarters', 'location_person',
                     'industry', 'company_size', 'founded', 'company_linkedin_url', 'people_linkedin_url', 'created_on']
+
+def save_to_excel(res_df,report_df,out_loc):
+    '''
+    :param res_df:
+    :param report_df:
+    :param out_loc:
+    :return:
+    '''
+    writer = ExcelWriter(out_loc)
+    res_df.to_excel(writer,sheet_name='people_details',index=False)
+    report_df.to_excel(writer,sheet_name='report',index=False)
+    writer.save()
 
 def get_data_from_table(list_id,desig_list_reg):
     '''
@@ -31,6 +45,36 @@ def get_data_from_table(list_id,desig_list_reg):
     con.close_connection()
     return res_list
 
+def get_report_for_list(list_id,res_df):
+    '''
+    :param list_id:
+    :param res_df:
+    :return: dataframe with report
+    '''
+    con = PostgresConnect()
+    con.get_cursor()
+    inp_cnt = report_generation.get_count_input_no(list_id,con)
+    urls_found = report_generation.get_count_lkdn_urls_found(list_id,con)
+    companies_crawled = report_generation.get_count_company_crawled(list_id,con)
+    total_people_crawled = report_generation.get_count_people_crawled_total(list_id,con)
+    comps_with_valid_ppl,valid_ppl = report_generation.get_count_people_list_valid(res_df)
+    return pd.DataFrame([[inp_cnt,urls_found,companies_crawled,total_people_crawled,valid_ppl,comps_with_valid_ppl]],
+                 index=False,columns=['input_count','lkdn_urls_found','lkdn_cmp_pages_crawled',
+                                      'lkdn_ppl_pages_crawled','valid_ppl_found','cmps_with_valid_ppl'])
+
+
+def get_result_and_report(list_id,desig_list_reg):
+    '''
+    :param list_id:
+    :param desig_list_reg:
+    :param out_loc:
+    :return:
+    '''
+    res_list = get_data_from_table(list_id,desig_list_reg)
+    df = pd.DataFrame.from_records(res_list)
+    df.columns = ppl_table_fields
+    report_df = get_report_for_list(list_id,df)
+    return df,report_df
 
 def save_to_file(list_name,desig_loc=None,out_loc='people_details_extracted.csv'):
     '''
@@ -59,10 +103,8 @@ def save_to_file(list_name,desig_loc=None,out_loc='people_details_extracted.csv'
         raise ValueError('Need designation list file')
     else:
         desig_list_reg = '\y' + '\y|\y'.join(desig_list) + '\y'
-    res_list = get_data_from_table(list_id,desig_list_reg)
-    df = pd.DataFrame.from_records(res_list)
-    df.columns = ppl_table_fields
-    df.to_csv(out_loc,index=False,quoting=1)
+    df,report_df = get_result_and_report(list_id,desig_list_reg)
+    save_to_excel(df,report_df,out_loc)
 
 def save_to_file_batch(list_name,desig_loc=None,out_loc='people_details_extracted.csv',sep_files=True):
     '''
@@ -94,21 +136,21 @@ def save_to_file_batch(list_name,desig_loc=None,out_loc='people_details_extracte
     else:
         desig_list_reg = '\y' + '\y|\y'.join(desig_list) + '\y'
 
-    res_list_combined = []
+    res_df_combined,report_df_combined = [],[]
     for batch_list_name,batch_list_id in res_list:
-        res_list = get_data_from_table(batch_list_id,desig_list_reg)
+        df,report_df = get_result_and_report(batch_list_id,desig_list_reg)
         if sep_files:
-            df = pd.DataFrame.from_records(res_list)
-            df.columns = ppl_table_fields
-            out_loc_batch = '{}_{}.csv'.format(out_loc,batch_list_name)
-            df.to_csv(out_loc_batch,index=False,quoting=1)
+            out_loc_batch = '{}_{}.xls'.format(out_loc,batch_list_name)
+            save_to_excel(df,report_df,out_loc_batch)
         else:
-            res_list_combined.extend(res_list)
+            res_df_combined.append(df)
+            report_df['list_name'] = batch_list_name
+            report_df_combined.append(report_df)
     if not sep_files:
-        df = pd.DataFrame.from_records(res_list_combined)
-        df.columns = ppl_table_fields
-        out_loc = out_loc + '.csv'
-        df.to_csv(out_loc,index=False,quoting=1)
+        res_df_final = pd.DataFrame(pd.concat(res_df_combined,axis=0,ignore_index=True))
+        report_df_final = pd.DataFrame(pd.concat(report_df_combined,axis=0,ignore_index=True))
+        out_loc = out_loc + '.xls'
+        save_to_excel(res_df_final, report_df_final, out_loc)
     return
 
 if __name__ == "__main__":
