@@ -67,7 +67,7 @@ problematic_urls_file = 'prob_files.txt'
 nltk_stops = stopwords.words()
 wrds_to_remove = ['pty', 'llc', 'pvt(\.)?','private', 'corp(\.)?','corporation',
                        'ltd(\.)?', 'limited','co(\.)?',
-                         'inc(\.)?','\bAG\b'
+                         'inc(\.)?',r'\bAG\b'
                        ]
 common_company_wrds = list(set(nltk_stops+wrds_to_remove))
 company_common_reg = re.compile(r'\b'+r'\b|\b'.join(common_company_wrds)+r'\b',re.IGNORECASE)
