@@ -12,6 +12,18 @@ ppl_table_fields = ['input_website','input_company_name','id', 'list_id', 'list_
                     'domain', 'designation', 'company_name', 'company_website', 'headquarters', 'location_person',
                     'industry', 'company_size', 'founded', 'company_linkedin_url', 'people_linkedin_url', 'created_on']
 
+def changeencode(data):
+    ''' util function for solving encoding errors
+    :param data:
+    :return:
+    '''
+    cols = data.columns
+    for col in cols:
+        if type(data.ix[0,col]) == str:
+            data[col] = data[col].str.decode('utf-8','ignore')
+            # data[col] = data[col].str.decode('utf-8','ignore').str.encode('utf-8')
+    return data
+
 def save_to_excel(res_df,report_df,out_loc):
     '''
     :param res_df:
@@ -19,6 +31,7 @@ def save_to_excel(res_df,report_df,out_loc):
     :param out_loc:
     :return:
     '''
+    res_df = changeencode(res_df)
     writer = ExcelWriter(out_loc)
     res_df.to_excel(writer,sheet_name='people_details',index=False)
     report_df.to_excel(writer,sheet_name='report',index=False)
@@ -59,7 +72,7 @@ def get_report_for_list(list_id,res_df):
     total_people_crawled = report_generation.get_count_people_crawled_total(list_id,con)
     comps_with_valid_ppl,valid_ppl = report_generation.get_count_people_list_valid(res_df)
     return pd.DataFrame([[inp_cnt,urls_found,companies_crawled,total_people_crawled,valid_ppl,comps_with_valid_ppl]],
-                 index=False,columns=['input_count','lkdn_urls_found','lkdn_cmp_pages_crawled',
+                 columns=['input_count','lkdn_urls_found','lkdn_cmp_pages_crawled',
                                       'lkdn_ppl_pages_crawled','valid_ppl_found','cmps_with_valid_ppl'])
 
 
