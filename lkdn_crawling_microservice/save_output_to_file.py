@@ -1,3 +1,4 @@
+# -*- coding: utf-8 -*-
 __author__ = 'joswin'
 
 import pandas as pd
@@ -20,7 +21,9 @@ def changeencode(data):
     cols = data.columns
     for col in cols:
         if type(data.ix[0,col]) == str:
-            data[col] = data[col].str.decode('utf-8','ignore')
+            data[col] = data[col].apply(lambda x: str(unicode(x,'ascii','ignore')))
+            # data[col] = data[col].apply(lambda x: unicode(x,'utf-8','ignore'))
+            # data[col] = data[col].str.decode('utf-8','ignore')
             # data[col] = data[col].str.decode('utf-8','ignore').str.encode('utf-8')
     return data
 
@@ -32,6 +35,7 @@ def save_to_excel(res_df,report_df,out_loc):
     :return:
     '''
     res_df = changeencode(res_df)
+    report_df = changeencode(report_df)
     writer = ExcelWriter(out_loc)
     res_df.to_excel(writer,sheet_name='people_details',index=False)
     report_df.to_excel(writer,sheet_name='report',index=False)
