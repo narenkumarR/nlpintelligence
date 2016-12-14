@@ -11,47 +11,55 @@ import psycopg2
 class linkedinUrlValidation (object):
 
 
-    def __init__(self):
-        # self.db_insert = ''
-        # type: () -> object
-        try:
-            # self.conn = psycopg2.connect(
-            #     "dbname='crawler_service_test' user='postgres' host='192.168.3.56' password='postgres'")
-            # self.conn.autocommit = True
-            # self.db_insert = self.conn.cursor()
-            # print("connected successfully")
 
+    def validate_linkedin(self,list_name):
+
+
+        try:
 
             self.conn = PostgresConnect()
             self.conn.autocommit = True
             self.db_insert = self.conn.get_cursor()
 
-            print("connected successfully")
-        except:
-            print("Not unable to connect to the database")
+            logging.log('connected successfully')
+            logging.log('linkedin validation process started')
+            print ('linkedin validation process started')
 
-        logging.exception('linkedin validation process started')
-        print ('linkedin validation process started')
-
-
-
-    def validate_linkedin(self,list_name):
-
-        try:
 
             linkedin_url_query_extract='select id from crawler.list_table where list_name ={}'.format(list_name)
             self.db_insert.execute(linkedin_url_query_extract)
             list_name_info=self.db_insert.fetchall()
-            logging.exception('Fetching list_id from crawler.list_table executed')
+            logging.log('Fetching list_id from crawler.list_table executed')
             process_list_id= list_name_info[0][0]
-            logging.exception('List ID Feteched from table :{}'.format(process_list_id))
+            logging.log('List ID Feteched from table :{}'.format(process_list_id))
 
             self.get_details_to_validate(process_list_id)
 
+            if (self.db_insert != None):
+                try:
+                    self.db_insert.close()
+                    logging.exception('Closed database cursor object')
+                    print ('Closed database cursor object')
 
-        except Exception, e:
-            logging.exception('Issue in executing list_id fetch Query:{}'.format(linkedin_url_query_extract),str(e))
-            print(str(e))
+
+                except :
+                    logging.exception('Error in closing  database cursor object')
+
+
+            if (self.conn != None):
+                try:
+                    self.conn.close()
+                    print('Closed database connection object')
+                    logging.exception('Closed database connection object')
+
+
+                except :
+                    logging.exception('Error in closing  database connection object ')
+
+
+        except :
+            logging.exception('Issue in executing list_id fetch Query:{}'.format(linkedin_url_query_extract))
+
 
 
 
@@ -72,7 +80,7 @@ class linkedinUrlValidation (object):
 
                 get_complete_info_for_validation = self.db_insert.fetchall()
 
-                logging.exception('Fetching distinct company names and website from linkedin_company_base table and input company name and website from list_item is executed')
+                logging.log('Fetching distinct company names and website from linkedin_company_base table and input company name and website from list_item is executed')
 
                 for complete_info_for_validation in get_complete_info_for_validation:
                     linkedin_company_name=  complete_info_for_validation[0]
@@ -80,14 +88,14 @@ class linkedinUrlValidation (object):
                     input_company_name = complete_info_for_validation[2]
                     input_company_website =  complete_info_for_validation[3]
                     company_linkedin_url = complete_info_for_validation[4]
-                    logging.exception('Retrieved input company name & website and linkedin company & website for validation process')
+                    logging.log('Retrieved input company name & website and linkedin company & website for validation process')
 
                     self.check_linkedin_url_with_company_name(linkedin_company_name, linkedin_company_website, input_company_name,input_company_website,list_id,company_linkedin_url)
 
 
-            except Exception, e:
-                logging.exception('Issue in getting company name & website and linkedin company & website for validation process, check "get_details_to_validate" method',str(e))
-                print(str(e))
+            except:
+                logging.exception('Issue in getting company name & website and linkedin company & website for validation process, check "get_details_to_validate" method')
+
 
 
     def check_linkedin_url_with_company_name(self,linkedin_company_name, linkedin_company_website, input_company_name,input_company_website,list_id,company_linkedin_url):
@@ -100,35 +108,35 @@ class linkedinUrlValidation (object):
             linkedin_company_website_domain=tldextract.extract(linkedin_company_website_str_replace).domain
 
 
-            logging.exception('input company name :{} vs linkedin company name:{}, validation starts'.format(input_company_name,linkedin_company_name))
+            logging.log('input company name :{} vs linkedin company name:{}, validation starts'.format(input_company_name,linkedin_company_name))
             fuzzy_score_company_names_compare=fuzz.token_set_ratio(input_company_name,linkedin_company_name)
-            logging.exception('input company name vs linkedin company name validation completed with score ={}'.format(fuzzy_score_company_names_compare))
+            logging.log('input company name vs linkedin company name validation completed with score ={}'.format(fuzzy_score_company_names_compare))
 
 
 
-            logging.exception('input company name :{} vs linkedin company website domain name:{}, validation starts'.format(input_company_name,
+            logging.log('input company name :{} vs linkedin company website domain name:{}, validation starts'.format(input_company_name,
                                                                                                              linkedin_company_website_domain))
             fuzzy_score_company_website_name_compare = fuzz.token_set_ratio(input_company_name, linkedin_company_website_domain)
-            logging.exception('input company name vs linkedin company website domain name validation completed with score ={}'.format(
+            logging.log('input company name vs linkedin company website domain name validation completed with score ={}'.format(
             fuzzy_score_company_website_name_compare))
 
 
             if(fuzzy_score_company_names_compare >=85) or (fuzzy_score_company_website_name_compare >= 70):
                 linkedin_company_name_validate_update=str(linkedin_company_name)
-                logging.exception('Validation passed linkedin company name from linkedin_company_base table is {}'.format(linkedin_company_name_validate_update))
+                logging.log('Validation passed linkedin company name from linkedin_company_base table is {}'.format(linkedin_company_name_validate_update))
 
 
 
                 try:
                     validation_update = "update temp_linkedin_company_base set isvalid = 1  where list_id = %s and linkedin_url=%s"
-                    logging.exception(
+                    logging.log(
                         'validated updated in linkedin_company_base table with flag as 1 in isValid column')
 
                     self.db_insert.execute(validation_update, (list_id, company_linkedin_url,))
 
-                except Exception, e:
-                    logging.exception('Error in executing validation_update_table method ',str(e))
-                    print(str(e))
+                except :
+                    logging.exception('Error in executing validation_update_table method ')
+
 
 
 
@@ -141,50 +149,19 @@ class linkedinUrlValidation (object):
                     # print(fuzzy_score_company_website_name_compare, ':', fuzzy_score_company_names_compare)
 
                     inValidation_update = "update temp_linkedin_company_base set isvalid = 0  where list_id = %s and linkedin_url=%s and (isvalid!=1 or isvalid is null)"
-                    logging.exception(
+                    logging.log(
                         'inValid records updated in linkedin_company_base table with flag as 0 in isValid column')
                     self.db_insert.execute(inValidation_update, (list_id,company_linkedin_url,))
 
-                except Exception, e:
-                    logging.exception('Error in executing inValidation_update_table method ',str(e))
-                    print(str(e))
+                except :
+                    logging.exception('Error in executing inValidation_update_table method ')
 
 
 
 
-        except Exception, e:
-            logging.exception('Error in executing check_linkedin_url_with_company_name method ',str(e))
-            print(str(e))
 
-
-
-    def database_connection_close(self):
-
-             if(self.db_insert!=None):
-                 try:
-                     self.db_insert.close()
-                     logging.exception('Closed database cursor object')
-                     print ('Closed database cursor object')
-
-
-                 except Exception, e:
-                     logging.exception('Error in closing  database cursor object',str(e))
-                     print(str(e))
-
-             if( self.conn!=None):
-                 try:
-                    self.conn.close()
-                    print('Closed database connection object')
-                    logging.exception('Closed database connection object')
-
-
-                 except Exception, e:
-                     logging.exception('Error in closing  database connection object ',str(e))
-                     print(str(e))
-
-
-
-
+        except :
+            logging.exception('Error in executing check_linkedin_url_with_company_name method ')
 
 
 
@@ -203,9 +180,8 @@ if __name__ == "__main__":
 
     linkedin_validate_obj = linkedinUrlValidation()
     linkedin_validate_obj.validate_linkedin(list_name)
-    linkedin_validate_obj.database_connection_close()
 
-    logging.exception('linkedin validation process completed')
+    logging.log('linkedin validation process completed')
     print ('linkedin validation process completed')
 
 
