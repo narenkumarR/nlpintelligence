@@ -91,6 +91,8 @@ class LinkedinCompanyCrawlerThread(object):
         ''' call this when a proxy is needed
         :return:
         '''
+        if not self.proxy:
+            return (None,None)
         if self.proxies.empty():
             self.gen_proxies()
             if self.proxies.empty():

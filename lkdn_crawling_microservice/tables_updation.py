@@ -31,13 +31,13 @@ class TableUpdater(object):
         else:
             desig_list_reg = '\y' + '\y|\y'.join(desig_list) + '\y'
         self.con.get_cursor()
-        if not similar_companies:
-            logging.info('Deleting from urls to crawl tables, since we are not looking for similar companies')
-            self.con.cursor.execute('delete from {} where list_id=%s'.format('crawler.linkedin_people_urls_to_crawl_priority'),(list_id,))
-            self.con.cursor.execute('delete from {} where list_id=%s'.format('crawler.linkedin_company_urls_to_crawl_priority'),(list_id,))
+        # if not similar_companies:
+        #     logging.info('Deleting from urls to crawl tables, since we are not looking for similar companies')
+        #     self.con.cursor.execute('delete from {} where list_id=%s'.format('crawler.linkedin_people_urls_to_crawl_priority'),(list_id,))
+        #     self.con.cursor.execute('delete from {} where list_id=%s'.format('crawler.linkedin_company_urls_to_crawl_priority'),(list_id,))
             # self.con.cursor.execute('delete from {} where list_id=%s'.format('crawler.linkedin_people_urls_to_crawl_priority'),(list_id,))
             # self.con.cursor.execute('delete from {} where list_id=%s'.format('crawler.linkedin_company_urls_to_crawl_priority'),(list_id,))
-            self.con.commit()
+            # self.con.commit()
         # inserting the urls in the initial list which are not crawled
         logging.info('inserting the companies in the initial list which are not crawled')
         # companies
