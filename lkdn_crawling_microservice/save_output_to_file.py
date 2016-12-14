@@ -70,14 +70,21 @@ def get_report_for_list(list_id,res_df):
     '''
     con = PostgresConnect()
     con.get_cursor()
-    inp_cnt = report_generation.get_count_input_no(list_id,con)
+    inp_cnt = report_generation.get_count_input_company_name(list_id,con)
     urls_found = report_generation.get_count_lkdn_urls_found(list_id,con)
     companies_crawled = report_generation.get_count_company_crawled(list_id,con)
     total_people_crawled = report_generation.get_count_people_crawled_total(list_id,con)
     comps_with_valid_ppl,valid_ppl = report_generation.get_count_people_list_valid(res_df)
-    return pd.DataFrame([[inp_cnt,urls_found,companies_crawled,total_people_crawled,valid_ppl,comps_with_valid_ppl]],
-                 columns=['input_count','lkdn_urls_found','lkdn_cmp_pages_crawled',
-                                      'lkdn_ppl_pages_crawled','valid_ppl_found','cmps_with_valid_ppl'])
+
+    urls_not_found = report_generation.get_count_lkdn_urls_not_found(list_id, con)
+    valid_companies_crawled = report_generation.get_count_valid_company_crawled(list_id, con)
+
+    return pd.DataFrame(
+        [[inp_cnt, urls_found, companies_crawled, total_people_crawled, valid_ppl, comps_with_valid_ppl, urls_not_found
+             , valid_companies_crawled]],
+        columns=['input_count', 'lkdn_urls_found', 'lkdn_cmp_pages_crawled',
+                 'lkdn_ppl_pages_crawled', 'valid_ppl_found', 'cmps_with_valid_ppl', 'linkedin_url_not_found',
+                 'valid_linkedin_companies_crawled_count'])
 
 
 def get_result_and_report(list_id,desig_list_reg):
