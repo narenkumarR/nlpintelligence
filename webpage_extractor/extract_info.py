@@ -3,6 +3,7 @@ __author__ = 'joswin'
 import logging
 import nltk
 import pandas as pd
+import pickle
 import re
 from itertools import izip
 from optparse import OptionParser
@@ -10,7 +11,7 @@ from random import shuffle
 
 from selenium_crawl import SeleniumParser
 from utils import SoupUtils
-from constants import website_column,search_text_column,search_text_weight_column
+from constants import website_column,search_text_column,search_text_weight_column,url_validation_reg
 from url_cleaner import UrlCleaner
 
 logging.basicConfig(filename='website_extraction.log', level=logging.INFO,format='%(asctime)s %(message)s')
@@ -97,7 +98,7 @@ class WebPageTextSearch(object):
         :param out_loc:
         :return:
         '''
-        websites = list(pd.read_csv(websites_loc)[website_column])
+        websites = list(pd.read_csv(websites_loc,sep=None)[website_column])
         search_texts_df = pd.read_csv(search_wts_loc)
         search_wrds_list = list(search_texts_df[search_text_column])
         search_wrds_weights_list = list(search_texts_df[search_text_weight_column])
@@ -106,14 +107,17 @@ class WebPageTextSearch(object):
         # self.crawler.start_browser(visible=self.visible)
         for website in websites:
             logging.info('Trying for url : {}'.format(website))
-            try:
-                urls,emails,matches,weight = self.search_webpage_base(website,search_wrds_list,search_wrds_weights_list)
-                logging.info('Extracted info: urls: {} , emails: {} ,matches : {} ,weight: {}'.format(urls,emails,matches,weight))
-            except:
-                logging.exception('Error happened while trying url: {}'.format(website))
-                self.crawler.exit()
-                self.crawler.start_browser(visible=self.visible)
-                continue
+            if url_validation_reg.search(website):
+                try:
+                    urls,emails,matches,weight = self.search_webpage_base(website,search_wrds_list,search_wrds_weights_list)
+                    logging.info('Extracted info: urls: {} , emails: {} ,matches : {} ,weight: {}'.format(urls,emails,matches,weight))
+                except:
+                    logging.exception('Error happened while trying url: {}'.format(website))
+                    self.crawler.exit()
+                    self.crawler.start_browser(visible=self.visible)
+                    continue
+            else:
+                urls,emails,matches,weight = [],[],[],-9999
             out_dic['website'].append(website)
             out_dic['score'].append(weight)
             out_dic['emails'].append(emails)
@@ -123,6 +127,8 @@ class WebPageTextSearch(object):
                 ind = 0
                 self.crawler.exit()
                 self.crawler.start_browser(visible=self.visible)
+            with open(re.sub('\.xls|\.csv','',out_loc)+'_dic.pkl','w') as f:
+                pickle.dump(out_dic,f)
         out_df = pd.DataFrame(out_dic)
         out_df = out_df.sort_values('score',ascending=False)
         try:
@@ -133,8 +139,7 @@ class WebPageTextSearch(object):
                 out_df.to_csv(out_loc,index=False)
             except Exception as err:
                 logging.exception('can not save as csv, try to save out_dic')
-                with open('dic_'+out_loc,'w') as f:
-                    import pickle
+                with open(re.sub('\.xls|\.csv','',out_loc)+'_dic.pkl','w') as f:
                     pickle.dump(out_dic,f)
 
 
@@ -159,7 +164,7 @@ if __name__ == "__main__":
     optparser.add_option('-m', '--minpages',
                          dest='minpages',
                          help='no of pages to crawl within a url',
-                         default=0,type='int')
+                         default=10,type='int')
     (options, args) = optparser.parse_args()
     website_file = options.website_file
     search_text_file = options.search_text_file
