@@ -33,9 +33,11 @@ class LkdnUrlExtrMain(object):
             raise ValueError('Need list_id input')
         self.con.get_cursor()
         query = "select a.id as list_items_id, a.list_input,a.list_input_additional "\
-                "from crawler.list_items a left join crawler.list_items_urls b "\
-                "on a.list_id=b.list_id and a.id = b.list_items_id "\
-            "where a.list_id = %s and (b.list_id is null or b.url = '' or a.url_extracted is null or a.url_extracted != 1) "
+                "from crawler.list_items a " \
+            "where a.list_id = %s and " \
+                " ( a.url_extraction_tried != 1 ) "
+        # " left join crawler.list_items_urls b on a.list_id=b.list_id and a.id=b.list_items_id "\
+        # or b.url is null
         self.con.execute(query,(list_id,))
         in_list = self.con.cursor.fetchall()
         # also extract company name for companies for which employee details is null. For these companies, searching
@@ -73,7 +75,7 @@ class LkdnUrlExtrMain(object):
                                 " and list_items_id=%s)".format(list_items_urls_table,list_items_urls_table)
                 self.con.cursor.execute(insert_query, (list_id,key,linkedin_url,list_id,key,))
                 self.con.commit()
-                query = " update {list_items_table} set url_extracted = 1 " \
+                query = " update {list_items_table} set url_extraction_tried = 1 " \
                         " where list_id = %s and id = %s  ".format(
                     list_items_table='crawler.list_items'
                 )
@@ -109,8 +111,14 @@ class LkdnUrlExtrMain(object):
                 # delete_query = "DELETE FROM {} WHERE list_id = %s AND id = %s".format('crawler.list_items')
                 # self.con.execute(delete_query,(list_id,key,))
                 # self.con.commit()
-                with open(problematic_urls_file,'a') as f:
-                    f.write('{}\n'.format(tmp_dic[key]))
+                # with open(problematic_urls_file,'a') as f:
+                #     f.write('{}\n'.format(tmp_dic[key]))
+                query = " update {list_items_table} set url_extraction_tried = 1 " \
+                        " where list_id = %s and id = %s  ".format(
+                    list_items_table='crawler.list_items'
+                )
+                self.con.cursor.execute(query,(list_id,key,))
+                self.con.commit()
         self.con.close_cursor()
         logging.info('completed url extraction process')
 

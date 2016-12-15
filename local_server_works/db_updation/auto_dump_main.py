@@ -85,7 +85,22 @@ class CrawlerToServerDumper(object):
         #  -c "copy linkedin_people_base_DATE from stdin"
         logging.info('dumping company table to tmp table in server')
         comp_dump_command = '''psql --dbname=postgresql://{from_user}:{from_password}@{from_host}:{from_port}/{from_db} '''\
-                    '''-c " copy (select * from crawler.linkedin_company_base where  created_on > '{from_time}' ''' \
+                    '''-c " copy (select id,linkedin_url,company_name,company_size,industry,company_type,headquarters,'''\
+                    '''description,founded,specialties,website,employee_details,also_viewed_companies,list_id,list_items_url_id,'''\
+                    '''created_on from crawler.linkedin_company_base where  created_on > '{from_time}' ''' \
+                    ''' and created_on <= '{to_time}' ) to stdout " | '''\
+                    ''' psql --dbname=postgresql://{to_user}:{to_password}@{to_host}:{to_port}/{to_db} -c '''\
+                    ''' " copy linkedin_company_base_DATE from stdin " '''.format(from_user=from_user,
+                                            from_password=from_password,from_host=from_host,from_port=from_port,
+                                            from_db=from_database,from_time = self.prev_run_time,to_time = self.cur_run_time,
+                                            to_user=to_user,to_password=to_password,to_host=to_host,to_port=to_port,
+                                            to_db = to_database)
+        os.system(comp_dump_command)
+        logging.info('dumping company login table to tmp table in server')
+        comp_dump_command = '''psql --dbname=postgresql://{from_user}:{from_password}@{from_host}:{from_port}/{from_db} '''\
+                    '''-c " copy (select id,linkedin_url,company_name,company_size,industry,company_type,headquarters,'''\
+                    '''description,founded,specialties,website,employee_details,also_viewed_companies,list_id,list_items_url_id,'''\
+                    '''created_on from crawler.linkedin_company_base_login where  created_on > '{from_time}' ''' \
                     ''' and created_on <= '{to_time}' ) to stdout " | '''\
                     ''' psql --dbname=postgresql://{to_user}:{to_password}@{to_host}:{to_port}/{to_db} -c '''\
                     ''' " copy linkedin_company_base_DATE from stdin " '''.format(from_user=from_user,
@@ -96,7 +111,9 @@ class CrawlerToServerDumper(object):
         os.system(comp_dump_command)
         logging.info('dumping people table to tmp table in server')
         ppl_dump_command = '''psql --dbname=postgresql://{from_user}:{from_password}@{from_host}:{from_port}/{from_db} '''\
-                    '''-c " copy (select * from crawler.linkedin_people_base where  created_on > '{from_time}' ''' \
+                    '''-c " copy (select id,linkedin_url,name,sub_text,location,company_name,company_linkedin_url,'''\
+                    '''previous_companies,education,industry,summary,skills,experience,related_people,same_name_people,'''\
+                    '''list_id,list_items_url_id,created_on from crawler.linkedin_people_base where  created_on > '{from_time}' ''' \
                     ''' and created_on <= '{to_time}' ) to stdout " | '''\
                     ''' psql --dbname=postgresql://{to_user}:{to_password}@{to_host}:{to_port}/{to_db} -c '''\
                     ''' " copy linkedin_people_base_DATE from stdin " '''.format(from_user=from_user,

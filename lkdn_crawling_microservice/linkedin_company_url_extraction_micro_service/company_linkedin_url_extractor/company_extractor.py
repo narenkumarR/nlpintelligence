@@ -4,7 +4,7 @@ from bs_crawl import BeautifulsoupCrawl
 from selenium_crawl import SeleniumParser
 from duckduckgo_crawler import DuckduckgoCrawler
 from urlparse import urljoin
-from random import shuffle
+from random import shuffle,choice,randint
 
 import re
 import logging
@@ -13,7 +13,7 @@ import logging
 import time
 from Queue import Queue
 
-from constants import company_common_reg
+from constants import company_common_reg,user_agents
 
 class CompanyLinkedinURLExtractorSingle(object):
     '''Find url for a single company/this will detect people linkedin urls also
@@ -21,7 +21,6 @@ class CompanyLinkedinURLExtractorSingle(object):
     def __init__(self,visible=False):
         # self.crawler = BeautifulsoupCrawl()
         self.init_crawler(visible)
-        self.ddg_crawler = DuckduckgoCrawler(visible=visible)
         # self.search_string = r'linkedin.com/company/|linkedin.com/companies/|linkedin.com/pub/|linkedin.com/in/' #earlier linkedin.com/company
         self.search_string_website = r'linkedin.com/company/|linkedin.com/companies/|linkedin.com/pub/|linkedin.com/in/'
         self.search_string_ddg = r'linkedin.com/company/|linkedin.com/companies/'
@@ -31,6 +30,7 @@ class CompanyLinkedinURLExtractorSingle(object):
     def init_crawler(self,visible=False):
         ''' '''
         self.crawler = SeleniumParser(page_load_timeout=50, visible=visible)
+        self.ddg_crawler = DuckduckgoCrawler(visible=visible,headers=choice(user_agents))
 
     def exit_crawler(self):
         ''' '''
@@ -65,7 +65,11 @@ class CompanyLinkedinURLExtractorSingle(object):
         #         logging.exception('get_linkedin_url: error happened while processing company url:{}.'
         #                           ' try duckduckgo'.format(company_url))
         res,conf,people_urls = self.get_linkedin_url_ddg(company_url,additional_text)
-        if res and conf>0:
+        if res and conf>0 :
+            # first check if input is not linkedin and url found is for linkedin
+            if re.search('/company/1337|/company/linkedin|/company-beta/1337',res,re.IGNORECASE) and \
+                not re.search('linkedin',additional_text,re.IGNORECASE) and not re.search('linkedin',company_url,re.IGNORECASE):
+                return '',0,[]
             logging.info('Found linkedin url for domain: {} ,name: {} ,url: {}'.format(company_url,additional_text,res))
             return res,conf,people_urls
         else:
@@ -93,20 +97,26 @@ class CompanyLinkedinURLExtractorSingle(object):
         #     final_res,final_conf = self.get_best_res_from_ddg_results(res_list,company_text,'')
         #     if final_conf >0 and final_res:
         #         return final_res,final_conf
+        time.sleep(randint(5,10))
         if not additional_text:
             additional_text = company_text
             additional_text = re.sub(r'http://|https://|www\.','',additional_text)
             additional_text = re.split(r'\.co|\.gov|\.',additional_text)[0]
         if additional_text:
+            additional_text = re.sub(' +',' ',additional_text)
+            additional_text = company_common_reg.sub(' ',additional_text)
+            additional_text = re.sub(' +',' ',additional_text)
+            additional_text = re.sub(r'http://|https://|www\.','',additional_text)
             search_query = additional_text+' linkedin'
             search_res = self.ddg_crawler.fetch_results(search_query) # go to ddg and get all results in list
+            search_res = search_res[:min(len(search_res),7)]
             time.sleep(4)
             conf = 90
             res_list,people_list = [],[]
             for dic1 in search_res:
-                res_url,text = dic1['url'],dic1['text']
+                res_url,text,url_text = dic1['url'],dic1['text'],dic1['url_text']
                 if re.search(self.search_string_ddg,res_url):
-                    res_list.append((res_url,text,conf))
+                    res_list.append((res_url,text,url_text,conf))
                 if re.search(self.search_string_people,res_url):
                     # if not re.search(r'at linkedin',text,re.IGNORECASE): this works in google search, not in ddg
                     people_list.append(res_url)
@@ -129,155 +139,27 @@ class CompanyLinkedinURLExtractorSingle(object):
         company_text = re.sub(' +',' ',company_text)
         company_text = company_common_reg.sub(' ',company_text,re.IGNORECASE)
         company_text = re.sub(' +',' ',company_text)
-        company_text_wrds = company_text.split(' ')
-        res_list_new = []
-        max_count = 0
-        for url,text,conf in res_list:
+        company_text = company_text.strip()
+        # company_text_wrds = company_text.split(' ')
+        # company_text_wrds = [i for i in company_text_wrds if i]
+        # res_list_new = []
+        # max_count = 0
+        regex_to_sub = ' |[^a-zA-Z0-9]' #remove spaces and special characters
+        company_text_without_space = re.sub(regex_to_sub,'',company_text)
+        for url,text,url_text,conf in res_list:
             # url_1 = re.sub(' +',' ',re.sub(r'[^a-zA-Z0-9]',' ',re.sub('https|http|www|\.com',' ',url)).lower())
             # url_1 = company_common_reg.sub(' ',url_1)
             # url_1 = re.sub(' +',' ',url_1)
             text_1 = re.sub(' +',' ',text).lower()
             text_1 = company_common_reg.sub(' ',text_1)
-            text_1 = re.sub(' +',' ',text_1)
-            text_2 = re.sub(' ','',text_1)
-            if re.search(company_text,text_1):
+            text_2 = re.sub(regex_to_sub,'',text_1)
+            url_text_1 = re.sub(' +',' ',url_text).lower()
+            url_text_1 = company_common_reg.sub(' ',url_text_1)
+            url_text_1 = re.sub(regex_to_sub,'',url_text_1)
+            if re.search(company_text_without_space,text_2) or re.search(company_text_without_space,url_text_1):
                 # res_list_new.append((url,conf,100)) #add 100 as match for text
                 return url,90 #return url with confidence 100
-            else:
-                match_cnt = 0
-                for wrd in company_text_wrds:
-                    if re.search(wrd,text_1) or re.search(wrd,text_2):
-                        match_cnt += 1
-                if match_cnt > max_count:
-                    res_list_new = [url]
-                    max_count = match_cnt
-                elif match_cnt == max_count:
-                    res_list_new.append(url)
-                else:
-                    pass
-        # return the url with max match_cnt. 
-        # if more than 1 url, this will go into exception(not done for now, take first one)
-        # taking first one causes lots of problems. not giving any result
-        if len(res_list_new) == 1 and max_count > 0:
-            return res_list_new[0],60 #
-            # return '',0
-        else:
-            # return res_list_new[0],60
-            return '',0
-
-    def get_linkedin_url_threaded(self,company_url,time_out=30):
-        '''threaded implementation. not used
-        :param company_url:
-        :return:
-        '''
-        logging.info('get_linkedin_url url:{}'.format(company_url))
-        self.time_out = time_out
-        res_dic = {}
-        event = threading.Event()
-        t1 = threading.Thread(target=self.get_urls_urlinput, args=(company_url,res_dic,event,))
-        t1.daemon = True
-        t1.start()
-        event.wait(timeout=self.time_out)
-        if 'Url direct result' in res_dic:
-            if res_dic['Url direct result'][1] > 0:
-                return res_dic['Url direct result']
-        logging.info('get_linkedin_url could not find from main page. trying secondary, url:{}'.format(company_url))
-        #if not obtained from url, try secondary
-        event = threading.Event()
-        t1 = threading.Thread(target=self.get_link_ddg_search, args=(company_url,event,res_dic,))
-        t1.daemon = True
-        t1.start()
-        event.wait(timeout=self.time_out)
-        if 'Url direct result' in res_dic:
-            if res_dic['Url direct result'][1] > 0:
-                return res_dic['Url direct result']
-        if 'ddg_result' in res_dic:
-            return res_dic['ddg_result']
-        logging.info('get_linkedin_url could not find by secondary. url:{}, res_dic:{}'.format(company_url,res_dic))
-        return ('',0)
-
-    def get_urls_urlinput(self,base_url,res_dic,event):
-        '''not used now
-        :param base_url:
-        :return:
-        '''
-        soup = self.crawler.get_soup(base_url)
-        # soup = self.crawler.get_url(base_url)
-        urls = self.get_urls_soupinput(soup,base_url)
-        res_dic['Url direct result'] = self.get_linkedin_company_url_listinput(urls,base_url)
-        event.set()
-
-    def get_urls_soupinput(self,soup,base_url):
-        '''
-        :param soup:
-        :param base_url:if extracted url is of the form /tag, add the base_url also
-        :return:
-        '''
-        # if base_url[-1] == '/':
-        #     base_url = base_url[:-1]
-        urls = []
-        for i in soup.findAll('a'):
-            try:
-                tmp_url = i['href']
-                if re.search('^mail',tmp_url):
-                    continue
-                if re.search(r'^/',tmp_url) or not re.search(r'^http|^www',tmp_url):
-                    tmp_url = urljoin(tmp_url,base_url)
-                urls.append(tmp_url)
-            except:
-                # logging.exception('Error while trying to fetch link for url:{0},link:{1}'.format(base_url,i))
-                continue
-        # urls = [i['href'] for i in soup.findAll('a')]
-        urls = [base_url+i if i.startswith('/') else i for i in urls]
-        urls = [i for i in urls if i!=base_url and i!=base_url+'/']
-        return urls
-
-    def get_linkedin_company_url_listinput(self,urls,base_url):
-        '''
-        :param urls:
-        :return:
-        '''
-        for url in urls:
-            if re.search(self.search_string_website,url): #if a linkedin company link found, return it
-                return (url,100)
-        #if the code comes here, it means no linkedin url present.
-        #Now either we can look at other links like contact/about us page or do a ddg search
-        #create two threads and do both in each one
-        # logging.info('couldnt find link in page. trying secondary sources. url:{}'.format(base_url))
-        # return self.get_linkedin_secondary_research(urls,base_url)
         return '',0
-
-    def get_linkedin_secondary_research(self,base_url):
-        '''when directly this class is called for one url, this can be used. not used
-        :param urls: list of urls to follow. not using currently
-        :param base_url:
-        :return:
-        '''
-        res_dic = {}
-        event = threading.Event()
-        t1 = threading.Thread(target=self.get_link_ddg_search, args=(base_url,event,res_dic,))
-        t1.daemon = True
-        t1.start()
-        event.wait(timeout=self.time_out)
-        if 'ddg_result' in res_dic:
-            return res_dic['ddg_result']
-        return ('',0)
-
-    def get_link_ddg_search(self,base_url,event,res_dic):
-        '''when directly this class is called for one url, this can be used. not used
-        :param base_url:
-        :return:
-        '''
-        search_query = base_url+' linkedin'
-        search_res = self.ddg_crawler.fetch_results(search_query)
-        conf = 95
-        for dic1 in search_res:
-            url,text = dic1['url'],dic1['text']
-            if re.search('linkedin.com/company',url):
-                res_dic['ddg_result'] = (url,conf)
-                break
-            conf = min(conf-5,60)
-        event.set()
 
 class CompanyLinkedinURLExtractorMulti(object):
     def __init__(self,visible=False):

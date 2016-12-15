@@ -10,8 +10,7 @@ designation ~* 'founder|\yCEO\y|Chief executive officer'
 --creating table from linkedin_company_base
 drop table if exists tmp_zarget_similar;
 create table tmp_zarget_similar as 
-select distinct on (b.linkedin_url)  b.* from tmp_zarget_similar_companies a 
- join linkedin_company_domains c using(linkedin_url)
+select distinct on (b.linkedin_url)  b.* from linkedin_company_domains c 
  join linkedin_company_base b using(linkedin_url)
 where 
 c.country in ('UNITED STATES','CANADA','AUSTRALIA','UNITED KINGDOM','NEW ZEALAND','IRELAND')

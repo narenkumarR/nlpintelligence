@@ -50,7 +50,7 @@ class LinkedinProfileCrawlerThread(object):
         if self.browser == 'Firefox_luminati':
             self.error_limit = 2
         else:
-            self.error_limit = 6
+            self.error_limit = 3
 
     def gen_proxies(self):
         '''

@@ -118,10 +118,10 @@ if __name__ == "__main__":
         if not crawl_normal:
             break
         try:
-            # os.system('pkill -9 firefox')
-            # os.system('pkill -9 Xvfb')
-            # os.system("find /tmp/* -maxdepth 1 -type d -name 'tmp*' |  xargs rm -rf")
-            # os.system("find /tmp/* -maxdepth 0 -type f -name 'tmpaddon*' | xargs rm -rf")
+            os.system('pkill -9 firefox')
+            os.system('pkill -9 Xvfb')
+            os.system("find /tmp/* -maxdepth 1 -type d -name 'tmp*' |  xargs rm -rf")
+            os.system("find /tmp/* -maxdepth 0 -type f -name 'tmpaddon*' | xargs rm -rf")
             os.system('python main.py -n {list_name} -f {csv_company} -d {desig_loc} -s {similar_companies} '
                       '-t {hours} -u {extract_urls} -p {prospect_db} -q "{prospect_query}" -v {visible} -w {what}'
                       ' -m {main_thread} -r {n_threads} -k {n_urls} -i {n_iters} -l {login} -b {browser}'.format(

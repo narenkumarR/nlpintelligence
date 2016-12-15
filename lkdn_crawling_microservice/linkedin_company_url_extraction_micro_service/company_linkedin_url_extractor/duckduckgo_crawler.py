@@ -11,7 +11,7 @@ from selenium_crawl import SeleniumParser
 class DuckduckgoCrawler(object):
     '''
     '''
-    def __init__(self,visible=False):
+    def __init__(self,visible=False,headers = {'User-Agent': 'Mozilla/5.0 (Macintosh; Intel Mac OS X 10.10; rv:39.0) Gecko/20100101 Firefox/39.0'}):
         self.crawler = BeautifulsoupCrawl()
         # self.crawler = SeleniumParser(visible=visible)
 
@@ -31,7 +31,9 @@ class DuckduckgoCrawler(object):
             for link_soup in res_links:
                 try:
                     res_list.append({'url':link_soup.find('a',{'class':'result__a','rel':'nofollow'})['href']
-                        ,'text':link_soup.find('a',{'class':'result__snippet'}).text})
+                        ,'text':link_soup.find('a',{'class':'result__snippet'}).text
+                        ,'url_text':link_soup.find('a',{'class':'result__a','rel':'nofollow'}).text.strip()
+                    })
                 except:
                     continue
             return res_list

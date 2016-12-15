@@ -61,6 +61,10 @@ class SeleniumParser(object):
                         firefox_profile.set_preference("network.proxy.type", 1)
                         firefox_profile.set_preference("network.proxy.http", proxy_ip)
                         firefox_profile.set_preference("network.proxy.http_port", int(proxy_port))
+                        firefox_profile.set_preference("network.proxy.ssl", proxy_ip)
+                        firefox_profile.set_preference("network.proxy.ssl_port", int(proxy_port))
+                        firefox_profile.set_preference("network.proxy.socks", proxy_ip)
+                        firefox_profile.set_preference("network.proxy.socks_port", int(proxy_port))
                         firefox_profile.update_preferences()
                 self.browser = webdriver.Firefox(firefox_binary=FirefoxBinary(firefox_binary_loc),firefox_profile=firefox_profile)
             else:

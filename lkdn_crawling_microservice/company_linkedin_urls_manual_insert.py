@@ -41,7 +41,7 @@ def upload_url_list(csv_loc=None,list_name=None):
     # prob with getting correct list_items_id while inserting- insert the name to list_item table
     if url_list and company_dets:
         records_list_template = ','.join(['%s']*len(company_dets))
-        insert_query = "INSERT INTO {} (list_id,list_input,list_input_additional,url_extracted) VALUES {} "\
+        insert_query = "INSERT INTO {} (list_id,list_input,list_input_additional,url_extraction_tried) VALUES {} "\
                         "ON CONFLICT DO NOTHING".format('crawler.list_items',records_list_template)
         urls_to_crawl1 = [(list_id,i[0],i[1],0) for i in company_dets]
         con.cursor.execute(insert_query, urls_to_crawl1)
@@ -60,8 +60,8 @@ def upload_url_list(csv_loc=None,list_name=None):
                         " on conflict do nothing ".format(list_items_table='crawler.list_items')
                 con.cursor.execute(query,(url,name,value,list_id,))
                 con.commit()
-                # update the url_extracted column also
-                query = " update {list_items_table} set url_extracted = 1 " \
+                # update the url_extraction_tried column also
+                query = " update {list_items_table} set url_extraction_tried = 1 " \
                         " where list_id = %s and list_input = %s and list_input_additional = %s  ".format(
                     list_items_table='crawler.list_items'
                 )
