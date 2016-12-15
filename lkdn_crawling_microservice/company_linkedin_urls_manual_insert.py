@@ -62,7 +62,7 @@ def upload_url_list_df_inp(url_df,list_name):
                 )
                 con.cursor.execute(query,(list_id,name,value,))
                 con.commit()
-            except Exception,e:
+            except Exception as e:
                 print('error happened for url:{},name_val:{}'.format(url,name_val))
                 print(e)
                 try:

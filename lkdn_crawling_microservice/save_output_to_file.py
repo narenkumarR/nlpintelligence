@@ -7,6 +7,7 @@ from optparse import OptionParser
 from postgres_connect import PostgresConnect
 from constants import designations_column_name,desig_list_regex
 from pandas import ExcelWriter
+import xlsxwriter
 
 ppl_table_fields = ['input_website','input_company_name','id', 'list_id', 'list_items_url_id', 'full_name',
                     'first_name', 'middle_name', 'last_name',
@@ -34,9 +35,9 @@ def save_to_excel(res_df,report_df,out_loc):
     :param out_loc:
     :return:
     '''
-    res_df = changeencode(res_df)
-    report_df = changeencode(report_df)
-    writer = ExcelWriter(out_loc)
+    # res_df = changeencode(res_df)
+    # report_df = changeencode(report_df)
+    writer = ExcelWriter(out_loc,engine='xlsxwriter')
     res_df.to_excel(writer,sheet_name='people_details',index=False)
     report_df.to_excel(writer,sheet_name='report',index=False)
     writer.save()
@@ -55,7 +56,7 @@ def get_data_from_table(list_id,desig_list_reg):
         " (a.company_linkedin_url = b.redirect_url or a.company_linkedin_url = b.url) " \
         " join crawler.list_items_urls c on (b.redirect_url=c.url or b.url=c.url) " \
         " join crawler.list_items d on c.list_id=d.list_id and c.list_items_id=d.id "\
-        " where c.list_id = %s and a.domain is not null and designation ~* %s"
+        " where c.list_id = %s and a.domain is not null and designation ~* %s "
     con.cursor.execute(query,(list_id,desig_list_reg,))
     res_list = con.cursor.fetchall()
     con.close_cursor()
@@ -128,7 +129,7 @@ def save_to_file(list_name,desig_loc=None,out_loc='people_details_extracted.csv'
     else:
         desig_list_reg = '\y' + '\y|\y'.join(desig_list) + '\y'
     df,report_df = get_result_and_report(list_id,desig_list_reg)
-    save_to_excel(df,report_df,out_loc)
+    save_to_excel(df,report_df,out_loc+ '.xlsx')
 
 def save_to_file_batch(list_name,desig_loc=None,out_loc='people_details_extracted.csv',sep_files=True):
     '''
@@ -164,7 +165,7 @@ def save_to_file_batch(list_name,desig_loc=None,out_loc='people_details_extracte
     for batch_list_name,batch_list_id in res_list:
         df,report_df = get_result_and_report(batch_list_id,desig_list_reg)
         if sep_files:
-            out_loc_batch = '{}_{}.xls'.format(out_loc,batch_list_name)
+            out_loc_batch = '{}_{}.xlsx'.format(out_loc,batch_list_name)
             save_to_excel(df,report_df,out_loc_batch)
         else:
             res_df_combined.append(df)
@@ -173,7 +174,7 @@ def save_to_file_batch(list_name,desig_loc=None,out_loc='people_details_extracte
     if not sep_files:
         res_df_final = pd.DataFrame(pd.concat(res_df_combined,axis=0,ignore_index=True))
         report_df_final = pd.DataFrame(pd.concat(report_df_combined,axis=0,ignore_index=True))
-        out_loc = out_loc + '.xls'
+        out_loc = out_loc + '.xlsx'
         save_to_excel(res_df_final, report_df_final, out_loc)
     return
 
