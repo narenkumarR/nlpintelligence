@@ -17,7 +17,21 @@ def login_fun(browser):
         password_field = browser.find_element_by_id("login-password")
         username_field.send_keys(linkedin_username)
         password_field.send_keys(linkedin_password)
-        browser.find_element_by_name("submit").click()
+        time.sleep(10)
+        try:
+            submit = browser.find_element_by_id("login-submit")
+            submit.click()
+        except:
+            try:
+                submit = browser.find_element_by_class_name("login submit-button")
+                submit.click()
+            except:
+                try:
+                    submit = browser.find_element_by_name("submit")
+                    submit.click()
+                except:
+                    submit = browser.find_element_by_link_text("Sign in")
+                    submit.click()
         time.sleep(50)
     except:
         logging.exception('Login failed. continue without logging in')

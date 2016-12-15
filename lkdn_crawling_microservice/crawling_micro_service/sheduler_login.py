@@ -170,8 +170,8 @@ class LinkedinLoginCrawlerThread(object):
                                 for emp_dets in res['Employee Details']:
                                     # logging.info('company part: emp details : {}'.format(emp_dets))
                                     if emp_dets.get('linkedin_url','') and emp_dets.get('Name','') and \
-                                        '#' not in emp_dets.get('linkedin_url',''):
-                                        # and not re.search('LinkedIn Member',emp_dets.get('Name',''),re.IGNORECASE)
+                                        '#' not in emp_dets.get('linkedin_url','') \
+                                        and not re.search('LinkedIn Member',emp_dets.get('Name',''),re.IGNORECASE):
                                         self.in_queue_people.put((emp_dets['linkedin_url'],list_items_url_id))
                         else:
                             logging.info('company part login: res company name is linkedin (default page) for url:{}, thread:{}'.format(url,threading.currentThread()))

@@ -57,7 +57,12 @@ def complete_cases_org(fn):
             return None
     return new_fun1
 
-
+def is_number(s):
+    try:
+        int(s)
+        return True
+    except ValueError:
+        return False
 
 class LinkedinOrganizationService(object):
     def __init__(self,browser='Firefox',visible = True,proxy=False,proxy_ip = None,proxy_port = None,use_tor=None,
@@ -164,7 +169,7 @@ class LinkedinOrganizationService(object):
             logging.exception('Exception while running main from company page for url:'+url)
             return details
 
-    def fetch_details_soupinput(self,soup,designations=[],next_page=2,details={}):
+    def fetch_details_soupinput(self,soup,designations=[],next_page=3,details={}):
         ''' from soup object, get details. Note that this function requires a browser logged into Linkedin as link_parser
         because for getting people, it uses browser to search.
         :param soup:
@@ -189,7 +194,7 @@ class LinkedinOrganizationService(object):
         self.get_details(soup,details)
         details['Also Viewed Companies'] = self.get_also_viewed(soup)
         details['Employee count Linkedin'] = self.get_linkedin_employees_count(soup)
-        details['Employee Details'] = self.get_employees(soup,designations,next_page)
+        details['Employee Details'] = self.get_employees(soup,designations,next_page,url = details['Linkedin URL'])
         return details
 
     # @dec_fun
@@ -276,11 +281,13 @@ class LinkedinOrganizationService(object):
         # return ''
 
     # @dec_fun
-    def get_employees(self,soup,designations,next_page):
+    def get_employees(self,soup,designations,next_page,url):
         '''
         :return:
         '''
         # logging.info('get_employees started')
+        # if url is ending with a number like (linkedin.com/company/1234), we can construct the employee url ourselves
+        url_last_part = False
         try:
             linkedin_emp_see_all_link = soup.find('div', {'class': 'stream-right-rail'}).find('div', {
                 'class': 'how-connected'})
@@ -292,9 +299,15 @@ class LinkedinOrganizationService(object):
                 linkedin_emp_see_all_link = soup.find('div', {'class': 'how-connected'})
                 logging.info('plist len loggin option 1 {}'.format(len(linkedin_emp_see_all_link)))
             except:
-                logging.info('went to exception while trying loggin')
-                # details['Employee count Linkedin'] = []
-                return []
+                logging.info('went to exception while trying url construction')
+                try:
+                    url_last_part = re.split(r'/company/|/company-beta/',url.split('?')[0])[1]
+                except:
+                    return []
+                if is_number(url_last_part):
+                    url_last_part = int(url_last_part)
+                else:
+                    return []
         if not linkedin_emp_see_all_link:
             logging.info('no p_list. try logging')
             try:
@@ -305,13 +318,16 @@ class LinkedinOrganizationService(object):
                 # self.details['Employee Details'] = []
                 return []
         out_list = []
-        next_link=linkedin_emp_see_all_link.find('a')['href']
+        if linkedin_emp_see_all_link: #if true, link could be extracted from page
+            next_link=linkedin_emp_see_all_link.find('a')['href']
+        elif url_last_part:#generate next link using url_last_part if it is available
+            next_link = 'https://www.linkedin.com/vsearch/p?f_CC={}'.format(url_last_part)
         if next_link.startswith('/vsearch'):
             next_link = 'https://www.linkedin.com'+next_link
         # query_part=next_link+'&title=' +' OR '.join(designations)+'&page_num=2'
         time.sleep(randint(5,8))
         for tmp in range(1,next_page+1):
-            query_part = next_link + '&title=' + ' OR '.join(designations) + '&page_num='+str(tmp)
+            query_part = next_link + '&title=' + ' OR '.join(designations) + '&page_num='+str(tmp) #&titleScope=C (only current, not used)
             soup = self.link_parser.get_soup(query_part)
             time.sleep(randint(5,8))
             if 'Sorry, no results containing all your search terms were found.' in soup.text:

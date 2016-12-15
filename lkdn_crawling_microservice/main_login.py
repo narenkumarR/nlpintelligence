@@ -56,7 +56,7 @@ if __name__ == "__main__":
     optparser.add_option('-p', '--no_pages',
                          dest='no_pages',
                          help='no of pages to search for people (default 2)',
-                         default=2,type='int')
+                         default=3,type='int')
     optparser.add_option('-f', '--final_run',
                          dest='final_run',
                          help='if final run, take all companies for whom people not availabe in the people email table '

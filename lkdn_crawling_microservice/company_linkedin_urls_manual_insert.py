@@ -109,7 +109,7 @@ def upload_url_list_batch(csv_loc,list_name,no_urls_in_batch=500):
     url_df = url_df.fillna('')
     groups = url_df.groupby(np.arange(len(url_df.index))/no_urls_in_batch)
     for (frameno, frame) in groups:
-        batch_list_name = '{list_name}_batch_{batch_id}'.format(list_name,frameno)
+        batch_list_name = '{list_name}_batch_{batch_id}'.format(list_name=list_name,batch_id=frameno)
         upload_url_list_df_inp(frame,batch_list_name)
 
 if __name__ == "__main__":
