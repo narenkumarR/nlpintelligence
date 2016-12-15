@@ -24,6 +24,9 @@ class TableUpdater(object):
                 if this will be used for selecting people
         :return:
         '''
+        os.system('python linkedin_validation.py -n {list_name}'.format(
+            list_name=list_name
+        ))
         logging.info('started table updation')
         if not list_id:
             raise ValueError('Need list id')
@@ -449,8 +452,6 @@ if __name__ == "__main__":
         raise ValueError('the list name given do not have any records')
     list_id = res[0][0]
 
-    os.system('python linkedin_validation.py -n {list_name}'.format(
-        list_name=list_name
-    ))
+
     tables_updater = TableUpdater()
     tables_updater.update_tables(list_id,desig_list,similar_companies,company_select_query=prospect_query)
