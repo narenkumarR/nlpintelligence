@@ -23,7 +23,7 @@ def _launch_new_process( argument_generator):
     :return:
     '''
     process_query_list =  next(argument_generator)
-    print "Launching {}".format(process_query_list)
+    print( "Launching {}".format(process_query_list))
     child_process = Popen(process_query_list)
     return child_process
 

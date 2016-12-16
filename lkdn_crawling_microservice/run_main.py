@@ -83,7 +83,6 @@ if __name__ == "__main__":
                          dest='browser',
                          help='browser name (Firefox,Firefox_luminati)',
                          default='Firefox')
-
     (options, args) = optparser.parse_args()
     csv_company = options.csv_company
     desig_loc = options.desig_loc

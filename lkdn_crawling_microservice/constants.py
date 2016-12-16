@@ -5,7 +5,7 @@ from nltk.corpus import stopwords
 database='crawler_service_test'
 user='postgres'
 password='postgres'
-host='localhost'
+host='192.168.3.56'
 
 # aws server credentials (this is done to take existing results from prospect table)
 prospect_database='pipecandy_db1'
