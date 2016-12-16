@@ -340,7 +340,7 @@ class LinkedinLoginCrawlerThread(object):
                     #                                                          len(self.error_queue.queue),
                     #                                                          len(self.in_queue.queue)))
                     time.sleep(randint(10,20))
-                if ind%100 == 0:
+                if ind%25 == 0:
                     crawler_company.exit()
                     time.sleep(randint(50,90))
                     try:

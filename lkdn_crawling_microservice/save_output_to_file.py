@@ -7,7 +7,7 @@ from optparse import OptionParser
 from postgres_connect import PostgresConnect
 from constants import designations_column_name,desig_list_regex
 from pandas import ExcelWriter
-import xlsxwriter
+#import xlsxwriter
 
 ppl_table_fields = ['input_website','input_company_name','id', 'list_id', 'list_items_url_id', 'full_name',
                     'first_name', 'middle_name', 'last_name',
@@ -22,9 +22,9 @@ def changeencode(data):
     cols = data.columns
     for col in cols:
         if type(data.ix[0,col]) == str:
-            data[col] = data[col].apply(lambda x: str(unicode(x,'ascii','ignore')))
+            # data[col] = data[col].apply(lambda x: str(unicode(x,'ascii','ignore')))
             # data[col] = data[col].apply(lambda x: unicode(x,'utf-8','ignore'))
-            # data[col] = data[col].str.decode('utf-8','ignore')
+            data[col] = data[col].str.decode('iso-8859-1').str.encode('utf-8')
             # data[col] = data[col].str.decode('utf-8','ignore').str.encode('utf-8')
     return data
 
@@ -35,12 +35,36 @@ def save_to_excel(res_df,report_df,out_loc):
     :param out_loc:
     :return:
     '''
-    # res_df = changeencode(res_df)
+    res_df = changeencode(res_df)
     # report_df = changeencode(report_df)
-    writer = ExcelWriter(out_loc,engine='xlsxwriter')
+    writer = ExcelWriter(out_loc+'.xls',options={'encoding':'utf-8'})
     res_df.to_excel(writer,sheet_name='people_details',index=False)
     report_df.to_excel(writer,sheet_name='report',index=False)
     writer.save()
+
+def save_to_csv(res_df,report_df,out_loc):
+    '''
+    :param res_df:
+    :param report_df:
+    :param out_loc:
+    :return:
+    '''
+    res_df.to_csv(out_loc+'.csv',index=False,encoding='utf-8',quoting=1)
+    report_df.to_csv(out_loc+'_report.csv',index=False,encoding='utf-8',quoting=1)
+
+def save_res_to_file_auto_format(res_df,report_df,out_loc):
+    '''
+    :param res_df:
+    :param report_df:
+    :param out_loc:
+    :return:
+    '''
+    out_loc = out_loc.split('.xls')[0]
+    out_loc = out_loc.split('.csv')[0]
+    try:
+        save_to_excel(res_df,report_df,out_loc)
+    except:
+        save_to_csv(res_df,report_df,out_loc)
 
 def get_data_from_table(list_id,desig_list_reg):
     '''
@@ -129,7 +153,7 @@ def save_to_file(list_name,desig_loc=None,out_loc='people_details_extracted.csv'
     else:
         desig_list_reg = '\y' + '\y|\y'.join(desig_list) + '\y'
     df,report_df = get_result_and_report(list_id,desig_list_reg)
-    save_to_excel(df,report_df,out_loc+ '.xlsx')
+    save_res_to_file_auto_format(df,report_df,out_loc)
 
 def save_to_file_batch(list_name,desig_loc=None,out_loc='people_details_extracted.csv',sep_files=True):
     '''
@@ -165,8 +189,8 @@ def save_to_file_batch(list_name,desig_loc=None,out_loc='people_details_extracte
     for batch_list_name,batch_list_id in res_list:
         df,report_df = get_result_and_report(batch_list_id,desig_list_reg)
         if sep_files:
-            out_loc_batch = '{}_{}.xlsx'.format(out_loc,batch_list_name)
-            save_to_excel(df,report_df,out_loc_batch)
+            out_loc_batch = '{}_{}.xls'.format(out_loc,batch_list_name)
+            save_res_to_file_auto_format(df,report_df,out_loc_batch)
         else:
             res_df_combined.append(df)
             report_df['list_name'] = batch_list_name
@@ -174,8 +198,8 @@ def save_to_file_batch(list_name,desig_loc=None,out_loc='people_details_extracte
     if not sep_files:
         res_df_final = pd.DataFrame(pd.concat(res_df_combined,axis=0,ignore_index=True))
         report_df_final = pd.DataFrame(pd.concat(report_df_combined,axis=0,ignore_index=True))
-        out_loc = out_loc + '.xlsx'
-        save_to_excel(res_df_final, report_df_final, out_loc)
+        out_loc = out_loc + '.xls'
+        save_res_to_file_auto_format(res_df_final, report_df_final, out_loc)
     return
 
 if __name__ == "__main__":

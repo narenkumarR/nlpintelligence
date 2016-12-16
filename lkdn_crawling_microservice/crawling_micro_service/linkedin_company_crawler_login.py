@@ -247,16 +247,14 @@ class LinkedinOrganizationService(object):
                linkedin_emp_count = soup.find('div', {'class': 'how-connected'})
                # logging.info('plist len loggin option 1 {}'.format(len(linkedin_emp_count)))
             except:
-               logging.info('went to exception while trying loggin')
+               logging.exception('company_part:get_linkedin_employees_count - went to exception while trying second option')
                # self.details['Employee count Linkedin'] = ''
                return ''
         if not linkedin_emp_count:
-            logging.info('no p_list. try logging')
             try:
                linkedin_emp_count = soup.find('div', {'class': 'how-connected'})
-               logging.info('p list logging opiton :{}'.format(len(linkedin_emp_count)))
             except:
-               logging.info('went to exception while trying loggin 2')
+               logging.exception('company_part:get_linkedin_employees_count-went to exception while ')
                # self.details['Employee count Linkedin'] = ''
                return ''
         if not linkedin_emp_count:
