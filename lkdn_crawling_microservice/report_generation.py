@@ -65,7 +65,7 @@ def get_count_valid_company_crawled(list_id, con):
             "crawler.linkedin_company_base a join crawler.linkedin_company_redirect_url b on " \
             "(a.linkedin_url = b.redirect_url or a.linkedin_url = b.url) join " \
             "crawler.list_items_urls c on a.list_id=c.list_id and (b.redirect_url=c.url or b.url=c.url) " \
-            " where a.list_id = %s and  a.isvalid =1"
+            " where a.list_id = %s and a.isvalid =1"
     con.cursor.execute(query, (list_id,))
     res_list = con.cursor.fetchall()
     return res_list[0][0]
@@ -81,7 +81,7 @@ def get_count_inValid_company_crawled(list_id, con):
             "crawler.linkedin_company_base a join crawler.linkedin_company_redirect_url b on " \
             "(a.linkedin_url = b.redirect_url or a.linkedin_url = b.url) join " \
             "crawler.list_items_urls c on a.list_id=c.list_id and (b.redirect_url=c.url or b.url=c.url) " \
-            " where a.list_id = %s and and a.isvalid =0"
+            " where a.list_id = %s and a.isvalid =0"
     con.cursor.execute(query, (list_id,))
     res_list = con.cursor.fetchall()
     return res_list[0][0]
