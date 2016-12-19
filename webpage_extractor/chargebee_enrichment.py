@@ -240,5 +240,8 @@ if __name__ == "__main__":
     visible = options.visible
     min_pages = options.minpages
     wpe = ChargebeeWebSearcher(visible,min_pages_per_link=min_pages)
-    wpe.search_webpage_csv_input(website_file,search_text_file,out_file)
+    try:
+        wpe.search_webpage_csv_input(website_file,search_text_file,out_file)
+    except:
+        pass
     wpe.browser.exit()
