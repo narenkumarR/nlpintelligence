@@ -21,11 +21,16 @@ class UrlCleaner(object):
         try:
             url = url_to_clean[re.search(r'[a-zA-Z]',url_to_clean).start():]
             #next check if it is starting with http. if not, add http/https based on secure flag
-            if not re.match('^http',url):
+            if not re.search('^http',url):
                 if secure:
                     url = 'https://'+url
                 else:
                     url = 'http://'+url
+            if not re.search('www\.',url):
+                if secure:
+                    url = re.sub('^http(s)?://','https://www.',url)
+                else:
+                    url = re.sub('^http(s)?://','http://www.',url)
             return url
         except:
             return url_to_clean

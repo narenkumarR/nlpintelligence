@@ -8,7 +8,7 @@ import re
 from itertools import izip
 from optparse import OptionParser
 from random import shuffle
-
+import csv
 from selenium_crawl import SeleniumParser
 from utils import SoupUtils
 from constants import website_column,company_linkedin_col,id_col,search_text_column,search_text_weight_column,url_validation_reg
@@ -58,7 +58,7 @@ class ChargebeeWebSearcher(object):
             if match_wrds:
                 matches.append((tuple(match_wrds),sent))
         weight = sum([matched_dic[r'\b'+wrd.lower()+r'\b'] for match_wrds,_ in matches for wrd in match_wrds])
-        return matches,weight
+        return matches,weight,text
 
     def get_res_webpage_base(self,base_url,search_reg,matched_dic,keyword_regex):
         '''
@@ -70,7 +70,7 @@ class ChargebeeWebSearcher(object):
         '''
         base_url = self.url_cleaner.clean_url(base_url,False)
         soup = self.browser.get_soup(base_url)
-        matches,weight = self.search_webpage_single(search_reg,matched_dic,soup=soup)
+        matches,weight,page_all_text = self.search_webpage_single(search_reg,matched_dic,soup=soup)
         # urls is of form [(url1,text1),(url2,text2),..], emails is a list of emails
         urls, emails = self.soup_util.get_all_links_soupinput(soup,base_url)
         # find if there is a login page
@@ -92,17 +92,18 @@ class ChargebeeWebSearcher(object):
             url,text = urls[ind]
             # get soup object
             soup = self.browser.get_soup(url)
-            matches_tmp,weight_tmp = self.search_webpage_single(search_reg,matched_dic,soup=soup)
+            matches_tmp,weight_tmp,page_text = self.search_webpage_single(search_reg,matched_dic,soup=soup)
             matches.extend(matches_tmp)
             weight = weight+weight_tmp
             urls_tmp,mails_tmp = self.soup_util.get_all_links_soupinput(soup,base_url)
             emails.extend(mails_tmp)
             urls.extend(urls_tmp)
+            page_all_text += ' '+page_text
 
         urls = list(set([url for url,text in urls if self.social_url_searcher.search(url)]))
         emails = list(set(emails))
         matches = list(set(matches))
-        return urls,emails,matches,login_signup_present,weight,demo_present,pricing_present
+        return urls,emails,matches,login_signup_present,weight,demo_present,pricing_present,page_all_text
 
     def search_webpage_csv_input(self,websites_loc,search_wts_loc,out_loc = 'website_extraction_output.xls'):
         '''
@@ -134,6 +135,9 @@ class ChargebeeWebSearcher(object):
                 matched_dic[r'\b'+text.lower()+r'\b'] = 1
         out_dic = {'website':[],'score':[],'emails':[],'urls':[],'match_texts_test':[],'login_present':[],
                    'demo_present':[],'pricing_present':[],'company_linkedin_url':[],'id':[]}
+        # create file for saving all texts from the crawling
+        all_texts_file = open(re.sub('\.xls|\.csv','_all_texts.csv',out_loc),'w')
+        all_texts_file_writer = csv.writer(all_texts_file)
         ind = 0
         # self.crawler.start_browser(visible=self.visible)
         for website,comp_lkdn_url,row_id in izip(websites,comp_lkdn_urls,row_ids):
@@ -164,7 +168,7 @@ class ChargebeeWebSearcher(object):
             website = self.url_cleaner.clean_url(website,False)
             if url_validation_reg.search(website):
                 try:
-                    urls,emails,matches,login_signup_present,weight,demo_present,pricing_present = self.get_res_webpage_base(
+                    urls,emails,matches,login_signup_present,weight,demo_present,pricing_present,page_all_text = self.get_res_webpage_base(
                         base_url=website,search_reg=search_reg,matched_dic=matched_dic,keyword_regex=keyword_regex
                     )
                     logging.info('Extracted info: urls: {} , emails: {} ,'
@@ -176,7 +180,7 @@ class ChargebeeWebSearcher(object):
                     continue
             else:
                 logging.info('website failed url validation check. url: {}'.format(website))
-                urls,emails,matches,login_signup_present,weight,demo_present,pricing_present = [],[],[],False,-9999,False,False
+                urls,emails,matches,login_signup_present,weight,demo_present,pricing_present,page_all_text = [],[],[],False,-9999,False,False,' '
             out_dic['website'].append(website)
             out_dic['score'].append(weight)
             out_dic['emails'].append(emails)
@@ -195,6 +199,8 @@ class ChargebeeWebSearcher(object):
             #     self.lkdn_parser.start(proxy=self.proxy,login=self.login_linkedin,visible=self.visible)
             with open(re.sub('\.xls|\.csv','',out_loc)+'_dic.pkl','w') as f:
                 pickle.dump(out_dic,f)
+            all_texts_file_writer.writerow([website,page_all_text.encode('utf8')])
+        all_texts_file.close()
         out_df = pd.DataFrame(out_dic)
         out_df = out_df.sort_values('score',ascending=False)
         try:
@@ -243,5 +249,5 @@ if __name__ == "__main__":
     try:
         wpe.search_webpage_csv_input(website_file,search_text_file,out_file)
     except:
-        pass
+        logging.exception('error happened')
     wpe.browser.exit()
