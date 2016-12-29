@@ -9,7 +9,7 @@ from itertools import izip
 from optparse import OptionParser
 from random import shuffle
 import csv
-from selenium_crawl import SeleniumParser
+from bs_crawl import BeautifulsoupCrawl
 from utils import SoupUtils
 from constants import website_column,company_linkedin_col,id_col,search_text_column,search_text_weight_column,url_validation_reg
 from url_cleaner import UrlCleaner
@@ -20,7 +20,7 @@ logging.basicConfig(filename='website_extraction.log', level=logging.INFO,format
 class ChargebeeWebSearcher(object):
     '''
     '''
-    def __init__(self,visible=True,min_pages_per_link=0):
+    def __init__(self,visible=True,min_pages_per_link=0,search_linkedin=False):
         '''
         :param visible:
         :param min_pages_per_link:
@@ -30,11 +30,14 @@ class ChargebeeWebSearcher(object):
         self.visible = visible
         self.proxy = False
         self.login_linkedin = False
-        self.browser = SeleniumParser(visible=self.visible,page_load_timeout=120)
-        self.lkdn_parser = CmpnyLinkedinExtractor(visible=self.visible,proxy=self.proxy,login=self.login_linkedin)
+        self.browser = BeautifulsoupCrawl(page_load_timeout=120)
         self.url_cleaner = UrlCleaner()
         self.min_pages_per_link = min_pages_per_link
         self.social_url_searcher = re.compile(r'linkedin\.com/|facebook\.com/|twitter\.com',re.IGNORECASE)
+        if search_linkedin:
+            self.lkdn_parser = CmpnyLinkedinExtractor(visible=self.visible,proxy=self.proxy,login=self.login_linkedin)
+        else:
+            self.lkdn_parser = False
 
     def search_webpage_single(self,search_reg,matched_dic,url=None,soup=None):
         '''
@@ -75,7 +78,7 @@ class ChargebeeWebSearcher(object):
         urls, emails = self.soup_util.get_all_links_soupinput(soup,base_url)
         # find if there is a login page
         login_signup_present = True if [1 for url,text in urls if re.search(r'\blogin\b|\bsign(.)?up\b',url,re.IGNORECASE)
-                    or re.search(r'\blogin\b|\bsign(.)up\b',text,re.IGNORECASE)] else False
+                    or re.search(r'\blogin\b|\bsign(.)?up\b|\bsign(.)?in',text,re.IGNORECASE)] else False
         # find if there is a demo page
         demo_present = True if [1 for url,text in urls if re.search(r'\bdemo\b|\btrial\b|\btry( for) free\b',url,re.IGNORECASE)
                     or re.search(r'\bdemo\b|\btrial\b',text,re.IGNORECASE)] else False
@@ -83,13 +86,15 @@ class ChargebeeWebSearcher(object):
         pricing_present = True if [1 for url,text in urls if re.search(r'\bplans\b|\bpricing\b|\bpayment\b',url,re.IGNORECASE)
                     or re.search(r'\bpricing\b|\bpayment\b',text,re.IGNORECASE)] else False
         # find suitable urls and crawl them
-        urls = [(url,text) for url,text in urls if not ((base_url not in url) or re.search('\.png$|zip$',url))]
+        base_url_domain = re.sub('^http(s)?(://)?|www\.','',base_url)
+        urls = [(url,text) for url,text in urls if not ((base_url_domain not in url) or re.search('\.png$|zip$',url))]
         matching_urls = [(url,text) for url,text in urls if keyword_regex.search(url) or keyword_regex.search(text)]
         rest_urls = list(set(urls)-set(matching_urls))
         shuffle(rest_urls)
         urls = matching_urls + rest_urls[:min(len(rest_urls),self.min_pages_per_link)]
         for ind in range(len(urls)):
             url,text = urls[ind]
+            logging.info('trying the next level url:{}'.format(url.decode('utf-8','ignore')))
             # get soup object
             soup = self.browser.get_soup(url)
             matches_tmp,weight_tmp,page_text = self.search_webpage_single(search_reg,matched_dic,soup=soup)
@@ -143,7 +148,7 @@ class ChargebeeWebSearcher(object):
         for website,comp_lkdn_url,row_id in izip(websites,comp_lkdn_urls,row_ids):
             logging.info('Trying for url: {},linkedin_url:{},id:{}'.format(website,comp_lkdn_url,row_id))
             if not website:
-                if not comp_lkdn_url:
+                if not comp_lkdn_url or not self.lkdn_parser:
                     website = ''
                 else:
                     lkdn_urls = comp_lkdn_url.split(';')
@@ -214,7 +219,8 @@ class ChargebeeWebSearcher(object):
                 with open(re.sub('\.xls|\.csv','',out_loc)+'_dic.pkl','w') as f:
                     pickle.dump(out_dic,f)
         self.browser.exit()
-        self.lkdn_parser.exit()
+        if self.lkdn_parser:
+            self.lkdn_parser.exit()
 
 
 if __name__ == "__main__":
@@ -239,15 +245,19 @@ if __name__ == "__main__":
                          dest='minpages',
                          help='no of pages to crawl within a url',
                          default=1,type='int')
+    optparser.add_option('-l', '--linkedin_search',
+                         dest='linkedin_search',
+                         help='use linkedin urls to get details',
+                         default=0,type='int')
     (options, args) = optparser.parse_args()
     website_file = options.website_file
     search_text_file = options.search_text_file
     out_file = options.out_file
     visible = options.visible
     min_pages = options.minpages
-    wpe = ChargebeeWebSearcher(visible,min_pages_per_link=min_pages)
-    try:
-        wpe.search_webpage_csv_input(website_file,search_text_file,out_file)
-    except:
-        logging.exception('error happened')
+    linkedin_search = options.linkedin_search
+    wpe = ChargebeeWebSearcher(visible,min_pages_per_link=min_pages,search_linkedin=linkedin_search)
+    logging.info('started crawling')
+    wpe.search_webpage_csv_input(website_file,search_text_file,out_file)
+    logging.info('completed crawling')
     wpe.browser.exit()
