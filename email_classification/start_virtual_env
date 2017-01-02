@@ -1,8 +1,0 @@
--- for creating virtual env:
-virtualenv venv
-
--- for starting virtual env
-source venv/bin/activate 
-
----to exit from virtual env
-deactivate 
