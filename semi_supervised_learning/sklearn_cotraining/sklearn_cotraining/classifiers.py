@@ -197,7 +197,7 @@ class CoTrainingClassifier(object):
     def supports_proba(self, clf, x):
         """Checks if a given classifier supports the 'predict_proba' method, given a single vector x"""
         try:
-            clf.predict_proba([x])
+            clf.predict_proba(x)
             return True
         except:
             return False
@@ -214,15 +214,16 @@ class CoTrainingClassifier(object):
         Output:
         y - array-like (n_samples)
             These are the predicted classes of each of the samples.  If the two classifiers, don't agree, we try
-            to use predict_proba and take the classifier with the highest confidence and if predict_proba is not implemented, then we randomly
-            assign either 0 or 1.  We hope to improve this in future releases.
+            to use predict_proba and take the classifier with the highest confidence (wrong, take average and return
+                                based on that)
+            if predict_proba is not implemented, then we randomly
+            assign either 0 or 1 (return -1 instead).  We hope to improve this in future releases.
 
         """
 
         y1 = self.clf1_.predict(X1)
         y2 = self.clf2_.predict(X2)
-
-        proba_supported = self.supports_proba(self.clf1_, X1[0]) and self.supports_proba(self.clf2_, X2[0])
+        proba_supported = self.supports_proba(self.clf1_, X1[0,:]) and self.supports_proba(self.clf2_, X2[0,:])
 
         #fill y_pred with -1 so we can identify the samples in which the classifiers failed to agree
         y_pred = np.asarray([-1] * X1.shape[0])
@@ -231,15 +232,18 @@ class CoTrainingClassifier(object):
             if y1_i == y2_i:
                 y_pred[i] = y1_i
             elif proba_supported:
-                y1_probs = self.clf1_.predict_proba([X1[i]])[0]
-                y2_probs = self.clf2_.predict_proba([X2[i]])[0]
-                sum_y_probs = [prob1 + prob2 for (prob1, prob2) in zip(y1_probs, y2_probs)]
-                max_sum_prob = max(sum_y_probs)
-                y_pred[i] = sum_y_probs.index(max_sum_prob)
+                y1_neg_probs = self.clf1_.predict_proba(X1[i,:])[0][0]
+                y2_neg_probs = self.clf2_.predict_proba(X2[i,:])[0][0]
+                # sum_y_probs = [prob1 + prob2 for (prob1, prob2) in zip(y1_probs, y2_probs)]
+                # max_sum_prob = max(sum_y_probs)
+                # y_pred[i] = sum_y_probs.index(max_sum_prob)
+                avg_neg_prob = (y1_neg_probs+y2_neg_probs)/2
+                y_pred[i] = 0 if avg_neg_prob>0.5 else 1
 
             else:
-                #the classifiers disagree and don't support probability, so we guess
-                y_pred[i] = random.randint(0, 1)
+                #the classifiers disagree and don't support probability, so we return -1
+                # y_pred[i] = -1
+                raise NotImplementedError
 
 
         #check that we did everything right
