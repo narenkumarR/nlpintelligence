@@ -13,21 +13,18 @@ class BeautifulsoupCrawl(object):
     def __init__(self,page_load_timeout=120):
         self.page_load_timeout = page_load_timeout
 
-    @staticmethod
-    def single_wp(baseurl,headers = {'User-Agent': 'Mozilla/5.0 (Macintosh; Intel Mac OS X 10.10; rv:39.0) Gecko/20100101 Firefox/39.0'}):
+    def single_wp(self,baseurl,headers = {'User-Agent': 'Mozilla/5.0 (Macintosh; Intel Mac OS X 10.10; rv:39.0) Gecko/20100101 Firefox/39.0'}):
         # parse the html using BeautifulSoup
-        response=BeautifulSoup(UrllibCrawl.getResponse(baseurl,headers=headers,timeout=self.page_load_timeout))
+        response=UrllibCrawl.getResponse(baseurl,headers=headers,timeout=self.page_load_timeout)
         return response
 
-    @staticmethod
-    def multiple_wp(baseurlList):
+    def multiple_wp(self,baseurlList):
         print("url.............")
 
         return ""
 
-    @staticmethod
-    def get_soup(url):
-        response=BeautifulSoup(UrllibCrawl.getResponse(url))
+    def get_soup(self,url):
+        response=BeautifulSoup(self.single_wp(url,"html.parser"))
         return response
 
     def exit(self):
