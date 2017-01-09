@@ -182,8 +182,8 @@ class WebsiteCrawler(object):
         all_texts_file_writer = csv.writer(all_texts_file)
         out_loc_file = open(out_loc,'w')
         out_loc_file_writer = csv.writer(out_loc_file)
-        out_loc_file_writer.writerow(['company_linkedin_url', 'demo_present', 'emails', 'id', 'login_present', 
-            'match_texts_test', 'pricing_present', 'score', 'urls', 'website'])
+        # out_loc_file_writer.writerow(['company_linkedin_url', 'demo_present', 'emails', 'id', 'login_present', 
+        #     'match_texts_test', 'pricing_present', 'score', 'urls', 'website'])
         ind = 0
         # self.crawler.start_browser(visible=self.visible)
         for website,comp_lkdn_url,row_id in izip(websites,comp_lkdn_urls,row_ids):
@@ -234,17 +234,21 @@ class WebsiteCrawler(object):
             # out_dic['pricing_present'].append(pricing_present)
             # out_dic['id'].append(row_id)
             # out_dic['company_linkedin_url'].append(comp_lkdn_url)
-            # if ind == 20:
-            #     ind = 0
-            #     self.browser.exit()
-            #     self.browser.start_browser(visible=self.visible)
-            #     self.lkdn_parser.exit()
-            #     self.lkdn_parser.start(proxy=self.proxy,login=self.login_linkedin,visible=self.visible)
+            if ind == 50:
+                ind = 0
+                self.browser.exit()
+                self.browser.start_browser(visible=self.visible)
+                if self.lkdn_parser:
+                    self.lkdn_parser.exit()
+                    self.lkdn_parser.start(proxy=self.proxy,login=self.login_linkedin,visible=self.visible)
             # with open(re.sub('\.xls|\.csv','',out_loc)+'_dic.pkl','w') as f:
             #     pickle.dump(out_dic,f)
-            all_texts_file_writer.writerow([website,page_all_text.encode('utf8')])
-            out_loc_file_writer.writerow([website,company_linkedin_url,urls,login_signup_present,demo_present,pricing_present,weight,emails,matches])
-
+            try:
+                all_texts_file_writer.writerow([website,page_all_text.encode('utf8')])
+                out_loc_file_writer.writerow([website,comp_lkdn_url,urls,login_signup_present,demo_present,pricing_present,weight,emails,matches])
+            except:
+                pass
+            ind += 1
         all_texts_file.close()
         out_loc_file.close()
         # out_df = pd.DataFrame(out_dic)
