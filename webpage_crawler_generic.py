@@ -160,6 +160,9 @@ class WebsiteCrawler(object):
             logging.exception('Error happened while trying url: {}'.format(base_url))
             self.browser.exit()
             self.browser.start_browser(visible=self.visible)
+            if self.lkdn_parser:
+                self.lkdn_parser.exit()
+                self.lkdn_parser.start(proxy=self.proxy,login=self.login_linkedin,visible=self.visible)
             return [],[],[],False,-8888,False,False,' '
 
     def search_webpage_csv_input(self,websites_loc,out_loc = 'website_extraction_output.xls'):
@@ -213,9 +216,13 @@ class WebsiteCrawler(object):
                         website = lkdn_dets['Website']
             website = self.url_cleaner.clean_url(website,False)
             if url_validation_reg.search(website):
-                urls,emails,matches,login_signup_present,weight,demo_present,pricing_present,page_all_text = self.get_res_webpage_base(
-                    base_url=website
-                )
+                try:
+                    urls,emails,matches,login_signup_present,weight,demo_present,pricing_present,page_all_text = self.get_res_webpage_base(
+                        base_url=website
+                    )
+                except:
+                    logging.exception('Error happened in get_res_webpage_base function, url:{}'.format(website))
+                    weight = -8888
                 if weight == -8888: #-8888 means some error happened
                     continue
                 else:
