@@ -60,6 +60,17 @@ class ChargebeeWebSearcher(object):
             for text in search_wrds_list:
                 self.matched_dic[r'\b'+text.lower()+r'\b'] = 1
 
+    def close(self):
+        '''
+        :return:
+        '''
+        self.browser.exit()
+        if self.lkdn_parser:
+            try:
+                self.lkdn_parser.exit()
+            except:
+                pass
+
     def search_webpage_single(self,search_reg,matched_dic,url=None,soup=None):
         '''
         :param search_reg:
@@ -149,9 +160,6 @@ class ChargebeeWebSearcher(object):
             logging.exception('Error happened while trying url: {}'.format(base_url))
             self.browser.exit()
             self.browser.start_browser(visible=self.visible)
-            if self.lkdn_parser:
-                self.lkdn_parser.exit()
-                self.lkdn_parser.start(proxy=self.proxy,login=self.login_linkedin,visible=self.visible)
             return [],[],[],False,-8888,False,False,' '
 
     def search_webpage_csv_input(self,websites_loc,out_loc = 'website_extraction_output.xls'):
@@ -167,13 +175,11 @@ class ChargebeeWebSearcher(object):
         comp_lkdn_urls = list(df[company_linkedin_col])
         row_ids = list(df[id_col])
 
-        # out_dic = {'website':[],'score':[],'emails':[],'urls':[],'login_present':[],
-        #            'demo_present':[],'pricing_present':[],'company_linkedin_url':[],'id':[]}
+        out_dic = {'website':[],'score':[],'emails':[],'urls':[],'login_present':[],
+                   'demo_present':[],'pricing_present':[],'company_linkedin_url':[],'id':[]}
         # create file for saving all texts from the crawling
         all_texts_file = open(re.sub('\.xls|\.csv','_all_texts.csv',out_loc),'w')
         all_texts_file_writer = csv.writer(all_texts_file)
-        out_loc_file = open(out_loc,'w')
-        out_loc_file_writer = csv.writer(out_loc_file)
         ind = 0
         # self.crawler.start_browser(visible=self.visible)
         for website,comp_lkdn_url,row_id in izip(websites,comp_lkdn_urls,row_ids):
@@ -203,13 +209,9 @@ class ChargebeeWebSearcher(object):
                         website = lkdn_dets['Website']
             website = self.url_cleaner.clean_url(website,False)
             if url_validation_reg.search(website):
-                try:
-                    urls,emails,matches,login_signup_present,weight,demo_present,pricing_present,page_all_text = self.get_res_webpage_base(
-                        base_url=website
-                    )
-                except:
-                    logging.exception('Error happened in get_res_webpage_base function, url:{}'.format(website))
-                    weight = -8888
+                urls,emails,matches,login_signup_present,weight,demo_present,pricing_present,page_all_text = self.get_res_webpage_base(
+                    base_url=website
+                )
                 if weight == -8888: #-8888 means some error happened
                     continue
                 else:
@@ -218,42 +220,38 @@ class ChargebeeWebSearcher(object):
             else:
                 logging.info('website failed url validation check. url: {}'.format(website))
                 urls,emails,matches,login_signup_present,weight,demo_present,pricing_present,page_all_text = [],[],[],False,-9999,False,False,' '
-            # out_dic['website'].append(website)
-            # out_dic['score'].append(weight)
-            # out_dic['emails'].append(emails)
-            # out_dic['urls'].append(urls)
-            # # out_dic['match_texts_test'].append(matches)
-            # out_dic['login_present'].append(login_signup_present)
-            # out_dic['demo_present'].append(demo_present)
-            # out_dic['pricing_present'].append(pricing_present)
-            # out_dic['id'].append(row_id)
-            # out_dic['company_linkedin_url'].append(comp_lkdn_url)
+            out_dic['website'].append(website)
+            out_dic['score'].append(weight)
+            out_dic['emails'].append(emails)
+            out_dic['urls'].append(urls)
+            # out_dic['match_texts_test'].append(matches)
+            out_dic['login_present'].append(login_signup_present)
+            out_dic['demo_present'].append(demo_present)
+            out_dic['pricing_present'].append(pricing_present)
+            out_dic['id'].append(row_id)
+            out_dic['company_linkedin_url'].append(comp_lkdn_url)
             # if ind == 20:
             #     ind = 0
             #     self.browser.exit()
             #     self.browser.start_browser(visible=self.visible)
             #     self.lkdn_parser.exit()
             #     self.lkdn_parser.start(proxy=self.proxy,login=self.login_linkedin,visible=self.visible)
-            try:
-                all_texts_file_writer.writerow([website,page_all_text.encode('utf8')])
-                out_loc_file_writer.writerow([website,comp_lkdn_url,urls,login_signup_present,demo_present,pricing_present,weight,emails,matches])
-            except:
-                pass
-            ind += 1
+            with open(re.sub('\.xls|\.csv','',out_loc)+'_dic.pkl','w') as f:
+                pickle.dump(out_dic,f)
+            all_texts_file_writer.writerow([website,page_all_text.encode('utf8')])
         all_texts_file.close()
-        out_loc_file.close()
-        # out_df = pd.DataFrame(out_dic)
-        # out_df = out_df.sort_values('score',ascending=False)
-        # try:
-        #     out_df.to_excel(out_loc,index=False)
-        # except :
-        #     logging.exception('can not save as excel, try to save as csv')
-        #     try:
-        #         out_df.to_csv(out_loc,index=False)
-        #     except Exception as err:
-        #         logging.exception('can not save as csv, try to save out_dic')
-        #         with open(re.sub('\.xls|\.csv','',out_loc)+'_dic.pkl','w') as f:
-        #             pickle.dump(out_dic,f)
+        out_df = pd.DataFrame(out_dic)
+        out_df = out_df.sort_values('score',ascending=False)
+        try:
+            out_df.to_excel(out_loc,index=False)
+        except :
+            logging.exception('can not save as excel, try to save as csv')
+            try:
+                out_df.to_csv(out_loc,index=False)
+            except Exception as err:
+                logging.exception('can not save as csv, try to save out_dic')
+                with open(re.sub('\.xls|\.csv','',out_loc)+'_dic.pkl','w') as f:
+                    pickle.dump(out_dic,f)
         self.browser.exit()
         if self.lkdn_parser:
             self.lkdn_parser.exit()
