@@ -107,16 +107,16 @@ class LinkedinProfileCrawler(object):
             outs.update(tmp)
         except TimeoutException:
             logging.error('Time out exception for url:'+url)
-            return None
+            return outs
         except socket_error:
             logging.error('Socket error for url:'+url)
-            return None
+            return outs
         except CannotSendRequest:
             logging.error('Cannot send request error for url:{}'.format(url))
-            return None
+            return outs
         except BadStatusLine:
             logging.error('Badstatus line error for url:{}'.format(url))
-            return None
+            return outs
         except Exception as e:
             logging.exception('Error while fetching details for url: '+url)
         return outs

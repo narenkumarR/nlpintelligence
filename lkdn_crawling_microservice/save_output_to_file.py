@@ -122,8 +122,15 @@ def get_result_and_report(list_id,desig_list_reg):
     :return:
     '''
     res_list = get_data_from_table(list_id,desig_list_reg)
-    df = pd.DataFrame.from_records(res_list)
-    df.columns = ppl_table_fields
+    if res_list:
+        df = pd.DataFrame.from_records(res_list)
+        df.columns = ppl_table_fields
+    else:
+        tmp = {}
+        for col in ppl_table_fields:
+            tmp[col] = []
+        df = pd.DataFrame(tmp)
+        df = df[ppl_table_fields]
     report_df = get_report_for_list(list_id,df)
     return df,report_df
 

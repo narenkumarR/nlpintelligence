@@ -92,7 +92,7 @@ class LinkedinOrganizationService(object):
         self.link_parser.exit()
 
     def init_selenium_parser(self,browser=None,visible = None,proxy=None,proxy_ip = None,proxy_port = None,
-                             use_tor=None,login=False):
+                             use_tor=None,login=True):
         '''
         :param browser:
         :param visible:
@@ -151,20 +151,25 @@ class LinkedinOrganizationService(object):
             #     self.details['Notes'] = 'Publicaly available'
             details['Linkedin URL'] = re.split('\?trk',redirect_url)[0]
             details['Original URL'] = url
-            self.fetch_details_soupinput(soup,designations,next_page,details)
-            return details
+            if '/join?session_redirect' in self.link_parser.browser.current_url or \
+                    self.link_parser.browser.title == u'Sign Up | LinkedIn':
+                details['Notes'] = 'Redirected to login page'
+                return details
+            else:
+                self.fetch_details_soupinput(soup,designations,next_page,details)
+                return details
         except TimeoutException:
             logging.error('Time out exception for url: '+url)
-            return None
+            return details
         except socket_error:
             logging.error('Socket error for url:'+url)
-            return None
+            return details
         except CannotSendRequest:
             logging.error('Cannot send request error for url:{}'.format(url))
-            return None
+            return details
         except BadStatusLine:
             logging.error('Badstatus line error for url:{}'.format(url))
-            return None
+            return details
         except Exception as e:
             logging.exception('Exception while running main from company page for url:'+url)
             return details

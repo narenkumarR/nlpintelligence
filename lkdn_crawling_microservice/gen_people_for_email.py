@@ -278,6 +278,10 @@ if __name__ == "__main__":
                          dest='comp_base_table',
                          help='company base table name',
                          default='crawler.linkedin_company_base')
+    optparser.add_option('-b', '--batch_gen',
+                         dest='batch_gen',
+                         help='do batch gen if 1',
+                         default=0,type='int')
     (options, args) = optparser.parse_args()
     list_name = options.list_name
     if not list_name:
@@ -289,13 +293,25 @@ if __name__ == "__main__":
     else:
         desig_list = None
     comp_base_table = options.comp_base_table
+    batch_gen = options.batch_gen
     con = PostgresConnect()
     con.get_cursor()
-    con.execute("select id from crawler.list_table where list_name = %s",(list_name,))
-    res = con.cursor.fetchall()
-    con.close_cursor()
-    con.close_connection()
-    if not res:
-        raise ValueError('the list name given do not have any records')
-    list_id = res[0][0]
-    gen_people_details(list_id,desig_list,company_base_table=comp_base_table)
+    if batch_gen:
+        con.execute("select id from crawler.list_table where list_name like %s",(list_name+'%',))
+        res = con.cursor.fetchall()
+        con.close_cursor()
+        con.close_connection()
+        if not res:
+            raise ValueError('the list name given do not have any records')
+        for list_id_tup in res:
+            list_id = list_id_tup[0]
+            gen_people_details(list_id,desig_list,company_base_table=comp_base_table)
+    else:
+        con.execute("select id from crawler.list_table where list_name = %s",(list_name,))
+        res = con.cursor.fetchall()
+        con.close_cursor()
+        con.close_connection()
+        if not res:
+            raise ValueError('the list name given do not have any records')
+        list_id = res[0][0]
+        gen_people_details(list_id,desig_list,company_base_table=comp_base_table)
