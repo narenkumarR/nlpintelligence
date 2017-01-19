@@ -67,8 +67,9 @@ class CompanyLinkedinURLExtractorSingle(object):
         #     except:
         #         logging.exception('get_linkedin_url: error happened while processing company url:{}.'
         #                           ' try duckduckgo'.format(company_url))
+
         res,conf,people_urls = self.get_linkedin_url_ddg(company_url,additional_text)
-        if not res or conf == 0:
+        if additional_text and (not res or conf == 0):
             res,conf,people_urls = self.get_linkedin_url_ddg(company_url,'') #if additional_text (company name)
                                                                                 # could not find, try with only website
         if res and conf>0 :
@@ -108,6 +109,7 @@ class CompanyLinkedinURLExtractorSingle(object):
         #     if final_conf >0 and final_res:
         #         return final_res,final_conf
         time.sleep(randint(5,10))
+
         if not additional_text:
             ext = tldextract.extract(company_text)
             additional_text = ext.domain

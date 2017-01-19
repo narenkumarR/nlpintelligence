@@ -7,6 +7,7 @@ Author: ideas2it
 from bs4 import BeautifulSoup
 
 from urllib_crawl import UrllibCrawl
+import requests
 
 class BeautifulsoupCrawl:
     def __init__(self):

@@ -24,8 +24,20 @@ class TableUpdater(object):
                 if this will be used for selecting people
         :return:
         '''
+        self.con.get_cursor()
+        list_name_query='select list_name from crawler.list_table where id=%s'
+        self.con.cursor.execute(list_name_query, (list_id,))
+        self.con.commit()
+        list_name_info = self.con.cursor.fetchall()
+        list_name_data = list_name_info[0][0]
+        # print ('list_name_data :',list_name_data)
+
+        # self.db_insert.execute(list_name_query, (list_id,))
+
+        # get_complete_info_for_validation = self.db_insert.fetchall()
+
         os.system('python linkedin_validation.py -n {list_name}'.format(
-            list_name=list_name
+            list_name=list_name_data
         ))
         logging.info('started table updation')
         if not list_id:

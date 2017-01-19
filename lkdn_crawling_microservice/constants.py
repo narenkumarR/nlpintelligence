@@ -1,4 +1,4 @@
-__author__ = 'joswin'
+
 import re
 from nltk.corpus import stopwords
 #postgres connection details
@@ -26,8 +26,8 @@ linkedin_url_column = 'linkedin_url'
 # linkedin credentials
 linkedin_username = 'joswinkj@gmail.com'
 linkedin_password = 'joswinkj'
-linkedin_dets = [('joswinkj@gmail.com','joswinkj'),('sujay.seetharaman@gmail.com','qatar2022**'),
-                ('raditya.mit@gmail.com','pipecandy@1989'),('nikilav.v@gmail.com','naithrav') ]
+linkedin_dets = [('arunmohan0066@gmail.com','998877@a'),('sujay.seetharaman@gmail.com','qatar2022**'),
+                ('raditya.mit@gmail.com','pipecandy@1989'),('Prabinjose0066@gmail.com','8220113354@a') ]
 
 # firefox binary location
 firefox_binary_loc = 'firefox_binaries/firefox-46/firefox'

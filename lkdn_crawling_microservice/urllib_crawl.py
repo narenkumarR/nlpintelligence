@@ -1,28 +1,24 @@
-"""
-File : urllib_crawl.py
-Created On: 07-Mar-2016
-Author: ideas2it
-"""
-
 import urllib2
-
+import requests
 
 class UrllibCrawl:
 
     @staticmethod
-    def getResponse(baseurl,headers = {'User-Agent': 'Mozilla/5.0 (Macintosh; Intel Mac OS X 10.10; rv:39.0) Gecko/20100101 Firefox/39.0'}):
-        request_get = urllib2.Request(baseurl,data=None,\
-                                      headers=headers)
+    def getResponse(baseurl,headers = {'User-Agent': 'Mozilla/5.0 (Macintosh; Intel Mac OS X 10.10; rv:39.0) Gecko/20100101 Firefox/39.0'},timeout=60):
+        # request_get = urllib2.Request(baseurl,data=None,\
+        #                               headers=headers,timeout=60)
 
         # define the request
-        f_content=urllib2.urlopen(request_get)
+        # f_content=urllib2.urlopen(request_get,timeout=timeout)
 
-        # request, download and read the content
-        response_content=f_content.read().decode('utf-8')
+        # # request, download and read the content
+        # response_content=f_content.read().decode('utf-8')
 
-        print(f_content.read().decode('utf-8'))
+        # print(f_content.read().decode('utf-8'))
 
-        return response_content
+        # return response_content
+        r = requests.get(baseurl,headers=headers,timeout=timeout)
+        return r.text
 
     @staticmethod
     def getResponseProxy(baseurl):
@@ -47,3 +43,4 @@ class UrllibCrawl:
         #
         # return response_content
         pass
+

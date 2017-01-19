@@ -1,4 +1,4 @@
-__author__ = 'joswin'
+_author__ = 'joswin'
 import re
 import gc
 from Queue import Queue
@@ -145,12 +145,12 @@ class LinkedinCompanyCrawlerThread(object):
             #     continue
             try:
                 time.sleep(randint(self.sleep_time_min,self.sleep_time_max))
-                if self.browser == 'Firefox_luminati':
-                    soup = crawler.link_parser.get_soup('https://lumtest.com/myip.json')
-                    ip_dets = soup.find('pre').text
-                    logging.info('company crawler, luminati browser info: user agent: {usr_agent}, ip: {ip_dets}'.format(
-                        usr_agent = crawler.link_parser.user_agent,ip_dets=ip_dets.decode('ascii','ignore')
-                    ))
+                # if self.browser == 'Firefox_luminati':
+                #     soup = crawler.link_parser.get_soup('https://lumtest.com/myip.json')
+                #     ip_dets = soup.find('pre').text
+                #     logging.info('company crawler, luminati browser info: user agent: {usr_agent}, ip: {ip_dets}'.format(
+                #         usr_agent = crawler.link_parser.user_agent,ip_dets=ip_dets.decode('ascii','ignore')
+                #     ))
                 for t_no in range(2):
                     logging.info('company part: Input URL:{}, thread:{}, try:{}'.format(url,threading.currentThread(),t_no+1))
                     res_1 = {}

@@ -24,7 +24,8 @@ def get_count_lkdn_urls_found(list_id,con):
     :param con:
     :return:
     '''
-    query = "select count(distinct url) from crawler.list_items_urls where list_id=%s"
+    query = "select count(distinct (a.list_input,list_input_additional)) from crawler.list_items a left join crawler.list_items_urls b \
+             on a.list_id=b.list_id and a.id=b.list_items_id where a.list_id = %s and b.url is  not null"
     con.cursor.execute(query,(list_id,))
     res_list = con.cursor.fetchall()
     return res_list[0][0]

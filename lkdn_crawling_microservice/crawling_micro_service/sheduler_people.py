@@ -138,10 +138,10 @@ class LinkedinProfileCrawlerThread(object):
                 time.sleep(randint(self.sleep_time_min,self.sleep_time_max))
                 if self.browser == 'Firefox_luminati':
                     soup = crawler.link_parser.get_soup('https://lumtest.com/myip.json')
-                    ip_dets = soup.find('pre').text
-                    logging.info('People crawler, luminati browser info: user agent: {usr_agent}, ip: {ip_dets}'.format(
-                        usr_agent = crawler.link_parser.user_agent,ip_dets=ip_dets.decode('ascii','ignore')
-                    ))
+                    # ip_dets = soup.find('pre').text
+                    # logging.info('People crawler, luminati browser info: user agent: {usr_agent}, ip: {ip_dets}'.format(
+                    #     usr_agent = crawler.link_parser.user_agent,ip_dets=ip_dets.decode('ascii','ignore')
+                    # ))
                 for t_no in range(2):
                     # time.sleep(randint(30,90))
                     logging.info('people part: Input URL:{}, thread:{}, try:{}, no_errors: {}'.format(url,threading.currentThread(),t_no+1,no_errors))
