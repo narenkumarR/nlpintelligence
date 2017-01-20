@@ -141,7 +141,7 @@ def gen_people_details(list_id,desig_list=None,company_base_table = 'crawler.lin
         " unnest(crawler.clean_linkedin_url_array(crawler.extract_related_info(string_to_array(employee_details,'|'),3))) as designation, "\
         " company_name,website, headquarters,industry,company_size,founded "\
         "from {comp_base_tab} a where "\
-        "employee_details like '%%linkedin%%' and a.list_id = %s ".format(tab_name_id=table_name_id,
+        "employee_details like '%%linkedin%%' and a.list_id = %s and a.isvalid=1".format(tab_name_id=table_name_id,
                                                                           comp_base_tab=company_base_table)
     con.cursor.execute(query,(list_id,))
     # reason this query is like this needs to be specified(forgot!!)
@@ -177,7 +177,7 @@ def gen_people_details(list_id,desig_list=None,company_base_table = 'crawler.lin
             "  crawler.tmp_table_email_gen_{table_id} d "\
             " left join crawler.linkedin_company_redirect_url e on ( d.company_linkedin_url = e.url) "\
             " left join {comp_base_tab} b on (e.redirect_url = b.linkedin_url or d.company_linkedin_url=b.linkedin_url) "\
-            " where e.url is not null or b.linkedin_url is not null "\
+            " where e.url is not null or b.linkedin_url is not null and b.isvalid=1"\
             "  ) "\
             " union "\
             " (select distinct a.name,a.designation,a.website,a.company_name, "\
@@ -194,7 +194,7 @@ def gen_people_details(list_id,desig_list=None,company_base_table = 'crawler.lin
             " {ppl_base_tab} a join crawler.linkedin_people_redirect_url c on a.linkedin_url = c.redirect_url "\
             " join crawler.tmp_table2_email_gen_{table_id} d on (c.url=d.people_linkedin_url ) "\
             " join {comp_base_tab} b on d.company_linkedin_url = b.linkedin_url "\
-            " where a.sub_text ~* '{regex}' and (d.designation = '' or d.designation is null ) "\
+            " where a.sub_text ~* '{regex}'and b.isvalid=1 and (d.designation = '' or d.designation is null ) "\
             " and a.sub_text ilike '%'||b.company_name||'%' ) "\
             " ".format(table_id=table_name_id,regex=desig_list_reg,comp_base_tab=company_base_table,
                        ppl_base_tab=people_base_table)

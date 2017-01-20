@@ -7,7 +7,7 @@ from postgres_connect import PostgresConnect
 from linkedin_company_url_extraction_micro_service.company_linkedin_url_extractor.company_extractor import CompanyLinkedinURLExtractorMulti
 # from sqlalchemy import create_engine
 
-from constants import problematic_urls_file
+from constants import company_common_reg,user_agents
 
 list_items_urls_table = 'crawler.list_items_urls'
 urls_to_crawl_priority_table_company = 'crawler.linkedin_company_urls_to_crawl_priority'
@@ -104,7 +104,7 @@ class LkdnUrlExtrMain(object):
                      "ON CONFLICT DO NOTHING".format(urls_to_crawl_priority_table_people,records_list_template)
                     urls_to_crawl1 = [(i,list_id,list_items_url_id,) for i in people_urls]
                     self.con.cursor.execute(insert_query, urls_to_crawl1)
-                    logging.info('people list for url: {} ,no urls: {}'.format(linkedin_url,len(people_urls)))
+                    # logging.info('people list for url: {} ,no urls: {}'.format(linkedin_url,len(people_urls)))
                 self.con.commit()
             else:
                 # # why was this done. need to investigate

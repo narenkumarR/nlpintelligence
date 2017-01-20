@@ -1,5 +1,3 @@
-__author__ = 'joswin'
-
 import logging
 from bs4 import BeautifulSoup
 from selenium import webdriver
@@ -48,18 +46,29 @@ class SeleniumParser(object):
         if browser == 'PhantomJS':
             self.browser = webdriver.PhantomJS(browser_loc)
             self.pid = self.browser.binary.process.pid
+            self.firefox_profile_path = None
         elif browser == 'Firefox_luminati':
-            firefox_profile = webdriver.FirefoxProfile('firefox_profile')
-            self.user_agent = random.choice(user_agents)
-            firefox_profile.set_preference("general.useragent.override", self.user_agent)
-            # firefox_profile.set_preference("webdriver.log.file", "/tmp/firefox_console")
+            print('with Luminati')
+            firefox_profile = webdriver.FirefoxProfile()
+            self.firefox_profile_path = firefox_profile.path
+            firefox_profile.set_preference("browser.privatebrowsing.autostart", True)
+            firefox_profile.set_preference("permissions.default.image", 2)
+            firefox_profile.set_preference("network.proxy.type", 1)
+            firefox_profile.set_preference("network.proxy.http", '127.0.0.1')
+            firefox_profile.set_preference("network.proxy.http_port", int('24000'))
+            firefox_profile.set_preference("network.proxy.ssl", '127.0.0.1')
+            firefox_profile.set_preference("network.proxy.ssl_port", int('24000'))
+            firefox_profile.set_preference("network.proxy.socks", '127.0.0.1')
+            firefox_profile.set_preference("network.proxy.socks_port", int('24000'))
+            # firefox_profile.set_preference("network.proxy.ftp", proxy_ip)
+            # firefox_profile.set_preference("network.proxy.ftp_port", int(proxy_port))
             firefox_profile.update_preferences()
-            f = open('firefox_logs/{}firefox_binary.log'.format(random.randint(1,9)),'a')
-            self.browser = webdriver.Firefox(firefox_binary=FirefoxBinary(firefox_binary_loc,log_file=f),
-                                             firefox_profile=firefox_profile)
-            time.sleep(random.choice(range(7,23,3)))
+            self.browser = webdriver.Firefox(firefox_binary=FirefoxBinary(firefox_binary_loc),
+                                                 firefox_profile=firefox_profile)
+
             self.pid = self.browser.binary.process.pid
         else:
+            # print ('without browser')
             firefox_profile = webdriver.FirefoxProfile()
             self.firefox_profile_path = firefox_profile.path
             firefox_profile.set_preference("browser.privatebrowsing.autostart", True)

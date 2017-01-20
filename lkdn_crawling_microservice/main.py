@@ -103,7 +103,7 @@ def run_main(list_name=None,company_csv_loc=None,desig_loc=None,similar_companie
         t1 = multiprocessing.Process(target=url_extractor.run_main, args=(list_id,))
         t1.daemon = True
         t1.start()
-        time.sleep(120)
+        time.sleep(240)
         # url_extractor.run_main(list_id,threads=1)
         if prospect_db :
             #after finding linkedin_urls, look in prospect db again

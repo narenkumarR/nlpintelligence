@@ -151,6 +151,9 @@ if __name__ == "__main__":
         list_name=list_name,desig_loc=desig_loc
     ))
     if login:
+        os.system('python linkedin_validation.py -n {list_name} -c {linkedin_cmp_name_login}'.format(
+            list_name=list_name,linkedin_cmp_name_login='crawler.linkedin_company_base_login'
+        ))
         print('list_name:{} generating people details using login table'.format(list_name))
         os.system("python gen_people_for_email.py -n {list_name} -d {desig_loc} -C {comp_login_table}".format(
             list_name=list_name,desig_loc=desig_loc,comp_login_table='crawler.linkedin_company_base_login'

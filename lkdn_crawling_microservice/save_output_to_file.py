@@ -74,13 +74,15 @@ def get_data_from_table(list_id,desig_list_reg):
     '''
     con = PostgresConnect()
     con.get_cursor()
-    query = "select distinct on (a.first_name,a.middle_name,a.last_name,a.domain) " \
+    query = "create temp table if not exists %s as select distinct on (a.first_name,a.middle_name,a.last_name,a.domain) " \
         " d.list_input as input_website,d.list_input_additional input_company_name, "\
         " a.* from crawler.people_details_for_email_verifier_new a join crawler.linkedin_company_redirect_url b on " \
         " (a.company_linkedin_url = b.redirect_url or a.company_linkedin_url = b.url) " \
         " join crawler.list_items_urls c on (b.redirect_url=c.url or b.url=c.url) " \
         " join crawler.list_items d on c.list_id=d.list_id and c.list_items_id=d.id "\
         " where c.list_id = %s and a.domain is not null and designation ~* %s "
+    print(query)
+    print(desig_list_reg)
     con.cursor.execute(query,(list_id,desig_list_reg,))
     res_list = con.cursor.fetchall()
     con.close_cursor()

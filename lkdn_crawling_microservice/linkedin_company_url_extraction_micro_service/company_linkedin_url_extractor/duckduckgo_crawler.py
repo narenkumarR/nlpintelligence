@@ -3,6 +3,7 @@ File : duckduckgo_crawler.py
 Created On: 07-Mar-2016
 Author: ideas2it
 """
+import logging
 import pdb
 import urllib
 from bs_crawl import BeautifulsoupCrawl
@@ -31,11 +32,12 @@ class DuckduckgoCrawler(object):
             for link_soup in res_links:
                 try:
                     res_list.append({'url':link_soup.find('a',{'class':'result__a','rel':'nofollow'})['href']
-                        ,'text':link_soup.find('a',{'class':'result__snippet'}).text
-                        ,'url_text':link_soup.find('a',{'class':'result__a','rel':'nofollow'}).text.strip()
+                        ,'text':link_soup.find('a',{'class':'result__snippet'}).text.encode("ascii", "ignore")
+                        ,'url_text':link_soup.find('a',{'class':'result__a','rel':'nofollow'}).text.encode("ascii", "ignore").strip()
                     })
                 except:
                     continue
             return res_list
         except:
+            logging.exception('duduckgocrawler error happened')
             return []
