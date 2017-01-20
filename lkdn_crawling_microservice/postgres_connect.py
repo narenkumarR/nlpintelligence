@@ -29,7 +29,7 @@ class PostgresConnect(object):
         '''
         :return:
         '''
-        if not self.con.closed:
+        if self.con.closed:
             self.connect()
         self.cursor = self.con.cursor()
 

@@ -115,6 +115,9 @@ class LinkedinLoginCrawlerThread(object):
         res_1['result'] = crawler_people.fetch_details_soupinput(soup)
         res_1['result']['Linkedin URL'] = crawler_company.link_parser.browser.current_url
         res_1['result']['Original URL'] = url
+        if 'linkedin.com/start/join?session_redirect=' in crawler_company.link_parser.browser.current_url or \
+            crawler_company.link_parser.browser.title == u'Sign Up | LinkedIn':
+            res_1['result']['Notes'] = 'Redirected to login page'
         return res_1
 
     def worker_company(self,crawler_company,no_errors,n_blocks):
@@ -190,6 +193,9 @@ class LinkedinLoginCrawlerThread(object):
                             self.out_queue_company.put((res,list_items_url_id))
                             no_errors = 0
                             n_blocks = 0
+                        elif res['Notes'] == 'Redirected to login page':
+                            logging.info('company part login: Company page Redirected to login page for url: {} ,thread: {}'.format(url,threading.currentThread()))
+                            no_errors = 6 #to restart the browser
                         else:
                             logging.info('company part login: Notes present, but some unknown error for url:{}, thread:{}'.format(url,threading.currentThread()))
                             # self.out_queue.put(res)
@@ -268,6 +274,9 @@ class LinkedinLoginCrawlerThread(object):
                             logging.info('people part login: Not proper page, probably javascript for url:{}, thread:{}'.format(url,threading.currentThread()))
                             # self.out_queue.put(res)
                             no_errors += 1
+                        elif res['Notes'] == 'Redirected to login page':
+                            logging.info('people part login: people page Redirected to login page for url: {} ,thread: {}'.format(url,threading.currentThread()))
+                            no_errors = 6 #to restart the browser
                         else:
                             logging.info('people part login: Notes present, but some unknown error for url:{}, thread:{}'.format(url,threading.currentThread()))
                             # self.out_queue.put(res)
@@ -328,7 +337,7 @@ class LinkedinLoginCrawlerThread(object):
             #  following part for crawling people pages. but decided not to do this. Instead, write another \
             # program which can take name,company name and designation and search in duckduckgo to find the actual
             # linkedin url and crawl it using the without login option
-            if self.people_crawl:
+            if self.people_crawl and n_blocks<6:
                 if not self.in_queue_people.empty():
                     no_errors,n_blocks = self.worker_people(crawler_company,crawler_people,no_errors,n_blocks)
                 else:
@@ -355,13 +364,10 @@ class LinkedinLoginCrawlerThread(object):
                     proxy_ip,proxy_port = proxy_dets[0],proxy_dets[1]
                     crawler_company.init_selenium_parser(self.browser,self.visible,proxy=self.proxy,
                                                  proxy_ip=proxy_ip,proxy_port=proxy_port,use_tor=self.use_tor)
-            if no_errors == 6:
+            if no_errors >= 6:
                 no_errors = no_errors - 1
                 n_blocks += 1
                 if self.use_tor:
-                    pass
-                elif not self.proxy:
-                    logging.info('company part login: Error condition met, sleeping for '+str(min(n_blocks,20)*20)+' seconds')
                     time.sleep(min(n_blocks,20)*20)
                 else: #if proxy get another proxy
                     # time.sleep(randint(10,20))
@@ -385,7 +391,7 @@ class LinkedinLoginCrawlerThread(object):
                     except:
                         logging.exception('company part login: Exception while trying to change ip, use same parser, thread:{}'.format(threading.currentThread()))
                         try:
-                            crawler_company.init_selenium_parser() #try with already existing parameters
+                            crawler_company.init_selenium_parser(self.browser,self.visible) #try with already existing parameters
                         except:
                             logging.exception('company part login: Exception, can not restart crawler with already existing parameters, trying to restart, thread:{}'.format(threading.currentThread()))
                             try:
