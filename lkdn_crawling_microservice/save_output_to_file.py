@@ -113,7 +113,6 @@ def get_report_for_list(list_id,res_df):
                  'lkdn_ppl_pages_crawled', 'valid_ppl_found', 'cmps_with_valid_ppl', 'linkedin_url_not_found',
                  'valid_linkedin_companies_crawled_count'])
 
-
 def get_result_and_report(list_id,desig_list_reg):
     '''
     :param list_id:
