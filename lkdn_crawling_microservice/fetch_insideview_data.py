@@ -7,6 +7,7 @@ import json
 import hashlib
 import requests
 import pandas as pd
+import time
 from sqlalchemy import create_engine
 from optparse import OptionParser
 from postgres_connect import PostgresConnect
@@ -152,7 +153,7 @@ class InsideviewFetcher(object):
         self.con.close_connection()
 
     def fetch_people_details_from_company_ids_crawler_process(self,list_id,comp_ids,max_res_per_company=3,
-                                              retrieve_comp_dets=0,desig_list=[]):
+                                              retrieve_comp_dets=0,desig_list=[]),n_threads=10:
         '''
         :param list_id:
         :param comp_ids:
@@ -184,22 +185,56 @@ class InsideviewFetcher(object):
         self.con.cursor.execute(query,(list_id,tuple(comp_ids),))
         new_contact_ids = self.con.cursor.fetchall()
         new_contact_ids = [i[0] for i in new_contact_ids]
+        def worker():
+            while not self.in_queue.empty():
+                contact_id = self.queue.get()
+                res_dic = self.get_contact_info_from_id(contact_id,retrieve_comp_dets)
+                self.out_queue.put(res_dic)
+                self.in_queue.task_done()
+        self.in_queue = Queue(maxsize=0)
+        self.out_queue = Queue(maxsize=0)
+        for i in range(n_threads):
+            worker = threading.Thread(target=worker)
+            worker.setDaemon(True)
+            worker.start()
         for contact_id in new_contact_ids:
-            res_dic = self.get_contact_info_from_id(contact_id,retrieve_comp_dets)
+            self.in_queue.put(contact_id)
+        time.sleep(120)
+        while not self.out_queue.empty() or not self.in_queue.empty():
+            res_dic = self.out_queue.get()
             self.save_contact_info(res_dic)
-
-    def company_search_insideview_multi(self,comp_input_dets,list_id):
+            self.out_queue.task_done()
+        self.in_queue = None
+        self.out_queue = None
+        
+    def company_search_insideview_multi(self,comp_input_dets,list_id,n_threads=10):
         '''search in insideview and save the results from the input list of companies
         '''
+        def worker():
+            while not self.in_queue.empty():
+                comp_website,comp_name,list_items_id = self.queue.get()
+                if comp_website:
+                    comp_search_results = self.search_company_single(None,comp_website,max_no_results=10)
+                else:
+                    comp_search_results = self.search_company_single(comp_name,comp_website,max_no_results=10)
+                self.out_queue.put((list_items_id,comp_search_results))
+                self.in_queue.task_done()
+        self.in_queue = Queue(maxsize=0)
+        self.out_queue = Queue(maxsize=0)
+        for i in range(n_threads):
+            worker = threading.Thread(target=worker)
+            worker.setDaemon(True)
+            worker.start()
         for comp_website,comp_name,list_items_id in comp_input_dets:
-            if comp_website:
-                comp_search_results = self.search_company_single(None,comp_website,max_no_results=10)
-                # if not comp_search_results:
-                #     comp_search_results = self.search_company_single(comp_name,comp_website,max_no_results=99)
-            else:
-                comp_search_results = self.search_company_single(comp_name,comp_website,max_no_results=10)
+            self.in_queue.put((comp_website,comp_name,list_items_id))
+        time.sleep(120)
+        while not self.out_queue.empty() or not self.in_queue.empty():
+            list_items_id,comp_search_results = self.out_queue.get()
             if comp_search_results:
                 self.save_company_search_res_single(list_id,list_items_id,comp_search_results)
+            self.out_queue.task_done()
+        self.in_queue = None
+        self.out_queue = None
                 
     def get_companies_for_contact_search(self,list_id,comp_contries_loc):
         ''' get the list of companies for which the insideview contact search will be done '''
@@ -223,7 +258,7 @@ class InsideviewFetcher(object):
         comp_ids = [i[0] for i in comp_ids]
         return comp_ids
 
-    def get_save_company_details_from_insideview_listinput(self,list_id,comp_ids):
+    def get_save_company_details_from_insideview_listinput(self,list_id,comp_ids,n_threads=10):
         '''get company details from insideview and save the result for each company id in the list '''
         # find all company ids not present in the company_details table
         # todo: can add a timestamp related filter here later
@@ -234,11 +269,27 @@ class InsideviewFetcher(object):
         comp_ids_already_present = self.con.cursor.fetchall()
         comp_ids_already_present = [i[0] for i in comp_ids_already_present]
         comp_ids_not_preset = list(set(comp_ids)-set(comp_ids_already_present))
+        def worker():
+            while not self.in_queue.empty():
+                comp_id = self.queue.get()
+                comp_dets_dic = self.get_company_details_from_id(comp_id)
+                self.out_queue.put(comp_dets_dic)
+                self.in_queue.task_done()
+        self.in_queue = Queue(maxsize=0)
+        self.out_queue = Queue(maxsize=0)
+        for i in range(n_threads):
+            worker = threading.Thread(target=worker)
+            worker.setDaemon(True)
+            worker.start()
         for comp_id in comp_ids_not_preset:
-            comp_dets_dic = self.get_company_details_from_id(comp_id)
+            self.in_queue.put(comp_id)
+        time.sleep(120)
+        while not self.out_queue.empty() or not self.in_queue.empty():
+            comp_dets_dic = self.out_queue.get()
             self.save_company_dets_dic_input(comp_dets_dic)
-            # comp_tech_dic = self.get_company_tech_profile_from_id(comp_id)
-            # self.save_company_techs(comp_id,comp_tech_dic)
+            self.out_queue.task_done()
+        self.in_queue = None
+        self.out_queue = None
     
     def get_dets_for_insideview_fetch(self,list_id,remove_comps_in_lkdn_table=0,max_comps_to_try=0):
         '''find the company names and urls which needs to be fetched from builtwith
