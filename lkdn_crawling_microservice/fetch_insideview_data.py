@@ -7,6 +7,7 @@ import json
 import hashlib
 import requests
 import pandas as pd
+import time
 from sqlalchemy import create_engine
 from optparse import OptionParser
 from postgres_connect import PostgresConnect
@@ -31,148 +32,6 @@ class InsideviewFetcher(object):
     def __init__(self):
         self.con = PostgresConnect(database_in=database,host_in=host,
                                                     user_in=user,password_in=password)
-
-    def fetch_data_crawler_process(self,list_id,filters_loc,max_comps_to_try=0,get_contacts=1,
-                                   get_comp_dets_sep=1,max_res_per_company=3,remove_comps_in_lkdn_table=1,
-                                   find_new_contacts_only=1,desig_list=[],comp_contries_loc=None):
-        '''
-        :param list_id:
-        :param filters_loc: location of filter file
-        :param max_comps_to_try: no of companies needed
-        :param get_contacts: get contact details and emails if true
-        :param get_comp_dets_sep: get company details also while searching for contacts(works only if get_contacts True)
-        :param remove_comps_in_lkdn_table: if True, remove the companies already present in the linkedin tables from processing.
-                otherwise they will be processed
-        :param find_new_contacts_only: if True, try to find contacts for companies for whom we don't have enough contact
-                details. set this to False when we are trying new filters. eg: suppose  we generate a list of people with
-                filterA. When running for same list again with filterA, set this flag as True. If we are running
-                with different filter, filterB, set this flag as False. Running again with filterB, set this flag as True.
-                This is useful in reducing target api hits. Setting wrongly will affect in more api hits.
-        :param desig_list: list of designations
-        :param comp_contries_loc: country names
-        :return:
-        '''
-        # todo : add option to give countries - set the list id as null for comps not matching in insideview_company_search_res table
-        self.con.get_cursor()
-        # get company details which needs to be found
-        filters_dic = self.gen_filters_dic(filters_loc)
-        # todo: we can add a flag in list_items/list_items_urls table and use it here to avoid duplication
-        # find the companies for whom the search was not done in builtwith
-        query = " select distinct list_input,list_input_additional,a.id from crawler.list_items a left join " \
-                " crawler.insideview_company_search_res b on a.list_id=b.list_id and a.id=b.list_items_id " \
-                " where a.list_id = %s and b.list_id is null"
-        self.con.execute(query,(list_id,))
-        comp_input_dets_no_iv = self.con.cursor.fetchall()
-        # find all company details not present in linkedin_company_base of remove_comps_in_lkdn_table flag is True
-        if remove_comps_in_lkdn_table:
-            query = "select distinct list_input,list_input_additional,a.id from crawler.list_items a  left join " \
-                    " crawler.list_items_urls b on a.id=b.list_items_id and a.list_id=b.list_id left join crawler.linkedin_company_base c " \
-                    " on b.id=c.list_items_url_id and a.list_id=c.list_id where a.list_id = %s and (b.url is null or c.linkedin_url is null)"
-            self.con.execute(query,(list_id,))
-            comp_input_dets_no_lkdn = self.con.cursor.fetchall()
-        else:
-            comp_input_dets_no_lkdn = comp_input_dets_no_iv #this is done coz of the intersection below
-        # find intersection
-        comp_input_dets = list(set(comp_input_dets_no_lkdn).intersection(set(comp_input_dets_no_iv)))
-        shuffle(comp_input_dets)
-        # try for max_comps_to_try at a time if max_comps_to_try present
-        if max_comps_to_try:
-            comp_input_dets = comp_input_dets[:min(max_comps_to_try,len(comp_input_dets))]
-        # running inside view search for each company and saving the output to table
-        for comp_website,comp_name,list_items_id in comp_input_dets:
-            if comp_website:
-                comp_search_results = self.search_company_single(None,comp_website,max_no_results=10)
-                # if not comp_search_results:
-                #     comp_search_results = self.search_company_single(comp_name,comp_website,max_no_results=99)
-            else:
-                comp_search_results = self.search_company_single(comp_name,comp_website,max_no_results=10)
-            if comp_search_results:
-                self.save_company_search_res_single(list_id,list_items_id,comp_search_results)
-        # get all company ids from table
-        # todo: fix this logic
-        if find_new_contacts_only:
-            query = "select distinct a.company_id from crawler.insideview_company_search_res a left join " \
-                    " crawler.insideview_contact_search_res b on a.list_id=b.list_id and a.company_id=b.company_id " \
-                    " left join crawler.insideview_contact_data c on a.company_id=c.company_id" \
-                    " where c.company_id is null and a.list_id=%s"
-        else:
-            query = "select distinct company_id from crawler.insideview_company_search_res a " \
-                    " where list_id=%s "
-        # if country based filters available, apply them
-        if comp_contries_loc:
-            countries = self.get_contries_list(comp_contries_loc)
-            query = query + ' and a.country in %s'
-            self.con.execute(query,(list_id,tuple(countries),))
-        else:
-            self.con.execute(query,(list_id,))
-        comp_ids = self.con.cursor.fetchall()
-        comp_ids = [i[0] for i in comp_ids]
-        # if get_comp_dets_sep is True, search for each comp_id
-        if get_comp_dets_sep:
-            # find all company ids not present in the company_details table
-            # todo: can add a timestamp related filter here later
-            query = " select distinct a.company_id from crawler.insideview_company_search_res a " \
-                    " left join crawler.insideview_company_details_contact_search b on a.company_id=b.company_id " \
-                    " where a.list_id=%s and a.company_id in %s and b.company_id is null"
-            self.con.execute(query,(list_id,tuple(comp_ids),))
-            comp_ids_already_present = self.con.cursor.fetchall()
-            comp_ids_already_present = [i[0] for i in comp_ids_already_present]
-            comp_ids_not_preset = list(set(comp_ids)-set(comp_ids_already_present))
-            for comp_id in comp_ids_not_preset:
-                comp_dets_dic = self.get_company_details_from_id(comp_id)
-                self.save_company_dets_dic_input(comp_dets_dic)
-                # comp_tech_dic = self.get_company_tech_profile_from_id(comp_id)
-                # self.save_company_techs(comp_id,comp_tech_dic)
-            # todo : we can add option to search companies using all the data fetched here
-        # if no need to get contacts, return, else continue
-        # search for people from these comp_ids
-        comp_id_str = ','.join([str(i) for i in comp_ids])
-        filters_dic['companyIdsToInclude'] = comp_id_str
-        contacts_list = self.search_contacts(**filters_dic)
-        self.save_contacts_seach_res(list_id,contacts_list)
-        if get_contacts:
-            self.fetch_people_details_from_company_ids_crawler_process(list_id,comp_ids,retrieve_comp_dets=not get_comp_dets_sep,
-                                                       max_res_per_company=max_res_per_company,desig_list=desig_list)
-        self.con.close_cursor()
-
-
-
-    def fetch_people_details_from_company_ids_crawler_process(self,list_id,comp_ids,max_res_per_company=3,
-                                              retrieve_comp_dets=0,desig_list=[]):
-        '''
-        :param list_id:
-        :param comp_ids:
-        :param max_res_per_company: max number of email searches to be done for each company
-        :param filters_dic:
-        :return:
-        '''
-        # get contact ids which are not present in the contacts table
-        # todo: add the designations condition here to further filter. can be done by adding where condition on insideview_contact_search_res table
-        if desig_list:
-            desig_list_reg = '\y' + '\y|\y'.join(desig_list) + '\y'
-            query = "SELECT distinct new_contact_id FROM " \
-                    " (SELECT company_id,new_contact_id, ROW_NUMBER() OVER (PARTITION BY company_id ) AS Row_ID FROM " \
-                    " ( select a.company_id,a.new_contact_id from " \
-                    " crawler.insideview_contact_search_res a left join crawler.insideview_contact_data b " \
-                    " on a.email_md5_hash=b.email_md5_hash where a.list_id = %s and a.company_id in %s and " \
-                    " b.email_md5_hash is null and array_to_string(a.titles,',') ~* '{}' )x "\
-                    "  ) as A " \
-                    " WHERE Row_ID <= {} ".format(desig_list_reg,max_res_per_company)
-        else:
-            query = "SELECT distinct new_contact_id FROM " \
-                    " (SELECT company_id,new_contact_id, ROW_NUMBER() OVER (PARTITION BY company_id ) AS Row_ID FROM " \
-                    " ( select a.company_id,a.new_contact_id from " \
-                    " crawler.insideview_contact_search_res a left join crawler.insideview_contact_data b " \
-                    " on a.email_md5_hash=b.email_md5_hash where a.list_id = %s and a.company_id in %s and " \
-                    " b.email_md5_hash is null )x"\
-                    "  ) as A " \
-                    " WHERE Row_ID <= {} ".format(max_res_per_company)
-        self.con.cursor.execute(query,(list_id,tuple(comp_ids),))
-        new_contact_ids = self.con.cursor.fetchall()
-        new_contact_ids = [i[0] for i in new_contact_ids]
-        for contact_id in new_contact_ids:
-            res_dic = self.get_contact_info_from_id(contact_id,retrieve_comp_dets)
-            self.save_contact_info(res_dic)
 
     def fetch_data_csv_input(self,list_name,out_loc,filters_loc,inp_loc=None,max_comps_to_try=300,get_contacts=1,
                              get_comp_dets_sep=1,max_res_per_company=3,remove_comps_in_lkdn_table=1,
@@ -244,6 +103,220 @@ class InsideviewFetcher(object):
         df = pd.read_sql_query(query,engine)
         df.to_csv('{}/{}_contact_email_data.csv'.format(out_loc,list_name),index=False,quoting=1,encoding='utf-8')
         engine.dispose()
+
+    
+    
+    def fetch_data_crawler_process(self,list_id,filters_loc,max_comps_to_try=0,get_contacts=1,
+                                   get_comp_dets_sep=1,max_res_per_company=3,remove_comps_in_lkdn_table=1,
+                                   find_new_contacts_only=1,desig_list=[],comp_contries_loc=None):
+        '''
+        :param list_id:
+        :param filters_loc: location of filter file
+        :param max_comps_to_try: no of companies needed
+        :param get_contacts: get contact details and emails if true
+        :param get_comp_dets_sep: get company details also while searching for contacts(works only if get_contacts True)
+        :param remove_comps_in_lkdn_table: if True, remove the companies already present in the linkedin tables from processing.
+                otherwise they will be processed
+        :param find_new_contacts_only: if True, try to find contacts for companies for whom we don't have enough contact
+                details. set this to False when we are trying new filters. eg: suppose  we generate a list of people with
+                filterA. When running for same list again with filterA, set this flag as True. If we are running
+                with different filter, filterB, set this flag as False. Running again with filterB, set this flag as True.
+                This is useful in reducing target api hits. Setting wrongly will affect in more api hits.
+        :param desig_list: list of designations
+        :param comp_contries_loc: country names
+        :return:
+        '''
+        self.con.get_cursor()
+        # todo : add option to give countries - set the list id as null for comps not matching in insideview_company_search_res table
+        # get the filters present in filters_loc
+        filters_dic = self.gen_filters_dic(filters_loc)
+        # get the company details(name and website) which needs to be fetched from insideview
+        comp_input_dets = self.get_dets_for_insideview_fetch(list_id,remove_comps_in_lkdn_table,max_comps_to_try)
+        # running inside view search for each company and saving the output to table
+        self.company_search_insideview_multi(comp_input_dets,list_id)
+        # get all company ids which need to be searched for contacts from table
+        comp_ids = self.get_companies_for_contact_search(list_id,comp_contries_loc)
+        # if get_comp_dets_sep is True, search for each comp_id in insideview and save the company details
+        if get_comp_dets_sep:
+            self.get_save_company_details_from_insideview_listinput(list_id,comp_ids)
+        # todo : we can add option to search companies using all the data fetched here
+        # search for people from these comp_ids
+        comp_id_str = ','.join([str(i) for i in comp_ids])
+        filters_dic['companyIdsToInclude'] = comp_id_str
+        contacts_list = self.search_contacts(**filters_dic)
+        self.save_contacts_seach_res(list_id,contacts_list)
+        # if no need to get contacts, return, else continue
+        if get_contacts:
+            self.fetch_people_details_from_company_ids_crawler_process(list_id,comp_ids,retrieve_comp_dets=not get_comp_dets_sep,
+                                                       max_res_per_company=max_res_per_company,desig_list=desig_list)
+        self.con.close_cursor()
+        self.con.close_connection()
+
+    def fetch_people_details_from_company_ids_crawler_process(self,list_id,comp_ids,max_res_per_company=3,
+                                              retrieve_comp_dets=0,desig_list=[]),n_threads=10:
+        '''
+        :param list_id:
+        :param comp_ids:
+        :param max_res_per_company: max number of email searches to be done for each company
+        :param filters_dic:
+        :return:
+        '''
+        # get contact ids which are not present in the contacts table
+        # todo: add the designations condition here to further filter. can be done by adding where condition on insideview_contact_search_res table
+        if desig_list:
+            desig_list_reg = '\y' + '\y|\y'.join(desig_list) + '\y'
+            query = "SELECT distinct new_contact_id FROM " \
+                    " (SELECT company_id,new_contact_id, ROW_NUMBER() OVER (PARTITION BY company_id ) AS Row_ID FROM " \
+                    " ( select a.company_id,a.new_contact_id from " \
+                    " crawler.insideview_contact_search_res a left join crawler.insideview_contact_data b " \
+                    " on a.email_md5_hash=b.email_md5_hash where a.list_id = %s and a.company_id in %s and " \
+                    " b.email_md5_hash is null and array_to_string(a.titles,',') ~* '{}' )x "\
+                    "  ) as A " \
+                    " WHERE Row_ID <= {} ".format(desig_list_reg,max_res_per_company)
+        else:
+            query = "SELECT distinct new_contact_id FROM " \
+                    " (SELECT company_id,new_contact_id, ROW_NUMBER() OVER (PARTITION BY company_id ) AS Row_ID FROM " \
+                    " ( select a.company_id,a.new_contact_id from " \
+                    " crawler.insideview_contact_search_res a left join crawler.insideview_contact_data b " \
+                    " on a.email_md5_hash=b.email_md5_hash where a.list_id = %s and a.company_id in %s and " \
+                    " b.email_md5_hash is null )x"\
+                    "  ) as A " \
+                    " WHERE Row_ID <= {} ".format(max_res_per_company)
+        self.con.cursor.execute(query,(list_id,tuple(comp_ids),))
+        new_contact_ids = self.con.cursor.fetchall()
+        new_contact_ids = [i[0] for i in new_contact_ids]
+        def worker():
+            while not self.in_queue.empty():
+                contact_id = self.queue.get()
+                res_dic = self.get_contact_info_from_id(contact_id,retrieve_comp_dets)
+                self.out_queue.put(res_dic)
+                self.in_queue.task_done()
+        self.in_queue = Queue(maxsize=0)
+        self.out_queue = Queue(maxsize=0)
+        for i in range(n_threads):
+            worker = threading.Thread(target=worker)
+            worker.setDaemon(True)
+            worker.start()
+        for contact_id in new_contact_ids:
+            self.in_queue.put(contact_id)
+        time.sleep(120)
+        while not self.out_queue.empty() or not self.in_queue.empty():
+            res_dic = self.out_queue.get()
+            self.save_contact_info(res_dic)
+            self.out_queue.task_done()
+        self.in_queue = None
+        self.out_queue = None
+        
+    def company_search_insideview_multi(self,comp_input_dets,list_id,n_threads=10):
+        '''search in insideview and save the results from the input list of companies
+        '''
+        def worker():
+            while not self.in_queue.empty():
+                comp_website,comp_name,list_items_id = self.queue.get()
+                if comp_website:
+                    comp_search_results = self.search_company_single(None,comp_website,max_no_results=10)
+                else:
+                    comp_search_results = self.search_company_single(comp_name,comp_website,max_no_results=10)
+                self.out_queue.put((list_items_id,comp_search_results))
+                self.in_queue.task_done()
+        self.in_queue = Queue(maxsize=0)
+        self.out_queue = Queue(maxsize=0)
+        for i in range(n_threads):
+            worker = threading.Thread(target=worker)
+            worker.setDaemon(True)
+            worker.start()
+        for comp_website,comp_name,list_items_id in comp_input_dets:
+            self.in_queue.put((comp_website,comp_name,list_items_id))
+        time.sleep(120)
+        while not self.out_queue.empty() or not self.in_queue.empty():
+            list_items_id,comp_search_results = self.out_queue.get()
+            if comp_search_results:
+                self.save_company_search_res_single(list_id,list_items_id,comp_search_results)
+            self.out_queue.task_done()
+        self.in_queue = None
+        self.out_queue = None
+                
+    def get_companies_for_contact_search(self,list_id,comp_contries_loc):
+        ''' get the list of companies for which the insideview contact search will be done '''
+        # todo: fix this logic
+        if find_new_contacts_only:
+            query = "select distinct a.company_id from crawler.insideview_company_search_res a left join " \
+                    " crawler.insideview_contact_search_res b on a.list_id=b.list_id and a.company_id=b.company_id " \
+                    " left join crawler.insideview_contact_data c on a.company_id=c.company_id" \
+                    " where c.company_id is null and a.list_id=%s"
+        else:
+            query = "select distinct company_id from crawler.insideview_company_search_res a " \
+                    " where list_id=%s "
+        # if country based filters available, apply them
+        if comp_contries_loc:
+            countries = self.get_contries_list(comp_contries_loc)
+            query = query + ' and a.country in %s'
+            self.con.execute(query,(list_id,tuple(countries),))
+        else:
+            self.con.execute(query,(list_id,))
+        comp_ids = self.con.cursor.fetchall()
+        comp_ids = [i[0] for i in comp_ids]
+        return comp_ids
+
+    def get_save_company_details_from_insideview_listinput(self,list_id,comp_ids,n_threads=10):
+        '''get company details from insideview and save the result for each company id in the list '''
+        # find all company ids not present in the company_details table
+        # todo: can add a timestamp related filter here later
+        query = " select distinct a.company_id from crawler.insideview_company_search_res a " \
+                    " left join crawler.insideview_company_details_contact_search b on a.company_id=b.company_id " \
+                    " where a.list_id=%s and a.company_id in %s and b.company_id is null"
+        self.con.execute(query,(list_id,tuple(comp_ids),))
+        comp_ids_already_present = self.con.cursor.fetchall()
+        comp_ids_already_present = [i[0] for i in comp_ids_already_present]
+        comp_ids_not_preset = list(set(comp_ids)-set(comp_ids_already_present))
+        def worker():
+            while not self.in_queue.empty():
+                comp_id = self.queue.get()
+                comp_dets_dic = self.get_company_details_from_id(comp_id)
+                self.out_queue.put(comp_dets_dic)
+                self.in_queue.task_done()
+        self.in_queue = Queue(maxsize=0)
+        self.out_queue = Queue(maxsize=0)
+        for i in range(n_threads):
+            worker = threading.Thread(target=worker)
+            worker.setDaemon(True)
+            worker.start()
+        for comp_id in comp_ids_not_preset:
+            self.in_queue.put(comp_id)
+        time.sleep(120)
+        while not self.out_queue.empty() or not self.in_queue.empty():
+            comp_dets_dic = self.out_queue.get()
+            self.save_company_dets_dic_input(comp_dets_dic)
+            self.out_queue.task_done()
+        self.in_queue = None
+        self.out_queue = None
+    
+    def get_dets_for_insideview_fetch(self,list_id,remove_comps_in_lkdn_table=0,max_comps_to_try=0):
+        '''find the company names and urls which needs to be fetched from builtwith
+        '''
+        # todo: we can add a flag in list_items/list_items_urls table and use it here to avoid duplication
+        # find the companies for whom the search was not done in builtwith
+        query = " select distinct list_input,list_input_additional,a.id from crawler.list_items a left join " \
+                " crawler.insideview_company_search_res b on a.list_id=b.list_id and a.id=b.list_items_id " \
+                " where a.list_id = %s and b.list_id is null"
+        self.con.execute(query,(list_id,))
+        comp_input_dets_no_iv = self.con.cursor.fetchall()
+        # find all company details not present in linkedin_company_base if remove_comps_in_lkdn_table flag is True
+        if remove_comps_in_lkdn_table:
+            query = "select distinct list_input,list_input_additional,a.id from crawler.list_items a  left join " \
+                    " crawler.list_items_urls b on a.id=b.list_items_id and a.list_id=b.list_id left join crawler.linkedin_company_base c " \
+                    " on b.id=c.list_items_url_id and a.list_id=c.list_id where a.list_id = %s and (b.url is null or c.linkedin_url is null)"
+            self.con.execute(query,(list_id,))
+            comp_input_dets_no_lkdn = self.con.cursor.fetchall()
+        else:
+            comp_input_dets_no_lkdn = comp_input_dets_no_iv #this is done coz of the intersection below
+        # find intersection
+        comp_input_dets = list(set(comp_input_dets_no_lkdn).intersection(set(comp_input_dets_no_iv)))
+        shuffle(comp_input_dets)
+        # try for max_comps_to_try at a time if max_comps_to_try present
+        if max_comps_to_try:
+            comp_input_dets = comp_input_dets[:min(max_comps_to_try,len(comp_input_dets))]
+        return comp_input_dets
 
     def gen_filters_dic(self,filters_loc):
         '''saved as key,value in each row. this will be passed to the api filter search
@@ -398,7 +471,6 @@ class InsideviewFetcher(object):
         :param res_dic:
         :return:
         '''
-        self.con.get_cursor()
         # generating md5 hash of email
         md5_hasher = hashlib.md5()
         if res_dic.get('email',None):
