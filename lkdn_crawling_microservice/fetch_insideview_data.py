@@ -13,13 +13,15 @@ from optparse import OptionParser
 from postgres_connect import PostgresConnect
 from random import shuffle
 
+import threading
+from Queue import Queue
+
 from company_linkedin_urls_manual_insert import upload_url_list
 from constants import database,host,user,password,designations_column_name
 
 def chunker(seq, size):
     return (seq[pos:pos + size] for pos in xrange(0, len(seq), size))
 
-throttler_app_address = 'http://127.0.0.1:5000/'
 company_search_url = 'https://api.insideview.com/api/v1/companies'
 contact_search_url = 'https://api.insideview.com/api/v1/target/contacts'
 contact_details_url = 'https://api.insideview.com/api/v1/target/contact/{newcontactId}'
@@ -29,13 +31,14 @@ company_tech_profile_url = 'https://api.insideview.com/api/v1/company/{companyId
 class InsideviewFetcher(object):
     '''
     '''
-    def __init__(self):
+    def __init__(self,throttler_app_address = 'http://127.0.0.1:5000/'):
         self.con = PostgresConnect(database_in=database,host_in=host,
                                                     user_in=user,password_in=password)
+        self.throttler_app_address = throttler_app_address
 
-    def fetch_data_csv_input(self,list_name,out_loc,filters_loc,inp_loc=None,max_comps_to_try=300,get_contacts=1,
-                             get_comp_dets_sep=1,max_res_per_company=3,remove_comps_in_lkdn_table=1,
-                                   find_new_contacts_only=1,desig_list=[],comp_contries_loc=None):
+    def fetch_data_csv_input(self,list_name,out_loc,filters_loc,inp_loc=None,max_comps_to_try=0,get_contacts=1,
+                             get_comp_dets_sep=1,max_res_per_company=3,remove_comps_in_lkdn_table=0,
+                                   find_new_contacts_only=0,desig_list=[],comp_contries_loc=None):
         '''
         :param list_name: a name for the list
         :param inp_loc: input csv file. columns website,company_name
@@ -56,8 +59,8 @@ class InsideviewFetcher(object):
         :param comp_contries_loc: country names
         :return:
         '''
-        # logging.basicConfig(filename='logs/insideview_fetching_log_file_{}.log'.format(list_name),
-        #                     level=logging.INFO,format='%(asctime)s %(message)s')
+        logging.basicConfig(filename='logs/insideview_fetching_log_file_{}.log'.format(list_name),
+                            level=logging.INFO,format='%(asctime)s %(message)s')
         if out_loc[-1] == '/':
             out_loc = out_loc[:-1]
         self.con.get_cursor()
@@ -108,7 +111,7 @@ class InsideviewFetcher(object):
     
     def fetch_data_crawler_process(self,list_id,filters_loc,max_comps_to_try=0,get_contacts=1,
                                    get_comp_dets_sep=1,max_res_per_company=3,remove_comps_in_lkdn_table=1,
-                                   find_new_contacts_only=1,desig_list=[],comp_contries_loc=None):
+                                   find_new_contacts_only=0,desig_list=[],comp_contries_loc=None):
         '''
         :param list_id:
         :param filters_loc: location of filter file
@@ -126,34 +129,46 @@ class InsideviewFetcher(object):
         :param comp_contries_loc: country names
         :return:
         '''
+        logging.info('starting the insideview fetch')
         self.con.get_cursor()
         # todo : add option to give countries - set the list id as null for comps not matching in insideview_company_search_res table
         # get the filters present in filters_loc
         filters_dic = self.gen_filters_dic(filters_loc)
+        logging.info('loaded filters dictionary')
         # get the company details(name and website) which needs to be fetched from insideview
         comp_input_dets = self.get_dets_for_insideview_fetch(list_id,remove_comps_in_lkdn_table,max_comps_to_try)
+        logging.info('no of companies to search : {}'.format(len(comp_input_dets)))
         # running inside view search for each company and saving the output to table
-        self.company_search_insideview_multi(comp_input_dets,list_id)
+        if comp_input_dets:
+            self.company_search_insideview_multi(comp_input_dets,list_id)
+        logging.info('completed company search')
         # get all company ids which need to be searched for contacts from table
-        comp_ids = self.get_companies_for_contact_search(list_id,comp_contries_loc)
+        comp_ids = self.get_companies_for_contact_search(list_id,comp_contries_loc,find_new_contacts_only)
+        logging.info('no of companies for which contact search is to be done:{}'.format(len(comp_ids)))
         # if get_comp_dets_sep is True, search for each comp_id in insideview and save the company details
         if get_comp_dets_sep:
             self.get_save_company_details_from_insideview_listinput(list_id,comp_ids)
+            logging.info('saved the company details for each company')
         # todo : we can add option to search companies using all the data fetched here
         # search for people from these comp_ids
+        logging.info('starting contact search')
         comp_id_str = ','.join([str(i) for i in comp_ids])
         filters_dic['companyIdsToInclude'] = comp_id_str
         contacts_list = self.search_contacts(**filters_dic)
+        logging.info('no of contacts got from the contact search: {}'.format(len(contacts_list)))
         self.save_contacts_seach_res(list_id,contacts_list)
+        logging.info('saved contact search results into table')
         # if no need to get contacts, return, else continue
         if get_contacts:
+            logging.info('getting email information for contacts')
             self.fetch_people_details_from_company_ids_crawler_process(list_id,comp_ids,retrieve_comp_dets=not get_comp_dets_sep,
                                                        max_res_per_company=max_res_per_company,desig_list=desig_list)
         self.con.close_cursor()
         self.con.close_connection()
+        logging.info('completed the insideview fetch process')
 
     def fetch_people_details_from_company_ids_crawler_process(self,list_id,comp_ids,max_res_per_company=3,
-                                              retrieve_comp_dets=0,desig_list=[]),n_threads=10:
+                                              retrieve_comp_dets=0,desig_list=[],n_threads=10):
         '''
         :param list_id:
         :param comp_ids:
@@ -161,6 +176,7 @@ class InsideviewFetcher(object):
         :param filters_dic:
         :return:
         '''
+        logging.info('started fetch_people_details_from_company_ids_crawler_process')
         # get contact ids which are not present in the contacts table
         # todo: add the designations condition here to further filter. can be done by adding where condition on insideview_contact_search_res table
         if desig_list:
@@ -185,58 +201,78 @@ class InsideviewFetcher(object):
         self.con.cursor.execute(query,(list_id,tuple(comp_ids),))
         new_contact_ids = self.con.cursor.fetchall()
         new_contact_ids = [i[0] for i in new_contact_ids]
+        if not new_contact_ids:
+            logging.info('all contact ids present in tables')
+            return
+        logging.info('no of new_contact_ids for which insideview fetching done:{}'.format(len(new_contact_ids)))
+        in_queue = Queue(maxsize=0)
+        out_queue = Queue(maxsize=0)
         def worker():
-            while not self.in_queue.empty():
-                contact_id = self.queue.get()
+            while not in_queue.empty():
+                contact_id = in_queue.get()
                 res_dic = self.get_contact_info_from_id(contact_id,retrieve_comp_dets)
-                self.out_queue.put(res_dic)
-                self.in_queue.task_done()
-        self.in_queue = Queue(maxsize=0)
-        self.out_queue = Queue(maxsize=0)
-        for i in range(n_threads):
-            worker = threading.Thread(target=worker)
-            worker.setDaemon(True)
-            worker.start()
+                out_queue.put(res_dic)
+                in_queue.task_done()
         for contact_id in new_contact_ids:
-            self.in_queue.put(contact_id)
-        time.sleep(120)
-        while not self.out_queue.empty() or not self.in_queue.empty():
-            res_dic = self.out_queue.get()
+            in_queue.put(contact_id)
+        for i in range(n_threads):
+            worker_tmp = threading.Thread(target=worker)
+            worker_tmp.setDaemon(True)
+            worker_tmp.start()
+        time.sleep(20)
+        while not out_queue.empty() or not in_queue.empty():
+            logging.info('inqueue size:{},outqueue size:{}'.format(in_queue.qsize(),out_queue.qsize()))
+            res_dic = out_queue.get()
             self.save_contact_info(res_dic)
-            self.out_queue.task_done()
-        self.in_queue = None
-        self.out_queue = None
+            out_queue.task_done()
+            if out_queue.qsize() < 5:
+                time.sleep(10)
+        time.sleep(20)
+        logging.info('inqueue size:{},outqueue size:{}'.format(in_queue.qsize(),out_queue.qsize()))
+        logging.info('finished fetch_people_details_from_company_ids_crawler_process')
         
     def company_search_insideview_multi(self,comp_input_dets,list_id,n_threads=10):
         '''search in insideview and save the results from the input list of companies
         '''
+        logging.info('started company_search_insideview_multi')
+        in_queue = Queue(maxsize=0)
+        out_queue = Queue(maxsize=0)
         def worker():
-            while not self.in_queue.empty():
-                comp_website,comp_name,list_items_id = self.queue.get()
+            while not in_queue.empty():
+                comp_website,comp_name,list_items_id = in_queue.get()
+                logging.info('trying for company: {},{}'.format(comp_website,comp_name))
                 if comp_website:
                     comp_search_results = self.search_company_single(None,comp_website,max_no_results=10)
                 else:
                     comp_search_results = self.search_company_single(comp_name,comp_website,max_no_results=10)
-                self.out_queue.put((list_items_id,comp_search_results))
-                self.in_queue.task_done()
-        self.in_queue = Queue(maxsize=0)
-        self.out_queue = Queue(maxsize=0)
-        for i in range(n_threads):
-            worker = threading.Thread(target=worker)
-            worker.setDaemon(True)
-            worker.start()
+                out_queue.put((list_items_id,comp_search_results))
+                in_queue.task_done()
+                # logging.info('completed for company: {},{}'.format(comp_website,comp_name))
+        logging.info('starting the threads')
         for comp_website,comp_name,list_items_id in comp_input_dets:
-            self.in_queue.put((comp_website,comp_name,list_items_id))
-        time.sleep(120)
-        while not self.out_queue.empty() or not self.in_queue.empty():
-            list_items_id,comp_search_results = self.out_queue.get()
+            in_queue.put((comp_website,comp_name,list_items_id))
+        for i in range(n_threads):
+            worker_tmp = threading.Thread(target=worker)
+            worker_tmp.setDaemon(True)
+            worker_tmp.start()
+        logging.info('sleeping for 20 seconds')
+        time.sleep(20)
+        while not out_queue.empty() or not in_queue.empty():
+            logging.info('inqueue size:{},outqueue size:{}'.format(in_queue.qsize(),out_queue.qsize()))
+            list_items_id,comp_search_results = out_queue.get()
+            logging.info('saving to database : {},{}'.format(list_items_id,comp_search_results))
             if comp_search_results:
                 self.save_company_search_res_single(list_id,list_items_id,comp_search_results)
-            self.out_queue.task_done()
-        self.in_queue = None
-        self.out_queue = None
+            # logging.info('completed saving to database : {},{}'.format(list_items_id,comp_search_results))
+            out_queue.task_done()
+            if out_queue.qsize() < 5:
+                time.sleep(10)
+        # sleep for 20 seconds and save again
+        time.sleep(20)
+        logging.info('inqueue size:{},outqueue size:{}'.format(in_queue.qsize(),out_queue.qsize()))
+        logging.info('completed company_search_insideview_multi')
                 
-    def get_companies_for_contact_search(self,list_id,comp_contries_loc):
+    def get_companies_for_contact_search(self,list_id,comp_contries_loc,find_new_contacts_only=1):
         ''' get the list of companies for which the insideview contact search will be done '''
         # todo: fix this logic
         if find_new_contacts_only:
@@ -260,36 +296,48 @@ class InsideviewFetcher(object):
 
     def get_save_company_details_from_insideview_listinput(self,list_id,comp_ids,n_threads=10):
         '''get company details from insideview and save the result for each company id in the list '''
+        logging.info('started get_save_company_details_from_insideview_listinput')
         # find all company ids not present in the company_details table
         # todo: can add a timestamp related filter here later
         query = " select distinct a.company_id from crawler.insideview_company_search_res a " \
                     " left join crawler.insideview_company_details_contact_search b on a.company_id=b.company_id " \
                     " where a.list_id=%s and a.company_id in %s and b.company_id is null"
         self.con.execute(query,(list_id,tuple(comp_ids),))
-        comp_ids_already_present = self.con.cursor.fetchall()
-        comp_ids_already_present = [i[0] for i in comp_ids_already_present]
-        comp_ids_not_preset = list(set(comp_ids)-set(comp_ids_already_present))
+        # comp_ids_already_present = self.con.cursor.fetchall()
+        # comp_ids_already_present = [i[0] for i in comp_ids_already_present]
+        # comp_ids_not_preset = list(set(comp_ids)-set(comp_ids_already_present))
+        comp_ids_not_preset = self.con.cursor.fetchall()
+        comp_ids_not_preset = [i[0] for i in comp_ids_not_preset]
+        if not comp_ids_not_preset:
+            logging.info('no company id needs to be searched')
+            return
+        logging.info('no of comp_ids to fetch from insideview:{}'.format(len(comp_ids_not_preset)))
+        in_queue = Queue(maxsize=0)
+        out_queue = Queue(maxsize=0)
         def worker():
-            while not self.in_queue.empty():
-                comp_id = self.queue.get()
+            while not in_queue.empty():
+                comp_id = in_queue.get()
                 comp_dets_dic = self.get_company_details_from_id(comp_id)
-                self.out_queue.put(comp_dets_dic)
-                self.in_queue.task_done()
-        self.in_queue = Queue(maxsize=0)
-        self.out_queue = Queue(maxsize=0)
-        for i in range(n_threads):
-            worker = threading.Thread(target=worker)
-            worker.setDaemon(True)
-            worker.start()
+                out_queue.put(comp_dets_dic)
+                in_queue.task_done()
         for comp_id in comp_ids_not_preset:
-            self.in_queue.put(comp_id)
-        time.sleep(120)
-        while not self.out_queue.empty() or not self.in_queue.empty():
-            comp_dets_dic = self.out_queue.get()
+            in_queue.put(comp_id)
+        for i in range(n_threads):
+            worker_tmp = threading.Thread(target=worker)
+            worker_tmp.setDaemon(True)
+            worker_tmp.start()
+        logging.info('sleeping for 20 seconds')
+        time.sleep(20)
+        while not out_queue.empty() or not in_queue.empty():
+            logging.info('inqueue size:{},outqueue size:{}'.format(in_queue.qsize(),out_queue.qsize()))
+            comp_dets_dic = out_queue.get()
             self.save_company_dets_dic_input(comp_dets_dic)
-            self.out_queue.task_done()
-        self.in_queue = None
-        self.out_queue = None
+            out_queue.task_done()
+            if out_queue.qsize() < 5:
+                time.sleep(10)
+        time.sleep(20)
+        logging.info('inqueue size:{},outqueue size:{}'.format(in_queue.qsize(),out_queue.qsize()))
+        logging.info('completed get_save_company_details_from_insideview_listinput')
     
     def get_dets_for_insideview_fetch(self,list_id,remove_comps_in_lkdn_table=0,max_comps_to_try=0):
         '''find the company names and urls which needs to be fetched from builtwith
@@ -324,6 +372,8 @@ class InsideviewFetcher(object):
         :return:
         '''
         filter_dic = {}
+        if not filters_loc:
+            return filter_dic
         rows = []
         with open(filters_loc,'r') as f:
             reader = csv.reader(f)
@@ -374,7 +424,7 @@ class InsideviewFetcher(object):
         while min(max_no_results,total_results) > res_page_no*results_per_page:
             res_page_no += 1
             search_dic['page'] = res_page_no
-            r = requests.get(throttler_app_address,params=search_dic)
+            r = requests.get(self.throttler_app_address,params=search_dic)
             res_dic = json.loads(r.text)
             if not res_dic.get('companies',None):
                 break
@@ -415,7 +465,7 @@ class InsideviewFetcher(object):
         while min(max_no_results,total_results) > res_page_no*results_per_page:
             res_page_no += 1
             kwargs['page'] = res_page_no
-            r = requests.post(throttler_app_address,params=search_dic,json=kwargs)
+            r = requests.post(self.throttler_app_address,params=search_dic,json=kwargs)
             res_dic = json.loads(r.text)
             if not res_dic.get('contacts',None):
                 break
@@ -461,7 +511,7 @@ class InsideviewFetcher(object):
         search_dic = {'url':contact_url}
         if retrieve_comp_dets:
             search_dic['retrieveCompanyDetails'] = True
-        r = requests.get(throttler_app_address,params=search_dic)
+        r = requests.get(self.throttler_app_address,params=search_dic)
         res_dic = json.loads(r.text)
         return res_dic
 
@@ -586,7 +636,7 @@ class InsideviewFetcher(object):
         '''
         contact_url = company_details_url.format(companyId=company_id)
         search_dic = {'url':contact_url}
-        r = requests.get(throttler_app_address,params=search_dic)
+        r = requests.get(self.throttler_app_address,params=search_dic)
         res_dic = json.loads(r.text)
         return res_dic
 
@@ -597,7 +647,7 @@ class InsideviewFetcher(object):
         '''
         contact_url = company_tech_profile_url.format(companyId=company_id)
         search_dic = {'url':contact_url}
-        r = requests.get(throttler_app_address,params=search_dic)
+        r = requests.get(self.throttler_app_address,params=search_dic)
         res_dic = json.loads(r.text)
         # out_list = self.expand_tech_profile_dic(company_id,res_dic)
         return res_dic
@@ -684,6 +734,10 @@ if __name__ == "__main__":
                          dest='desig_loc',
                          help='location of csv containing target designations',
                          default=None)
+    optparser.add_option('--throttler_address',
+                         dest='throttler_address',
+                         help='throttler ip address',
+                         default='http://127.0.0.1:5000/')
 
     (options, args) = optparser.parse_args()
     list_name = options.list_name
@@ -697,6 +751,7 @@ if __name__ == "__main__":
     remove_comps_in_lkdn_table = options.remove_comps_in_lkdn_table
     find_new_contacts_only = options.find_new_contacts_only
     desig_loc = options.desig_loc
+    throttler_address = options.throttler_address
 
     if desig_loc:
         inp_df = pd.read_csv(desig_loc)
@@ -710,7 +765,7 @@ if __name__ == "__main__":
         raise ValueError('need filter location to run')
     if not out_loc:
         raise ValueError('need output folder location')
-    fetcher = InsideviewFetcher()
+    fetcher = InsideviewFetcher(throttler_app_address=throttler_address)
     fetcher.fetch_data_csv_input(list_name=list_name,inp_loc=inp_loc,out_loc=out_loc,filters_loc=filter_loc,
                                  max_comps_to_try=max_comps_to_try,get_contacts=get_contacts,
                                  get_comp_dets_sep=get_comp_dets_sep,max_res_per_company=max_res_per_company,
