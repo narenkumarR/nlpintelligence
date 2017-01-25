@@ -4,6 +4,7 @@ from flask_restful import Resource, Api
 import sys
 import json
 import requests
+import time
 import pdb
 
 from optparse import OptionParser
@@ -23,12 +24,12 @@ headers = {'Accept':'application/json',
 limiter = Limiter(
     app,
     global_limits=["1000 per 5 minute"],
-    key_func=get_remote_address
+    key_func=get_remote_address,
 )
 
 class RateLimitter(Resource):
 
-    @limiter.limit("1000 per 5 minute")
+    @limiter.limit("1000 per 5 minute",error_message='limit reached')
     def get(self):
         ''' example:
         r = requests.get('http://127.0.0.1:5000/',params={'url':'https://api.insideview.com/api/v1/companies','name':'pipecandy'})
@@ -42,13 +43,17 @@ class RateLimitter(Resource):
         #     return {'value':'no data provided'}
         # out_dict = get_num_wait(request.args)
         r = requests.get(url,params=req_dic,headers=headers)
+        if r.status_code == 429:
+            print('request throttled by insideview')
+            time.sleep(20)
+            return {'message':'request throttled by insideview'}
         try:
             return json.loads(r.text)
         except:
             pass
         # return {'value':1}
 
-    @limiter.limit("1000 per 5 minute")
+    @limiter.limit("1000 per 5 minute",error_message='limit reached')
     def post(self):
         '''
         Give all the parameters as json
@@ -61,6 +66,10 @@ class RateLimitter(Resource):
         urls = req_dic.pop('url')
         url = urls[0]
         r = requests.post(url,params=req_dic,headers=headers,data=json_data)
+        if r.status_code == 429:
+            print('request throttled by insideview')
+            time.sleep(20)
+            return {'message':'request throttled by insideview'}
         try:
             return json.loads(r.text)
         except:
@@ -97,4 +106,4 @@ if __name__ == '__main__':
     if accesstoken:
         headers['accessToken'] = accesstoken
 
-    app.run(host=ip,port=port,debug=True if debug else False)
+    app.run(host=ip,port=port,debug=True if debug else False,threaded=True)
