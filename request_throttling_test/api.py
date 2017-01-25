@@ -4,7 +4,10 @@ from flask_restful import Resource, Api
 import sys
 import json
 import requests
+import time
 import pdb
+
+from optparse import OptionParser
 
 from flask_limiter import Limiter
 from flask_limiter.util import get_remote_address
@@ -21,12 +24,12 @@ headers = {'Accept':'application/json',
 limiter = Limiter(
     app,
     global_limits=["1000 per 5 minute"],
-    key_func=get_remote_address
+    key_func=get_remote_address,
 )
 
-class RateLimitTest(Resource):
+class RateLimitter(Resource):
 
-    @limiter.limit("1000 per 5 minute")
+    @limiter.limit("1000 per 5 minute",error_message='limit reached')
     def get(self):
         ''' example:
         r = requests.get('http://127.0.0.1:5000/',params={'url':'https://api.insideview.com/api/v1/companies','name':'pipecandy'})
@@ -40,10 +43,17 @@ class RateLimitTest(Resource):
         #     return {'value':'no data provided'}
         # out_dict = get_num_wait(request.args)
         r = requests.get(url,params=req_dic,headers=headers)
-        return json.loads(r.text)
+        if r.status_code == 429:
+            print('request throttled by insideview')
+            time.sleep(20)
+            return {'message':'request throttled by insideview'}
+        try:
+            return json.loads(r.text)
+        except:
+            pass
         # return {'value':1}
 
-    @limiter.limit("1000 per 5 minute")
+    @limiter.limit("1000 per 5 minute",error_message='limit reached')
     def post(self):
         '''
         Give all the parameters as json
@@ -56,16 +66,44 @@ class RateLimitTest(Resource):
         urls = req_dic.pop('url')
         url = urls[0]
         r = requests.post(url,params=req_dic,headers=headers,data=json_data)
-        return json.loads(r.text)
+        if r.status_code == 429:
+            print('request throttled by insideview')
+            time.sleep(20)
+            return {'message':'request throttled by insideview'}
+        try:
+            return json.loads(r.text)
+        except:
+            pass
         # return {'value':1}
 
-api.add_resource(RateLimitTest, '/')
+api.add_resource(RateLimitter, '/')
 
 if __name__ == '__main__':
-    # pdb.set_trace()
-    if len(sys.argv)==3:
-        ip = sys.argv[1]
-        port = sys.argv[2]
-        app.run(host=ip,port=int(port),debug=True)
-    else:
-        app.run(debug=True)
+    optparser = OptionParser()
+    optparser.add_option('--ip',
+                         dest='ip',
+                         help='ip',type='str',
+                         default='127.0.0.1')
+    optparser.add_option('--port',
+                         dest='port',
+                         help='port',
+                         type='int',
+                         default='5000')
+    optparser.add_option('--debug',
+                         dest='debug',
+                         help='set debug option to True if 1',
+                         default=1,type='int')
+    optparser.add_option('--accesstoken',
+                         dest='accesstoken',
+                         help='give accesstoken. if not, default dev accesstoken will be taken',
+                         default='',type='str')
+
+    (options, args) = optparser.parse_args()
+    ip = options.ip
+    port = options.port
+    debug = options.debug
+    accesstoken = options.accesstoken
+    if accesstoken:
+        headers['accessToken'] = accesstoken
+
+    app.run(host=ip,port=port,debug=True if debug else False,threaded=True)
