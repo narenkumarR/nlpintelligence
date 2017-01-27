@@ -250,7 +250,13 @@ class InsideviewFetcher(object):
         logging.info('started fetch_people_details_from_company_ids_crawler_process')
         if new_contact_ids_file_loc:
             df = pd.read_csv(new_contact_ids_file_loc)
-            new_contact_ids = list(set(df['new_contact_ids']))
+            new_contact_ids = list(set(df['new_contact_id'])) #should check in people table to see if email already present?
+            query = "select distinct new_contact_id from crawler.insideview_contact_data" \
+                    " where new_contact_id in %s "
+            self.con.cursor.execute(query,(tuple(new_contact_ids),))
+            new_contact_ids_in_db = self.con.cursor.fetchall()
+            new_contact_ids_in_db = [i[0] for i in new_contact_ids]
+            new_contact_ids = list(set(new_contact_ids)-set(new_contact_ids_in_db))
         else:
             # get contact ids which are not present in the contacts table
             if desig_list:
@@ -387,9 +393,11 @@ class InsideviewFetcher(object):
             while not in_queue.empty():
                 comp_website,comp_name,list_items_id = in_queue.get()
                 # logging.info('trying for company: {},{}'.format(comp_website,comp_name))
+                # if comp_website and comp_name:
+                #     comp_search_results = self.search_company_single(comp_name,comp_website,max_no_results=50)
                 if comp_website:
-                    comp_search_results = self.search_company_single(None,comp_website,max_no_results=10)
-                else:
+                    comp_search_results = self.search_company_single(None,comp_website,max_no_results=50)
+                if not comp_search_results and comp_name:
                     comp_search_results = self.search_company_single(comp_name,comp_website,max_no_results=10)
                 if comp_search_results and comp_search_results[0] == 'throttling limit reached': #checking if throttling happened
                     in_queue.put((comp_website,comp_name,list_items_id))
@@ -480,12 +488,12 @@ class InsideviewFetcher(object):
         self.con.execute(insert_query, res_to_insert)
         self.con.commit()
 
-    def get_companies_for_contact_search(self,list_id,comp_contries_loc,find_new_contacts_only=1,
+    def get_companies_for_contact_search(self,list_id,comp_contries_loc,find_new_contacts_only=0,
                                          comp_ids_to_find_contacts_file_loc=None):
         ''' get the list of companies for which the insideview contact search will be done '''
         if comp_ids_to_find_contacts_file_loc:
             df = pd.read_csv(comp_ids_to_find_contacts_file_loc)
-            return list(set(df['company_ids']))
+            return list(set(df['company_id']))
         else:
             # todo: fix this logic
             if find_new_contacts_only:
@@ -524,6 +532,11 @@ class InsideviewFetcher(object):
         if not comp_ids_not_preset:
             logging.info('no company id needs to be searched')
             return
+        else:
+            self.get_save_company_details_from_insideview_compid_input(comp_ids_not_preset)
+
+    def get_save_company_details_from_insideview_compid_input(self,comp_ids_not_preset,n_threads=10):
+        ''' '''
         logging.info('no of comp_ids to fetch from insideview:{}'.format(len(comp_ids_not_preset)))
         in_queue = Queue(maxsize=0)
         out_queue = Queue(maxsize=0)
@@ -657,12 +670,13 @@ class InsideviewFetcher(object):
         :return:
         '''
         # max_no_results=len(comp_ids)*(max_res_per_company+5)
+        company_ids = [i for i in company_ids if i] # sometimes none coming
         all_contacts = []
-        no_comps_to_process_single_iter = 500/(max_res_per_company+5) #
+        no_comps_to_process_single_iter = 500/(max_res_per_company) #
         for comp_ids in chunker(company_ids,no_comps_to_process_single_iter):
             comp_id_str = ','.join([str(i) for i in comp_ids])
             filters_dic['companyIdsToInclude'] = comp_id_str
-            all_contacts.extend(self.search_contacts(max_no_results=999,**filters_dic))
+            all_contacts.extend(self.search_contacts(max_no_results=no_comps_to_process_single_iter*50,**filters_dic))
         return all_contacts
 
     def save_contacts_seach_res(self,list_id,res_list):
@@ -716,7 +730,7 @@ class InsideviewFetcher(object):
                          res_dic.get('firstName',None),res_dic.get('lastName',None),res_dic.get('fullName',None),
                          res_dic.get('titles',None),res_dic.get('companyId',None),res_dic.get('companyName',None),
                          res_dic.get('age',None),res_dic.get('description',None),res_dic.get('email',None),email_md5_hash,
-                         res_dic.get('jobFunction',None),res_dic.get('jobLevels',None),
+                         res_dic.get('jobFunctions',None),res_dic.get('jobLevels',None),
                          res_dic.get('phone',None),res_dic.get('salary',None),res_dic.get('salaryCurrency',None),
                          res_dic.get('imageUrl',None),res_dic.get('facebookHandle',None),
                          res_dic.get('linkedinHandle',None),res_dic.get('twitterHandle',None),
