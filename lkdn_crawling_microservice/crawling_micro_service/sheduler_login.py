@@ -363,7 +363,7 @@ class LinkedinLoginCrawlerThread(object):
                     logging.info('company part login: proxy to be used: {0}, thread:{1}'.format(proxy_dets,threading.currentThread()))
                     proxy_ip,proxy_port = proxy_dets[0],proxy_dets[1]
                     crawler_company.init_selenium_parser(self.browser,self.visible,proxy=self.proxy,
-                                                 proxy_ip=proxy_ip,proxy_port=proxy_port,use_tor=self.use_tor)
+                                                 proxy_ip=proxy_ip,proxy_port=proxy_port,use_tor=self.use_tor,login=True)
             if no_errors >= 6:
                 no_errors = no_errors - 1
                 n_blocks += 1

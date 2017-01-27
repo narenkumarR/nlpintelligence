@@ -49,7 +49,8 @@ class RateLimitter(Resource):
             return {'message':'request throttled by insideview'}
         try:
             return json.loads(r.text)
-        except:
+        except Exception as e:
+            print('error happened: {}'.format(e))
             pass
         # return {'value':1}
 
@@ -72,7 +73,8 @@ class RateLimitter(Resource):
             return {'message':'request throttled by insideview'}
         try:
             return json.loads(r.text)
-        except:
+        except Exception as e:
+            print('error happened: {}'.format(e))
             pass
         # return {'value':1}
 
