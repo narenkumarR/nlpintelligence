@@ -6,6 +6,9 @@ from sklearn.linear_model import LogisticRegression
 from sklearn.svm import LinearSVC,SVC
 from sklearn.ensemble import RandomForestClassifier
 from sklearn.model_selection import GridSearchCV
+from sklearn.metrics import classification_report
+from sklearn import preprocessing
+from sklearn.pipeline import make_pipeline
 
 default_grid_search_dic = {
     'multinomial naive bayes':{
@@ -40,7 +43,7 @@ class ClassificationModelCV(object):
     '''
     wrappers for models
     '''
-    def __init__(self,model_algorithm='',grid_search_dic=None,model_obj=None,scoring='f1',**kwargs):
+    def __init__(self,model_algorithm='',grid_search_dic=None,model_obj=None,scoring='f1',scaling=None,**kwargs):
         '''
         :param model_algorithm: string name
         :param grid_search_dic: grid search dictionary
@@ -67,6 +70,14 @@ class ClassificationModelCV(object):
             raise ValueError('Model not implemented now. Please try to implement')
         if not grid_search_dic:
             grid_search_dic = default_grid_search_dic[model_algorithm]
+        if scaling:
+            if scaling == 'max_abs_scaling':#useful for sparse matrix
+                scaler = preprocessing.MaxAbsScaler()
+            elif scaling == 'standard_scaler':
+                scaler = preprocessing.StandardScaler()
+            elif type(scaling) != str:
+                scaler = scaling #scaling object is passed
+            clf = make_pipeline(scaler,clf)
         self.clf_search = GridSearchCV(clf, grid_search_dic,scoring=scoring)
 
     def fit(self,X,y,**kwargs):
@@ -77,12 +88,6 @@ class ClassificationModelCV(object):
         :return:
         '''
         self.clf_search.fit(X,y,**kwargs)
-
-    def get_cv_result(self):
-        ''' get the performance of options in the cross-validation. This can be used for optimizing the parameters
-        :return:
-        '''
-        return self.clf_search.cv_results_
 
     def get_best_model(self):
         '''
@@ -104,4 +109,6 @@ class ClassificationModelCV(object):
         :param kwargs:
         :return:
         '''
-        return self.clf_search.predict_proba(X,**kwargs)
+        return self.clf_search.predict_proba(X,**kwargs)        
+    
+    
