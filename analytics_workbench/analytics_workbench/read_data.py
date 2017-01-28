@@ -17,6 +17,14 @@ class DataReader(object):
         '''
         df = pd.read_csv(loc)
         return df
+    
+    def read_excel(self,loc):
+        '''
+        :param loc:
+        :return:
+        '''
+        df = pd.read_excel(loc)
+        return df
 
     def get_query(self,query,database,user,password,host,port=5432,con_string=''):
         '''
