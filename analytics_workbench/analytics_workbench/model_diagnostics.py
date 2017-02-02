@@ -2,8 +2,7 @@ __author__ = 'joswin'
 # -*- coding: utf-8 -*-
 
 import matplotlib.pyplot as plt
-import matplotlib
-matplotlib.style.use('ggplot')
+plt.style.use('ggplot')
 
 from sklearn.metrics import classification_report
 from sklearn.model_selection import cross_val_predict
@@ -12,7 +11,7 @@ from sklearn.metrics import roc_curve, roc_auc_score
 from sklearn.model_selection import learning_curve,validation_curve
 from sklearn.model_selection import ShuffleSplit
 
-import numpy as np
+import numpy as np,pandas as pd
 
 def plot_learning_curve(estimator, title, X, y, ylim=None, cv=None,
                         n_jobs=1, train_sizes=np.linspace(.1, 1.0, 5)):
@@ -59,7 +58,7 @@ def plot_learning_curve(estimator, title, X, y, ylim=None, cv=None,
     plt.figure()
     plt.title(title)
     if ylim is not None:
-        plt.ylim(*ylim)
+        plt.ylim(ylim)
     plt.xlabel("No of training examples")
     plt.ylabel("Score")
     train_sizes, train_scores, test_scores = learning_curve(
@@ -103,13 +102,13 @@ class ClassificationModelDiagnotstics(object):
         print(classification_report(y,self.cv_pred))
         if self.binary_classification:
             self.cv_pred_prob = cross_val_predict(clf,X,y,cv=10,method='predict_proba')[:,1]
-            print('AUC is {}'.format(roc_auc_score(y,cv_pred)))
-            self.plot_auc_curve(y,self.cv_pred_prob)
+            print('AUC is {}'.format(roc_auc_score(y,self.cv_pred)))
+            self.plot_auc_curve(y,self.cv_pred_prob,self.cv_pred)
             print('KS statistic')
-            print(self.ks_statistic(self,cv_pred_prob,y))
+            print(self.ks_statistic(self.cv_pred_prob,y))
         self.learning_curve_plot(clf,X,y)
         
-    def plot_auc_curve(self,y,cv_pred_prob):
+    def plot_auc_curve(self,y,cv_pred_prob,cv_pred):
         fpr, tpr, _ = roc_curve(y, cv_pred_prob)
         plt.figure()
         lw = 2
@@ -147,14 +146,14 @@ class ClassificationModelDiagnotstics(object):
         return agg2    
     
     def learning_curve_plot(self,estimator,X,y):
-        title = "Learning Curves (Naive Bayes)"
+        title = "Learning Curves"
         # Cross validation with 100 iterations to get smoother mean test and train
         # score curves, each time with 20% data randomly selected as a validation set.
         cv = ShuffleSplit(n_splits=100, test_size=0.2, random_state=0)
         plot_learning_curve(estimator, title, X, y, cv=cv, n_jobs=4,ylim=(0))
         plt.show()
 
-    def validation_curve_plot(self,estimator,param_name,param_range,param_space='normal',
+    def validation_curve_plot(self,estimator,X,y,param_name,param_range,param_space='normal',
                                         scoring='f1_weighted',n_jobs=-1):
         ''' if plotting needs to be done in log space, give param_space='log', else give 'normal' '''
         train_scores, test_scores = validation_curve(

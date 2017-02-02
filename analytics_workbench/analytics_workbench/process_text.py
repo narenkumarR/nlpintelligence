@@ -30,7 +30,8 @@ def multiple_replace(dict, text, word_limit = False, flags = 0):
     return regex.sub(lambda mo: dict[mo.string[mo.start():mo.end()]], text)
 
 stop_words_default = stopwords.words()+['http','https','goo','isnt','wwwfacebookcomtr','wwwgoogletagmanagercomnshtml',
-                               'and','be','do','facebook','for','in','is','inc','linkedin','of','the','to']
+                               'and','be','do','facebook','for','in','is','inc','linkedin','of','the','to','httpwww',
+                               'www']
 grammar = r"""
   NP1: {<JJ><NN.*>+}          # Chunk sequences of JJ, NN
   NP2: {<NN.*>+<JJ>}          # Chunk sequences of NN and JJ
@@ -53,8 +54,7 @@ def tokenizer(text,stem_type='lemmatize',phrase_generation=False,stop_words = []
     stop_words : list of words to be removed
     '''
     # assert stem_type in ['lemmatize','stem']
-    if not stop_words:
-        stop_words = stop_words_default
+    stop_words = stop_words+stop_words_default
     if stem_type or phrase_generation:#if stemming and phrase generation is not needed, no need to do pos-tagging
         pos_tags = pos_tag(word_tokenize(text))
         if stem_type == 'stem':
@@ -63,8 +63,6 @@ def tokenizer(text,stem_type='lemmatize',phrase_generation=False,stop_words = []
             wrds = [wordnet_lemmatizer.lemmatize(i[0]) for i in pos_tags if i[1] in tag_list]
         else:#directly use the word
             wrds = [i[0] for i in pos_tags if i[1] in tag_list]
-        # stopword removal
-        wrds = [wrd for wrd in wrds if wrd.lower() not in stop_words]
         if phrase_generation:
             phrs = pe.extract_phrase_treeinput(cp.parse(pos_tags),['NP1','NP2','VP'])
             if stem_type == 'stem':
@@ -73,12 +71,15 @@ def tokenizer(text,stem_type='lemmatize',phrase_generation=False,stop_words = []
                 phrs = ['_'.join([wordnet_lemmatizer.lemmatize(wrd) for wrd in word_tokenize(phr)]) for phr in phrs]
             else:
                 phrs = ['_'.join([wrd for wrd in word_tokenize(phr)]) for phr in phrs]
-            wrds = [reg_exp.sub('',i) for i in wrds]
-            return wrds+phrs
         else:
-            return wrds
+            phrs = []
+        # stopword removal
+        wrds = [wrd for wrd in wrds if wrd.lower() not in stop_words]
+        wrds = wrds+phrs
+        return word_tokenize(reg_exp.sub('',' '.join(wrds)))
     else:
-        return [wrd for wrd in word_tokenize(text) if wrd.lower() not in stop_words]
+        return [wrd.lower().strip() for wrd in word_tokenize(reg_exp.sub(' ',text))
+                if wrd.lower().strip() not in stop_words]
 
 class ProcessText(object):
     '''
@@ -134,18 +135,20 @@ class ProcessText(object):
         # self.stem_type = stem_type
         # self.phrase_generation = phrase_generation
         # self.stop_words = stop_words
-        # self.lower = lower
+        self.lower = lower
         # self.n_gram_range = n_gram_range
         # self.max_df = max_df
         # self.min_df = min_df
         # self.vocabulary = vocabulary
         # self.kwargs = kwargs
         text_series = Series(text_documents)
-        text_series = text_series.fillna('').str.lower()
+        if self.lower:
+            text_series = text_series.fillna('').str.lower()
         if synonyms_dic:
             # text = multiple_replace(synonyms,text_documents,word_limit=True,flags=re.IGNORECASE)
             text_series = text_series.apply(lambda text : 
-                                            multiple_replace(synonyms_dic,text,word_limit=True,flags=re.IGNORECASE))
+                                            multiple_replace(synonyms_dic,text,word_limit=True,
+                                                             flags=re.IGNORECASE if self.lower else 0))
         if vectorizer_type == 'Count':
             self.vectorizer = CountVectorizer(decode_error='ignore',
                     tokenizer=lambda text: tokenizer(text,stem_type=stem_type,phrase_generation=phrase_generation,
@@ -186,11 +189,11 @@ class ProcessText(object):
         if synonym_loc:
             synonyms_dic = self.load_synonyms(synonym_loc)
         else:
-            synonyms = None
+            synonyms_dic = None
         if stop_words_loc:
             stop_words = self.load_words_from_file(stop_words_loc)
         else:
-            stop_words = None
+            stop_words = []
         if vocabulary_loc:
             self.vocabulary = self.load_words_from_file(vocabulary_loc)
         else:
@@ -201,14 +204,17 @@ class ProcessText(object):
             max_df=max_df,min_df=min_df,vocabulary=self.vocabulary,**kwargs
         )
     
-    def transform_text_list(text_list):
+    def transform_text_list(self,text_documents):
         '''use this function to generate a document term matrix for a text list using existing vectorizer. ie, the 
          vectorizer should be generated already using a text input'''
         text_series = Series(text_documents)
+        if self.lower:
+            text_series = text_series.fillna('').str.lower()
         if self.synonyms_dic:
             # text = multiple_replace(synonyms,text_documents,word_limit=True,flags=re.IGNORECASE)
             text_series = text_series.apply(lambda text : 
-                                            multiple_replace(self.synonyms_dic,text,word_limit=True,flags=re.IGNORECASE))
+                                            multiple_replace(self.synonyms_dic,text,word_limit=True,
+                                                             flags=re.IGNORECASE if self.lower else 0))
         dtm = self.vectorizer.transform(text_series)
         return dtm,self.vocabulary
         

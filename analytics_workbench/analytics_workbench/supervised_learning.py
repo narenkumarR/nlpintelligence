@@ -6,8 +6,6 @@ from sklearn.linear_model import LogisticRegression
 from sklearn.svm import LinearSVC,SVC
 from sklearn.ensemble import RandomForestClassifier
 from sklearn.model_selection import GridSearchCV
-from sklearn.metrics import classification_report
-from sklearn import preprocessing
 from sklearn.pipeline import make_pipeline
 
 default_grid_search_dic = {
@@ -21,10 +19,9 @@ default_grid_search_dic = {
         'class_weight':['balanced',None]
     },
     'linear svm': {
-        'penalty':['l1','l2'],
+        #'penalty':['l1','l2'],
         'C':[0.001,0.01,0.1,1,10,50,100],
         'class_weight':['balanced',None],
-        'loss':['hinge','squared_hinge']
     },
     'svm' : {
         'C':[0.001,0.01,0.1,1,10,50,100],
@@ -43,7 +40,7 @@ class ClassificationModelCV(object):
     '''
     wrappers for models
     '''
-    def __init__(self,model_algorithm='',grid_search_dic=None,model_obj=None,scoring='f1',scaling=None,**kwargs):
+    def __init__(self,model_algorithm='',grid_search_dic=None,model_obj=None,scoring='f1',**kwargs):
         '''
         :param model_algorithm: string name
         :param grid_search_dic: grid search dictionary
@@ -70,14 +67,9 @@ class ClassificationModelCV(object):
             raise ValueError('Model not implemented now. Please try to implement')
         if not grid_search_dic:
             grid_search_dic = default_grid_search_dic[model_algorithm]
-        if scaling:
-            if scaling == 'max_abs_scaling':#useful for sparse matrix
-                scaler = preprocessing.MaxAbsScaler()
-            elif scaling == 'standard_scaler':
-                scaler = preprocessing.StandardScaler()
-            elif type(scaling) != str:
-                scaler = scaling #scaling object is passed
-            clf = make_pipeline(scaler,clf)
+            for key in grid_search_dic: #if the parameter is given as argument, dont do grid search on that parameter
+                if key in kwargs:
+                    grid_search_dic.pop(key)
         self.clf_search = GridSearchCV(clf, grid_search_dic,scoring=scoring)
 
     def fit(self,X,y,**kwargs):
