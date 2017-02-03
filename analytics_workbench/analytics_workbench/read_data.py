@@ -10,20 +10,20 @@ class DataReader(object):
     def __init__(self):
         pass
 
-    def read_csv(self,loc):
+    def read_csv(self,loc,**kwargs):
         '''
         :param loc:
         :return:
         '''
-        df = pd.read_csv(loc)
+        df = pd.read_csv(loc,**kwargs)
         return df
     
-    def read_excel(self,loc):
+    def read_excel(self,loc,**kwargs):
         '''
         :param loc:
         :return:
         '''
-        df = pd.read_excel(loc)
+        df = pd.read_excel(loc,**kwargs)
         return df
 
     def get_query(self,query,database,user,password,host,port=5432,con_string=''):

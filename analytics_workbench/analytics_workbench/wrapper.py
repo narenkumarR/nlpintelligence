@@ -1,10 +1,6 @@
 __author__ = 'joswin'
 # -*- coding: utf-8 -*-
 
-from .preprocessing import PreProcessor
-from .supervised_learning import ClassificationModelCV
-from .model_diagnostics import ClassificationModelDiagnotstics
-
 class Wrapper(object):
     '''
     '''
@@ -16,3 +12,10 @@ class Wrapper(object):
         '''
         self.pre_processor = pre_processor
         self.model_obj = model_obj
+
+    def predict(self,inp_df,**kwargs):
+        '''
+        :param inp_df:
+        :return:
+        '''
+        return self.model_obj.predict(self.pre_processor.get_matrix_test(inp_df),**kwargs)

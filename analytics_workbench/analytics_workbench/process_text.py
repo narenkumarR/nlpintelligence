@@ -46,7 +46,7 @@ snowball_stemmer = SnowballStemmer('english')
 wordnet_lemmatizer = WordNetLemmatizer()
 reg_exp = re.compile('[^a-zA-Z ]',re.IGNORECASE)
 
-def tokenizer(text,stem_type='lemmatize',phrase_generation=False,stop_words = []):
+def tokenizer(text,stem_type='lemmatize',phrase_generation=False):
     '''This function takes a text as input and return a list of words after stemming/lemmatization,
               stop word removal and phrases if phrase_generation is True
     stem_type : lemmatize/stem
@@ -54,7 +54,6 @@ def tokenizer(text,stem_type='lemmatize',phrase_generation=False,stop_words = []
     stop_words : list of words to be removed
     '''
     # assert stem_type in ['lemmatize','stem']
-    stop_words = stop_words+stop_words_default
     if stem_type or phrase_generation:#if stemming and phrase generation is not needed, no need to do pos-tagging
         pos_tags = pos_tag(word_tokenize(text))
         if stem_type == 'stem':
@@ -74,12 +73,10 @@ def tokenizer(text,stem_type='lemmatize',phrase_generation=False,stop_words = []
         else:
             phrs = []
         # stopword removal
-        wrds = [wrd for wrd in wrds if wrd.lower() not in stop_words]
         wrds = wrds+phrs
-        return word_tokenize(reg_exp.sub('',' '.join(wrds)))
+        return word_tokenize(reg_exp.sub(' ',' '.join(wrds)))
     else:
-        return [wrd.lower().strip() for wrd in word_tokenize(reg_exp.sub(' ',text))
-                if wrd.lower().strip() not in stop_words]
+        return word_tokenize(reg_exp.sub(' ',text))
 
 class ProcessText(object):
     '''
@@ -141,6 +138,7 @@ class ProcessText(object):
         # self.min_df = min_df
         # self.vocabulary = vocabulary
         # self.kwargs = kwargs
+        stop_words = stop_words+stop_words_default
         text_series = Series(text_documents)
         if self.lower:
             text_series = text_series.fillna('').str.lower()
@@ -151,14 +149,14 @@ class ProcessText(object):
                                                              flags=re.IGNORECASE if self.lower else 0))
         if vectorizer_type == 'Count':
             self.vectorizer = CountVectorizer(decode_error='ignore',
-                    tokenizer=lambda text: tokenizer(text,stem_type=stem_type,phrase_generation=phrase_generation,
-                                                                 stop_words=stop_words),
-                    lowercase=lower,ngram_range=n_gram_range,max_df=max_df,min_df=min_df,vocabulary=vocabulary,**kwargs)
+                    tokenizer=lambda text: tokenizer(text,stem_type=stem_type,phrase_generation=phrase_generation),
+                    lowercase=lower,ngram_range=n_gram_range,max_df=max_df,min_df=min_df,vocabulary=vocabulary,
+                    stop_words=stop_words,**kwargs)
         else:
             self.vectorizer = TfidfVectorizer(decode_error='ignore',
-                    tokenizer=lambda text: tokenizer(text,stem_type=stem_type,phrase_generation=phrase_generation,
-                                                                 stop_words=stop_words),
-                    lowercase=lower,ngram_range=n_gram_range,max_df=max_df,min_df=min_df,vocabulary=vocabulary,**kwargs)
+                    tokenizer=lambda text: tokenizer(text,stem_type=stem_type,phrase_generation=phrase_generation),
+                    lowercase=lower,ngram_range=n_gram_range,max_df=max_df,min_df=min_df,vocabulary=vocabulary,
+                    stop_words=stop_words,**kwargs)
         dtm = self.vectorizer.fit_transform(text_series)
         self.vocabulary = self.get_vectorizer_vocabulary(self.vectorizer)
         return dtm,self.vocabulary
