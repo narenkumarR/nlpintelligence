@@ -43,14 +43,14 @@ class Unsupervised(object):
         :return:
         '''
         if algorithm == 'lda':
-            clf = LatentDirichletAllocation(n_topics=n_topics, max_iter=5,
+            self.clf = LatentDirichletAllocation(n_topics=n_topics, max_iter=5,
                                 learning_method='online', learning_offset=50.,
                                 random_state=0,**kwargs)
         elif algorithm == 'nmf':
-            clf = NMF(n_components=n_topics, random_state=1, alpha=.1, l1_ratio=.5)
-        data_transformed = clf.fit_transform(data_matrix)
-        print_top_words(clf, feature_names, n_top_words)
-        return clf, data_transformed
+            self.clf = NMF(n_components=n_topics, random_state=1, alpha=.1, l1_ratio=.5)
+        data_transformed = self.clf.fit_transform(data_matrix)
+        print_top_words(self.clf, feature_names, n_top_words)
+        return self.clf, data_transformed
 
     def generate_clusters(self,data_matrix,feature_names,num_clusters,n_top_words=10,algorithm='kmeans',**kwargs):
         '''
@@ -63,11 +63,19 @@ class Unsupervised(object):
         :return:
         '''
         if algorithm == 'kmeans':
-            km = KMeans(n_clusters=num_clusters,**kwargs)
-            km.fit(data_matrix)
-            clusters = km.labels_.tolist()
-            clust_dists = km.transform(data_matrix)
+            self.clf = KMeans(n_clusters=num_clusters,**kwargs)
+            self.clf.fit(data_matrix)
+            clusters = self.clf.labels_.tolist()
+            clust_dists = self.clf.transform(data_matrix)
             print('No of items in each cluster')
             print(Series(clusters).value_counts())
-            print_top_words_in_km_cluster(km,num_clusters,feature_names,n_top_words=n_top_words)
-            return km,clusters,clust_dists
+            print_top_words_in_km_cluster(self.clf,num_clusters,feature_names,n_top_words=n_top_words)
+            return self.clf,clusters,clust_dists
+
+    def transform(self,data_matrix,**kwargs):
+        '''
+        :param data_matrix:
+        :param kwargs:
+        :return:
+        '''
+        return self.clf.transform(data_matrix,**kwargs)
