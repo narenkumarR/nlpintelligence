@@ -12,20 +12,17 @@ from sqlalchemy import create_engine
 from optparse import OptionParser
 from Queue import Queue
 
-from fetch_insideview_data import InsideviewFetcher
 from postgres_connect import PostgresConnect
 from constants import database,host,user,password,designations_column_name
-
-throttler_app_address = 'http://127.0.0.1:5000/'
-people_search_url = 'https://api.insideview.com/api/v1/contacts'
-contact_fetch_url = 'https://api.insideview.com/api/v1/contact/{contactId}'
+from fetch_insideview_base import InsideviewDataFetcher
+from fetch_insideview_from_company_data import API_counter
 
 class InsideviewContactFetcher(object):
 
     def __init__(self):
         self.con = PostgresConnect(database_in=database,host_in=host,
                                                     user_in=user,password_in=password)
-        self.insideview_fetcher = InsideviewFetcher()
+        self.insideview_fetcher = InsideviewDataFetcher()
 
     def main(self,list_name,out_loc,inp_loc=None,desig_loc=None,search_contacts=0,get_emails=0,
              contact_ids_file_loc=None):
@@ -118,7 +115,7 @@ class InsideviewContactFetcher(object):
         def worker():
             while not in_queue.empty():
                 contact_id = in_queue.get()
-                res_dic = self.get_contact_details_from_contactid(contact_id)
+                res_dic = self.insideview_fetcher.get_contact_details_from_contactid(contact_id)
                 if res_dic.get('message'): #throttling reached, need to do this company id again
                     in_queue.put(contact_id)
                     in_queue.task_done()
@@ -136,24 +133,13 @@ class InsideviewContactFetcher(object):
         while not out_queue.empty() or not in_queue.empty():
             logging.info('inqueue size:{},outqueue size:{}'.format(in_queue.qsize(),out_queue.qsize()))
             res_dic = out_queue.get()
-            self.insideview_fetcher.save_contact_info(res_dic)
+            self.save_contact_info(res_dic)
             out_queue.task_done()
             if out_queue.qsize() < 5:
                 time.sleep(10)
         time.sleep(20)
         logging.info('inqueue size:{},outqueue size:{}'.format(in_queue.qsize(),out_queue.qsize()))
         logging.info('finished search_contact_for_email_threaded')
-
-    def get_contact_details_from_contactid(self,contact_id):
-        '''
-        :param contact_id:
-        :return:
-        '''
-        contact_url = contact_fetch_url.format(contactId=contact_id)
-        search_dic = {'url':contact_url}
-        r = requests.get(throttler_app_address,params=search_dic)
-        res_dic = json.loads(r.text)
-        return res_dic
 
     def search_contact_for_people(self,list_id):
         '''
@@ -185,13 +171,14 @@ class InsideviewContactFetcher(object):
                 list_input_id,search_dic = in_queue.get()
                 search_dic = json.loads(search_dic)
                 search_dic['isEmailRequired'] = True
-                search_results = self.search_insideview_contact(search_dic)
+                res_dic = self.insideview_fetcher.search_insideview_contact(search_dic)
                 if search_results.get('message'): #throttling reached, need to do this company id again
                     in_queue.put((list_input_id,search_dic))
                     in_queue.task_done()
                     time.sleep(10)
                     continue
-                out_queue.put((list_input_id,search_results))
+                out_list = res_dic.get('contacts',[])
+                out_queue.put((list_input_id,out_list))
                 in_queue.task_done()
         for list_input_id,search_dic in list_inputs:
             in_queue.put((list_input_id,search_dic))
@@ -234,18 +221,6 @@ class InsideviewContactFetcher(object):
         self.con.execute(insert_query, res_to_insert)
         self.con.commit()
         self.con.close_cursor()
-
-    def search_insideview_contact(self,search_dic):
-        ''' search insidevw with the parameters in search_dict
-        :param search_dict:
-        :return:
-        '''
-        search_dic['url'] = people_search_url
-        search_dic['resultsPerPage'] = 5
-        r = requests.get(throttler_app_address,params=search_dic)
-        res_dic = json.loads(r.text)
-        out_list = res_dic.get('contacts',[])
-        return out_list
 
     def insert_input_to_db(self,inp_loc,list_id):
         ''' load csv. insert fullname to list_input, company website to
