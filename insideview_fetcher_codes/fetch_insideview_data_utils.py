@@ -17,7 +17,6 @@ class InsideviewDataUtil(object):
         self.con = PostgresConnect(database_in=database,host_in=host,
                                                     user_in=user,password_in=password)
 
-
     def get_designations(self,desig_loc):
         '''
         :param desig_loc:
@@ -412,12 +411,15 @@ class InsideviewDataUtil(object):
         else:
             if not comp_ids:
                 return []
+            # below query gets people contactids who are missing in the final contact table
             if desig_list:
                 desig_list_reg = '\y' + '\y|\y'.join(desig_list) + '\y'
                 query = "SELECT distinct contact_id FROM " \
                         " (SELECT company_id,contact_id, ROW_NUMBER() OVER (PARTITION BY company_id ) AS Row_ID FROM " \
                         "(" \
                         "SELECT distinct a.company_id,a.contact_id FROM crawler.insideview_contact_name_search_res a " \
+                        " join crawler.insideview_contact_search_res c on a.list_id=c.list_id and " \
+                        " a.input_name_id=c.people_id and a.company_id=c.company_id and a.first_name=c.first_name and a.last_name=c.last_name " \
                         " left join crawler.insideview_contact_data b on a.contact_id = b.contact_id " \
                         " where a.list_id = %s and a.has_email = 't' and b.contact_id is null and a.active='t' " \
                         " and a.company_id in %s "\
@@ -431,6 +433,8 @@ class InsideviewDataUtil(object):
                         " (SELECT company_id,contact_id, ROW_NUMBER() OVER (PARTITION BY company_id ) AS Row_ID FROM " \
                         "(" \
                         "SELECT distinct a.company_id,a.contact_id FROM crawler.insideview_contact_name_search_res a " \
+                        " join crawler.insideview_contact_search_res c on a.list_id=c.list_id and " \
+                        " a.input_name_id=c.people_id and a.company_id=c.company_id and a.first_name=c.first_name and a.last_name=c.last_name " \
                         " left join crawler.insideview_contact_data b on a.contact_id = b.contact_id " \
                         " where a.list_id = %s and a.has_email = 't' and b.contact_id is null and a.active='t' " \
                         " and a.company_id in %s" \
@@ -454,30 +458,50 @@ class InsideviewDataUtil(object):
         # note: whenever the return order is changed to add more details,change should get reflected in
         # the functions that use this function. eg: search_for_matching_people_from_ppl_details in company fetching part
         if people_details_file:
+            # todo : this is not working properly. so need to make this better
             df = pd.read_csv(people_details_file)
+            if 'company_id' not in df:
+                return []
             people_details = []
             for index,row in df.iterrows():
-                people_details.append(tuple(row[['company_id','first_name','last_name','full_name']]))
+                if row['company_id'] and row['last_name']:
+                    # check if the person is not already searched
+                    query = " select id from crawler.insideview_contact_name_search_res where list_id=%s and " \
+                            " company_id = %s and last_name=%s and first_name=%s"
+                    self.con.cursor.execute(query,(list_id,row['company_id'],row['last_name'],row['first_name'],))
+                    person_search_id = self.con.cursor.fetchall()
+                    if not person_search_id:
+                        people_details.append(tuple(row[['company_id','first_name','last_name','full_name','people_id']]))
+                        query = " select id from crawler.insideview_contact_search_res where list_id=%s and " \
+                                " company_id=%s and first_name=%s and last_name=%s and full_name=%s "
+                        self.con.cursor.execute(query,(list_id,row['company_id'],row['first_name'],row['last_name'],row['full_name'],))
+                        res = self.con.cursor.fetchall()
+                        if not res:
+                            # todo : add all fields. try to optimize
+                            query = " insert into crawler.insideview_contact_search_res (list_id,first_name,last_name," \
+                                    " full_name,people_id,company_id) values (%s,%s,%s,%s,%s,%s) "
+                            self.con.cursor.execute(query,(list_id,row['first_name'],row['last_name'],row['full_name'],row['people_id'],row['company_id'],))
+                            self.con.commit()
             return people_details
         else:
             if not comp_ids:
                 return []
             if desig_list:
                 desig_list_reg = '\y' + '\y|\y'.join(desig_list) + '\y'
-                query = " select distinct a.company_id,a.first_name,a.last_name,a.full_name,a.new_contact_id from " \
+                query = " select distinct a.company_id,a.first_name,a.last_name,a.full_name,a.people_id from " \
                         " crawler.insideview_contact_search_res a left join crawler.insideview_contact_data b " \
                         " on a.email_md5_hash=b.email_md5_hash " \
                         " left join crawler.insideview_contact_name_search_res c on " \
-                        " a.new_contact_id=c.input_name_id " \
+                        " a.people_id=c.input_name_id " \
                         " where a.list_id = %s and a.company_id in %s and " \
                         " a.has_email = 't' and b.email_md5_hash is null and c.input_name_id is null " \
                         " and array_to_string(a.titles,',') ~* '{}' ".format(desig_list_reg)
             else:
-                query = " select distinct a.company_id,a.first_name,a.last_name,a.full_name,a.new_contact_id from " \
+                query = " select distinct a.company_id,a.first_name,a.last_name,a.full_name,a.people_id from " \
                         " crawler.insideview_contact_search_res a left join crawler.insideview_contact_data b " \
                         " on a.email_md5_hash=b.email_md5_hash " \
                         " left join crawler.insideview_contact_name_search_res c on " \
-                        " a.new_contact_id=c.input_name_id " \
+                        " a.people_id=c.input_name_id " \
                         " where a.list_id = %s and a.company_id in %s and " \
                         " a.has_email = 't' and b.email_md5_hash is null and c.input_name_id is null "
             self.con.cursor.execute(query,(list_id,tuple(comp_ids),))
@@ -507,7 +531,7 @@ class InsideviewDataUtil(object):
             self.con.execute(insert_query, res_to_insert)
             self.con.commit()
 
-    def fetch_new_contact_ids_to_fetch(self,list_id,comp_ids,max_res_per_company=3,
+    def get_new_contact_ids_to_fetch(self,list_id,comp_ids,max_res_per_company=3,
                                               desig_list=[],
                                               new_contact_ids_file_loc=None):
         '''This will give the new contactids that need to be fetched
@@ -523,6 +547,7 @@ class InsideviewDataUtil(object):
             if 'new_contact_id' not in df:
                 return []
             new_contact_ids = list(set(df['new_contact_id'])) #should check in people table to see if email already present?
+            new_contact_ids = [i for i in new_contact_ids if i]
             query = "select distinct b.new_contact_id from crawler.insideview_contact_data a join " \
                     " crawler.insideview_contact_search_res b on a.email_md5_hash=b.email_md5_hash " \
                     " where b.new_contact_id in %s and  b.list_id=%s"
@@ -556,3 +581,5 @@ class InsideviewDataUtil(object):
             new_contact_ids = self.con.cursor.fetchall()
             new_contact_ids = [i[0] for i in new_contact_ids]
             return new_contact_ids
+
+
