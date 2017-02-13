@@ -15,59 +15,12 @@ from Queue import Queue
 from constants import database,host,user,password
 from fetch_insideview_base import InsideviewDataFetcher
 from fetch_insideview_data_utils import InsideviewDataUtil
+from api_counter import API_counter
 
 def chunker(seq, size):
     return (seq[pos:pos + size] for pos in xrange(0, len(seq), size))
 
 company_name_field,website_field,country_field,state_field,city_field = 'company_name','website','country','state','city'
-
-class API_counter(object):
-    def __init__(self,list_id):
-        self.list_id = list_id
-        self.con = PostgresConnect(database_in=database,host_in=host,
-                                                    user_in=user,password_in=password)
-        self.get_list_api_counts()
-
-    def get_list_api_counts(self):
-        self.con.get_cursor()
-        query = " select company_search_hits,company_details_hits,newcontact_search_hits,newcontact_email_hits" \
-                ",people_search_hits,contact_fetch_hits,news_api_hits " \
-                " from crawler.insideview_api_hits where list_id = %s"
-        self.con.cursor.execute(query,(self.list_id,))
-        tmp = self.con.cursor.fetchall()
-        if not tmp:
-            self.create_api_counts()
-            self.get_list_api_counts()
-        else:
-            self.company_search_hits,self.company_details_hits,self.newcontact_search_hits,self.newcontact_email_hits,\
-                        = tmp[0][0],tmp[0][1],tmp[0][2],tmp[0][3]
-            self.people_search_hits,self.contact_fetch_hits,self.news_api_hits = tmp[0][4],tmp[0][5],tmp[0][5]
-        self.con.close_cursor()
-
-    def create_api_counts(self):
-        ''' creating counts for first time'''
-        query = " insert into crawler.insideview_api_hits " \
-                " (list_id,company_search_hits,company_details_hits,newcontact_search_hits,newcontact_email_hits," \
-                "people_search_hits,contact_fetch_hits,news_api_hits) " \
-                " values (%s,%s,%s,%s,%s,%s,%s,%s)"
-        self.con.cursor.execute(query,(self.list_id,0,0,0,0,0,0,0,))
-        self.con.commit()
-
-    def update_list_api_counts(self):
-        ''' '''
-        self.con.get_cursor()
-        query = "update crawler.insideview_api_hits set company_search_hits=%s,company_details_hits=%s," \
-                "newcontact_search_hits=%s,newcontact_email_hits=%s,people_search_hits=%s,contact_fetch_hits=%s," \
-                "news_api_hits=%s, updated_on=%s " \
-                "where list_id=%s "
-        cur_time = datetime.datetime.now()
-        self.con.cursor.execute(query,(self.company_search_hits,self.company_details_hits,self.newcontact_search_hits,
-                                self.newcontact_email_hits,self.people_search_hits,self.contact_fetch_hits,
-                                self.news_api_hits,cur_time,self.list_id))
-        self.con.commit()
-        self.con.close_cursor()
-        self.con.close_connection()
-
 
 class InsideviewCompanyFetcher(object):
     '''
@@ -110,6 +63,7 @@ class InsideviewCompanyFetcher(object):
                 should be company_ids
         :param search_companies: should we search for companies
         :param new_contact_ids_file_loc: location of new contact ids for which emails need to be fetched
+        :param people_details_file: 'company_id','first_name','last_name','full_name','people_id'
         :return:
         '''
         logging.basicConfig(filename='logs/insideview_fetching_log_file_{}.log'.format(self.list_name),
@@ -139,7 +93,7 @@ class InsideviewCompanyFetcher(object):
         engine = create_engine('postgresql://{user_name}:{password}@{host}:{port}/{database}'.format(
             user_name=user,password=password,host=host,port='5432',database=database
         ))
-        file_name = self.list_name+'_'+str(datetime.datetime.now())
+        file_name = self.list_name#+'_'+str(datetime.datetime.now())
         if search_companies:
             # get all companies in the search
             query = "select b.company_name as input_name,b.website as input_website,b.country as input_country," \
@@ -251,7 +205,7 @@ class InsideviewCompanyFetcher(object):
         if search_contacts:
             # search for people from these comp_ids
             logging.info('starting contact search')
-            comp_ids_to_search = self.data_util.get_companies_for_contact_search(list_id,comp_contries_loc,0,
+            comp_ids_to_search = self.data_util.get_companies_for_contact_search(list_id,comp_contries_loc,1,
                                                          comp_ids_to_find_contacts_file_loc)
             if comp_ids_to_search:
                 contacts_list = self.search_contacts_from_company_ids(company_ids=comp_ids_to_search,max_res_per_company=max_res_per_company,
@@ -259,28 +213,20 @@ class InsideviewCompanyFetcher(object):
                 logging.info('no of contacts got from the contact search: {}'.format(len(contacts_list)))
                 if contacts_list:
                     self.data_util.save_contacts_seach_res(list_id,contacts_list)
-                logging.info('saved contact search results into table')
-            ppl_details = self.data_util.get_people_details_for_email_find(list_id=list_id,comp_ids=comp_ids,
-                                            desig_list=desig_list,people_details_file=people_details_file)
-            if ppl_details:
-                self.search_for_matching_people_from_ppl_details(list_id,ppl_details,n_threads=n_threads)
-            contact_ids = self.data_util.get_contact_ids_for_email_find(list_id=list_id,comp_ids=comp_ids,
-                                            max_res_per_company=max_res_per_company,desig_list=[],
-                                            contact_ids_file_loc=None)
-            print('No of contact ids for which email will be found:{}'.format(len(contact_ids)))
-            logging.info('No of contact ids for which email will be found:{}'.format(len(contact_ids)))
+                    logging.info('saved contact search results into table')
         # if no need to get contacts, return, else continue
         if get_contacts:
-            logging.info('getting email information for contacts')
-            if new_contact_ids_file_loc:#if new contactids provided, directly fetch emails (might be costlier)
-                new_contact_ids = self.data_util.fetch_new_contact_ids_to_fetch(list_id,comp_ids,
-                                                       max_res_per_company=max_res_per_company,desig_list=desig_list,
-                                                       new_contact_ids_file_loc=new_contact_ids_file_loc)
-                if new_contact_ids:
-                    self.fetch_people_details_from_newcontact_ids(new_contact_ids,retrieve_comp_dets= 0)
+            logging.info('searching with name and other details to get contact_id')
+            ppl_details = self.data_util.get_people_details_for_email_find(list_id=list_id,comp_ids=comp_ids,
+                                            desig_list=desig_list,people_details_file=people_details_file)
+            logging.info('No of people for whom contact_id search will be done:{}'.format(len(ppl_details)))
+            if ppl_details:
+                self.search_for_matching_people_from_ppl_details(list_id,ppl_details,n_threads=n_threads)
+            # fetching emails
             self.fetch_people_details_from_company_ids_from_contactids(list_id,comp_ids,max_res_per_company=max_res_per_company,
                                                 desig_list=desig_list,
                                                 contact_ids_file_loc=contact_ids_file_loc,
+                                                new_contact_ids_file_loc=new_contact_ids_file_loc
                                                 )
         self.con.close_cursor()
         self.con.close_connection()
@@ -288,7 +234,7 @@ class InsideviewCompanyFetcher(object):
 
     def fetch_people_details_from_company_ids_from_contactids(self,list_id,comp_ids,max_res_per_company=5,
                                               desig_list=[],n_threads=10,
-                                              contact_ids_file_loc=None):
+                                              contact_ids_file_loc=None,new_contact_ids_file_loc=None):
         '''
         :param list_id:
         :param comp_ids:
@@ -303,8 +249,17 @@ class InsideviewCompanyFetcher(object):
         contact_ids = self.data_util.get_contact_ids_for_email_find(list_id,comp_ids,max_res_per_company=max_res_per_company,
                                                                     desig_list=desig_list,
                                                       contact_ids_file_loc=contact_ids_file_loc)
+        print('No of contact ids for which email will be found:{}'.format(len(contact_ids)))
+        logging.info('No of contact ids for which email will be found:{}'.format(len(contact_ids)))
         if contact_ids:
             self.fetch_people_details_from_contact_ids(contact_ids,n_threads)
+        if new_contact_ids_file_loc:#if new contactids provided, directly fetch emails (might be costlier)
+            new_contact_ids = self.data_util.get_new_contact_ids_to_fetch(list_id,comp_ids,
+                                                   max_res_per_company=max_res_per_company,desig_list=desig_list,
+                                                   new_contact_ids_file_loc=new_contact_ids_file_loc)
+            if new_contact_ids:
+                logging.info('getting emails for new contact ids')
+                self.fetch_people_details_from_newcontact_ids(new_contact_ids,retrieve_comp_dets= 0)
 
     def fetch_people_details_from_contact_ids(self,contact_ids,n_threads=10):
         '''
@@ -371,6 +326,9 @@ class InsideviewCompanyFetcher(object):
                     continue
                 # logging.info('search_dic:{}'.format(search_dic))
                 res_dic = self.insideview_fetcher.search_insideview_contact(search_dic)
+                logging.info('contact name search:')
+                logging.info('search_dic:{}'.format(search_dic))
+                logging.info('res_dic:{}'.format(res_dic))
                 self.api_counter.people_search_hits += 1
                 # logging.info('res_dic:{}'.format(res_dic))
                 if res_dic.get('message'): #throttling reached, need to do this company id again
@@ -608,6 +566,32 @@ class InsideviewCompanyFetcher(object):
             self.con.cursor.execute(insert_query, company_dets)
             self.con.commit()
         self.con.close_cursor()
+        if 'company_id' in url_df:
+            self.insert_company_id_direct(url_df,list_id)
+
+    def insert_company_id_direct(self,url_df,list_id):
+        '''
+        :param url_df:
+        :param list_id:
+        :return:
+        '''
+        self.con.get_cursor()
+        query = " select id,company_name,website,country,state,city from {} where list_id=%s" \
+                "".format('crawler.list_items_insideview_companies')
+        self.con.cursor.execute(query,(list_id,))
+        res = self.con.cursor.fetchall()
+        list_items_df = pd.DataFrame(res,columns=['list_items_id',company_name_field,website_field,country_field,
+                                                  state_field,city_field])
+        comb_df = pd.merge(url_df,list_items_df)
+        dets = [tuple([list_id])+tuple(row[['list_items_id','company_id',company_name_field,country_field,state_field,city_field]].fillna(''))
+                        for ind,row in comb_df.iterrows()]
+        if dets:
+            records_list_template = ','.join(['%s']*len(dets))
+            insert_query = "INSERT INTO {} (list_id,list_items_id,company_id,name,country,state,city) VALUES {} "\
+                            "ON CONFLICT DO NOTHING".format('crawler.insideview_company_search_res',records_list_template)
+            self.con.cursor.execute(insert_query, dets)
+            self.con.commit()
+        self.con.close_cursor()
 
     def get_list_id(self,list_name,create_if_not_present=False):
         self.con.get_cursor()
@@ -703,6 +687,10 @@ if __name__ == "__main__":
                          dest='new_contact_ids_file',
                          help='location of new contact ids. emails will be fetched for these contacts only',
                          default=None)
+    optparser.add_option('--people_details_file',
+                         dest='people_details_file',
+                         help='location of people_details_file. emails will be fetched for these contacts only',
+                         default=None)
     (options, args) = optparser.parse_args()
     list_name = options.list_name
     inp_loc = options.inp_loc
@@ -721,8 +709,9 @@ if __name__ == "__main__":
     search_companies = options.search_companies
     comp_ids_to_find_contacts_file_loc = options.company_ids_file
     contact_ids_file_loc = options.contact_ids_file
-    # new_contact_ids_file = options.new_contact_ids_file
-    new_contact_ids_file = contact_ids_file_loc #single file, give contact_id and new_contact_id columns
+    people_details_file = options.people_details_file
+    new_contact_ids_file = people_details_file
+    # new_contact_ids_file = contact_ids_file_loc #single file, give contact_id and new_contact_id columns
     # checks
     if not list_name:
         raise ValueError('need list name to run')
@@ -742,4 +731,4 @@ if __name__ == "__main__":
                                  comp_contries_loc=comp_contries_loc,search_contacts=search_contacts,
                                  comp_ids_to_find_contacts_file_loc=comp_ids_to_find_contacts_file_loc,
                                  search_companies=search_companies,contact_ids_file_loc=contact_ids_file_loc,
-                                 new_contact_ids_file_loc=new_contact_ids_file)
+                                 new_contact_ids_file_loc=None,people_details_file=people_details_file)

@@ -65,60 +65,56 @@ class InsideviewContactFetcher(object):
             user_name=user,password=password,host=host,port='5432',database=database
         ))
         if get_emails:
-            query = " select input_filters,c.* from crawler.list_input_insideview_contacts a join " \
-                    " crawler.insideview_contact_name_search_res b on a.list_id=b.list_id and a.id=b.list_items_id join " \
+            query = " select c.* from " \
+                    " crawler.insideview_contact_name_search_res b join " \
                     " crawler.insideview_contact_data c on b.contact_id = c.contact_id " \
-                    "where a.list_id = '{}' ".format(list_id)
+                    "where b.list_id = '{}' ".format(list_id)
             df = pd.read_sql_query(query,engine)
             df.to_csv('{}/{}_contacts_emails.csv'.format(out_loc,list_name),index=False,quoting=1,encoding='utf-8')
         if search_contacts:
-            query = " select input_filters,b.* from crawler.list_input_insideview_contacts a join " \
-                    " crawler.insideview_contact_name_search_res b on a.list_id=b.list_id and a.id=b.list_items_id  " \
+            query = " select a.full_name as input_name,a.first_name as input_first_name,a.last_name as input_last_name," \
+                    "a.company_id as input_company_id,b.* from crawler.insideview_contact_search_res a left join " \
+                    " crawler.insideview_contact_name_search_res b on a.list_id=b.list_id and b.input_name_id=a.people_id  " \
                     "where a.list_id = '{}' ".format(list_id)
             df = pd.read_sql_query(query,engine)
             df.to_csv('{}/{}_contacts_search_results.csv'.format(out_loc,list_name),index=False,quoting=1,encoding='utf-8')
         engine.dispose()
 
-    def search_contact_for_email(self,list_id,desig_loc=None,contact_ids_file_loc=None):
+    def search_contact_for_email(self,list_id,desig_loc=None,contact_ids_file_loc=None,n_threads=10):
         '''
         :param list_id:
         :param desig_loc:
         :return:
         '''
         self.con.get_cursor()
-        if contact_ids_file_loc:
-            df = pd.read_csv(contact_ids_file_loc)
-            contact_ids = list(set(df['contact_ids']))
+        logging.info('started fetch_people_details_from_company_ids_ppl_details')
+        query = " select distinct company_id from crawler.insideview_contact_search_res where list_id = %s"
+        self.con.cursor.execute(query,(list_id,))
+        comp_ids = self.con.cursor.fetchall()
+        comp_ids = [i[0] for i in comp_ids]
+        if not comp_ids:
+            raise ValueError('Need company ids')
+        if desig_loc:
+            desig_list = self.data_util.get_designations(desig_loc)
         else:
-            if desig_loc:
-                inp_df = pd.read_csv(desig_loc)
-                desig_list = list(inp_df[designations_column_name])
-            else:
-                raise ValueError('Need file with target designations')
-            if desig_list:
-                desig_list_reg = '\y' + '\y|\y'.join(desig_list) + '\y'
-                query = " select distinct a.contact_id from crawler.insideview_contact_name_search_res a " \
-                        " left join crawler.insideview_contact_data b on a.contact_id=b.contact_id " \
-                        " where b.contact_id is null and  a.list_id = %s and " \
-                        " array_to_string(a.titles,',') ~* '{}'".format(desig_list_reg)
-            else:
-                query = " select distinct a.contact_id from crawler.insideview_contact_name_search_res a " \
-                        " left join crawler.insideview_contact_data b on a.contact_id=b.contact_id " \
-                        " where b.contact_id is null and a.list_id = %s "
-            self.con.cursor.execute(query,(list_id,))
-            contact_ids = self.con.cursor.fetchall()
-            contact_ids = [i[0] for i in contact_ids]
-        self.search_contact_for_email_threaded(contact_ids)
+            desig_list = []
+        contact_ids = self.data_util.get_contact_ids_for_email_find(list_id,comp_ids,max_res_per_company=1000,
+                                                                    desig_list=desig_list,
+                                                      contact_ids_file_loc=contact_ids_file_loc)
+        if contact_ids:
+            print('no of contacts for which emails will be fetched:{}'.format(len(contact_ids)))
+            self.fetch_people_details_from_contact_ids(contact_ids,n_threads)
         self.con.commit()
         self.con.close_cursor()
 
-    def search_contact_for_email_threaded(self,contact_ids,n_threads=10):
+    def fetch_people_details_from_contact_ids(self,contact_ids,n_threads=10):
         '''
-        :param contact_ids:
+        :param new_contact_ids:
+        :param retrieve_comp_dets:
         :param n_threads:
         :return:
         '''
-        logging.info('no of new_contact_ids for which insideview fetching done:{}'.format(len(contact_ids)))
+        logging.info('no of contact_ids for which insideview fetching to be done:{}'.format(len(contact_ids)))
         in_queue = Queue(maxsize=0)
         out_queue = Queue(maxsize=0)
         def worker():
@@ -131,6 +127,7 @@ class InsideviewContactFetcher(object):
                     time.sleep(10)
                     continue
                 out_queue.put(res_dic)
+                self.api_counter.contact_fetch_hits += 1
                 in_queue.task_done()
         for contact_id in contact_ids:
             in_queue.put(contact_id)
@@ -144,26 +141,94 @@ class InsideviewContactFetcher(object):
             res_dic = out_queue.get()
             self.data_util.save_contact_info(res_dic)
             out_queue.task_done()
+
             if out_queue.qsize() < 5:
                 time.sleep(10)
         time.sleep(20)
         logging.info('inqueue size:{},outqueue size:{}'.format(in_queue.qsize(),out_queue.qsize()))
-        logging.info('finished search_contact_for_email_threaded')
+        logging.info('finished fetch_people_details_from_contact_ids')
 
-    def search_contact_for_people(self,list_id):
+    def search_contact_for_people(self,list_id,n_threads=10):
         '''
         :param list_id:
         :return:
         '''
         self.con.get_cursor()
-        query = " select distinct on (a.id) a.id,input_filters from crawler.list_input_insideview_contacts a " \
-                " left join crawler.insideview_contact_name_search_res b on " \
-                " a.list_id=b.list_id and a.id=b.list_items_id where b.list_id is null and a.list_id = %s"
+        # query = " select distinct on (a.id) a.id,input_filters from crawler.list_input_insideview_contacts a " \
+        #         " left join crawler.insideview_contact_name_search_res b on " \
+        #         " a.list_id=b.list_id and a.id=b.list_items_id where b.list_id is null and a.list_id = %s"
+        # self.con.cursor.execute(query,(list_id,))
+        # list_inputs = self.con.cursor.fetchall()
+        # self.search_contact_for_people_threaded(list_id,list_inputs)
+        query = " select distinct company_id from crawler.insideview_contact_search_res where list_id = %s"
         self.con.cursor.execute(query,(list_id,))
-        list_inputs = self.con.cursor.fetchall()
-        self.search_contact_for_people_threaded(list_id,list_inputs)
+        comp_ids = self.con.cursor.fetchall()
+        comp_ids = [i[0] for i in comp_ids]
+        if not comp_ids:
+            raise ValueError('Need company ids')
+        ppl_details = self.data_util.get_people_details_for_email_find(list_id=list_id,comp_ids=comp_ids,
+                                            desig_list=[],people_details_file=None)
+        if ppl_details:
+            self.search_for_matching_people_from_ppl_details(list_id,ppl_details,n_threads=n_threads)
         self.con.commit()
         self.con.close_cursor()
+
+    def search_for_matching_people_from_ppl_details(self,list_id,ppl_details,n_threads=10):
+        '''
+        :param ppl_details:
+        :param n_threads:
+        :return:
+        '''
+        logging.info('no of ppl_details for which people search to be done:{}'.format(len(ppl_details)))
+        in_queue_tuple_order_keys = ['companyId','firstName','lastName','fullName']
+        in_queue = Queue(maxsize=0)
+        out_queue = Queue(maxsize=0)
+        def worker():
+            while not in_queue.empty():
+                dets_tuple,person_id = in_queue.get()
+                # logging.info('search for person_id:{},dets_tuple:{}'.format(person_id,dets_tuple))
+                search_dic = {}
+                for key,value in zip(in_queue_tuple_order_keys,dets_tuple):
+                    if value:
+                        search_dic[key] = value
+                if not search_dic:
+                    out_queue.put(([],person_id))
+                    in_queue.task_done()
+                    continue
+                # logging.info('search_dic:{}'.format(search_dic))
+                res_dic = self.insideview_fetcher.search_insideview_contact(search_dic)
+                logging.info('contact name search:')
+                logging.info('search_dic:{}'.format(search_dic))
+                logging.info('res_dic:{}'.format(res_dic))
+                self.api_counter.people_search_hits += 1
+                # logging.info('res_dic:{}'.format(res_dic))
+                if res_dic.get('message'): #throttling reached, need to do this company id again
+                    in_queue.put((dets_tuple,person_id))
+                    in_queue.task_done()
+                    time.sleep(10)
+                    continue
+                # logging.info('search result person_id:{}, res_dic contacts:{}'.format(person_id,res_dic.get('contacts',[])))
+                out_queue.put((res_dic.get('contacts',[]),person_id))
+                in_queue.task_done()
+        for dets_tuple in ppl_details:
+            person_dets,person_id = dets_tuple[:-1],dets_tuple[-1] #last item is the id
+            in_queue.put((person_dets,person_id))
+        for i in range(n_threads):
+            worker_tmp = threading.Thread(target=worker)
+            worker_tmp.setDaemon(True)
+            worker_tmp.start()
+        time.sleep(20)
+        while not out_queue.empty() or not in_queue.empty():
+            logging.info('inqueue size:{},outqueue size:{}'.format(in_queue.qsize(),out_queue.qsize()))
+            res_list,person_id = out_queue.get()
+            # logging.info('save to db person_id:{},res_list:{}'.format(person_id,res_list))
+            self.data_util.save_contact_search_res_single(list_id,res_list,person_id)
+            out_queue.task_done()
+            if out_queue.qsize() < 5:
+                time.sleep(10)
+        time.sleep(20)
+        logging.info('inqueue size:{},outqueue size:{}'.format(in_queue.qsize(),out_queue.qsize()))
+        logging.info('finished search_for_matching_people_from_ppl_details')
 
     def search_contact_for_people_threaded(self,list_id,list_inputs,n_threads=10):
         '''
@@ -239,15 +304,17 @@ class InsideviewContactFetcher(object):
         '''
         self.con.get_cursor()
         df = pd.read_csv(inp_loc)
-        query = " insert into crawler.list_input_insideview_contacts (list_id,input_filters) " \
-                " values (%s,%s)"
-        for index, row in df.fillna('').iterrows():
-            row_dic = dict(row)
-            row_dic_not_null = {}
-            for key in row_dic:
-                if row_dic[key]:
-                    row_dic_not_null[key] = row_dic[key]
-            self.con.execute(query,(list_id,json.dumps(row_dic_not_null),))
+        # query = " insert into crawler.list_input_insideview_contacts (list_id,input_filters) " \
+        #         " values (%s,%s)"
+        # for index, row in df.fillna('').iterrows():
+        #     row_dic = dict(row)
+        #     row_dic_not_null = {}
+        #     for key in row_dic:
+        #         if row_dic[key]:
+        #             row_dic_not_null[key] = row_dic[key]
+        #     self.con.execute(query,(list_id,json.dumps(row_dic_not_null),))
+        res_list = df.to_dict('records')
+        self.data_util.save_contacts_seach_res(list_id,res_list)
         self.con.commit()
         self.con.close_cursor()
 
@@ -315,4 +382,5 @@ if __name__ == "__main__":
     throttler_address = options.throttler_address
 
     fetcher = InsideviewContactFetcher(list_name=list_name,throttler_app_address=throttler_address)
-    fetcher.main()
+    fetcher.main(out_loc=out_loc,inp_loc=inp_loc,desig_loc=desig_loc,search_contacts=search_contacts,
+                 get_emails=get_emails,contact_ids_file_loc=contact_ids_file_loc)
