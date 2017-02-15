@@ -164,6 +164,10 @@ class InsideviewCompanyFetcher(object):
             query = query + ' and x.contact_id in {} '.format(contact_ids_query)
         df = pd.read_sql_query(query,engine)
         df.to_csv('{}/{}_contact_email_data.csv'.format(out_loc,file_name),index=False,quoting=1,encoding='utf-8')
+        # getting api hit counts
+        query = " select * from crawler.insideview_api_hits where list_id = '{}' ".format(self.list_id)
+        df = pd.read_sql_query(query,engine)
+        df.to_csv('{}/{}_insideview_api_hits.csv'.format(out_loc,file_name),index=False,quoting=1,encoding='utf-8')
         engine.dispose()
 
     
