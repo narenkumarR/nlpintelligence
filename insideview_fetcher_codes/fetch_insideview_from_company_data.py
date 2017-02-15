@@ -98,7 +98,7 @@ class InsideviewCompanyFetcher(object):
             # get all companies in the search
             query = "select b.company_name as input_name,b.website as input_website,b.country as input_country," \
                     "a.name,a.company_id,a.city,a.state,a.country " \
-                    "from crawler.insideview_company_search_res a join crawler.list_items_insideview_companies b on" \
+                    "from crawler.insideview_company_search_res a left join crawler.list_items_insideview_companies b on" \
                     " a.list_items_id = b.id where" \
                     " a.list_id='{}'".format(self.list_id)
             df = pd.read_sql_query(query,engine)
@@ -127,7 +127,7 @@ class InsideviewCompanyFetcher(object):
         query = "select distinct b.*,c.company_name as input_name,c.website as input_website," \
                 "c.country as input_country from crawler.insideview_company_search_res a join" \
                 " crawler.insideview_company_details_contact_search b on a.company_id=b.company_id " \
-                " join crawler.list_items_insideview_companies c on a.list_items_id = c.id " \
+                " left join crawler.list_items_insideview_companies c on a.list_items_id = c.id " \
                 " where a.list_id='{}'".format(self.list_id)
         if comp_ids:
             query = query + ' and a.company_id in {}'.format(comp_ids_query)
@@ -279,11 +279,13 @@ class InsideviewCompanyFetcher(object):
             while not in_queue.empty():
                 contact_id = in_queue.get()
                 res_dic = self.insideview_fetcher.get_contact_details_from_contactid(contact_id)
-                if res_dic.get('message'): #throttling reached, need to do this company id again
+                if res_dic.get('message') in ['request throttled by insideview','1000 per 5 minute']: #throttling reached, need to do this company id again
                     in_queue.put(contact_id)
                     in_queue.task_done()
                     time.sleep(10)
                     continue
+                elif res_dic.get('message'):
+                    raise ValueError('Error happened. {}'.format(res_dic))
                 out_queue.put(res_dic)
                 self.api_counter.contact_fetch_hits += 1
                 in_queue.task_done()
@@ -335,11 +337,13 @@ class InsideviewCompanyFetcher(object):
                 logging.info('res_dic:{}'.format(res_dic))
                 self.api_counter.people_search_hits += 1
                 # logging.info('res_dic:{}'.format(res_dic))
-                if res_dic.get('message'): #throttling reached, need to do this company id again
+                if res_dic.get('message') in ['request throttled by insideview','1000 per 5 minute']: #throttling reached, need to do this company id again
                     in_queue.put((dets_tuple,person_id))
                     in_queue.task_done()
                     time.sleep(10)
                     continue
+                elif res_dic.get('message'):
+                    raise ValueError('Error happened. {}'.format(res_dic))
                 # logging.info('search result person_id:{}, res_dic contacts:{}'.format(person_id,res_dic.get('contacts',[])))
                 out_queue.put((res_dic.get('contacts',[]),person_id))
                 in_queue.task_done()
@@ -377,11 +381,13 @@ class InsideviewCompanyFetcher(object):
             while not in_queue.empty():
                 new_contact_id = in_queue.get()
                 res_dic = self.insideview_fetcher.get_contact_details_from_newcontact_id(new_contact_id,retrieve_comp_dets)
-                if res_dic.get('message'): #throttling reached, need to do this company id again
+                if res_dic.get('message') in ['request throttled by insideview','1000 per 5 minute']: #throttling reached, need to do this company id again
                     in_queue.put(new_contact_id)
                     in_queue.task_done()
                     time.sleep(10)
                     continue
+                elif res_dic.get('message'):
+                    raise ValueError('Error happened. {}'.format(res_dic))
                 out_queue.put(res_dic)
                 self.api_counter.newcontact_email_hits += 1
                 in_queue.task_done()
@@ -494,11 +500,13 @@ class InsideviewCompanyFetcher(object):
             while not in_queue.empty():
                 comp_id = in_queue.get()
                 comp_dets_dic = self.insideview_fetcher.get_company_details_from_id(comp_id)
-                if comp_dets_dic.get('message'): #throttling reached, need to do this company id again
+                if comp_dets_dic.get('message') in ['request throttled by insideview','1000 per 5 minute']: #throttling reached, need to do this company id again
                     in_queue.put(comp_id)
                     in_queue.task_done()
                     time.sleep(10)
                     continue
+                elif comp_dets_dic.get('message'):
+                    raise ValueError('Error happened. {}'.format(comp_dets_dic))
                 out_queue.put(comp_dets_dic)
                 in_queue.task_done()
         for comp_id in comp_ids_not_present:
@@ -721,7 +729,7 @@ if __name__ == "__main__":
         raise ValueError('need list name to run')
     if not out_loc:
         raise ValueError('need output folder location')
-    if inp_loc:
+    if inp_loc or comp_ids_to_find_contacts_file_loc or people_details_file or contact_ids_file_loc:
         create_list_id_if_not_present = True
     else:
         create_list_id_if_not_present = False
