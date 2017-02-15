@@ -48,19 +48,23 @@ class InsideviewContactFetcher(object):
         :param contact_ids_file_loc:
         :return:
         '''
+        logging.info('started main')
         if inp_loc:
             self.insert_input_to_db(inp_loc,self.list_id)
         if search_contacts:
             self.search_contact_for_people(self.list_id)
         if get_emails:
             self.search_contact_for_email(self.list_id,desig_loc,contact_ids_file_loc=contact_ids_file_loc)
+        self.api_counter.update_list_api_counts()
         self.save_results(self.list_id,self.list_name,out_loc,search_contacts,get_emails)
+        logging.info('completed main')
 
     def save_results(self,list_id,list_name,out_loc,search_contacts=0,get_emails=0):
         '''
         :param list_id:
         :return:
         '''
+        logging.info('saving results')
         engine = create_engine('postgresql://{user_name}:{password}@{host}:{port}/{database}'.format(
             user_name=user,password=password,host=host,port='5432',database=database
         ))
@@ -78,6 +82,10 @@ class InsideviewContactFetcher(object):
                     "where a.list_id = '{}' ".format(list_id)
             df = pd.read_sql_query(query,engine)
             df.to_csv('{}/{}_contacts_search_results.csv'.format(out_loc,list_name),index=False,quoting=1,encoding='utf-8')
+        # getting api hit counts
+        query = " select * from crawler.insideview_api_hits where list_id = '{}' ".format(self.list_id)
+        df = pd.read_sql_query(query,engine)
+        df.to_csv('{}/{}_insideview_api_hits.csv'.format(out_loc,list_name),index=False,quoting=1,encoding='utf-8')
         engine.dispose()
 
     def search_contact_for_email(self,list_id,desig_loc=None,contact_ids_file_loc=None,n_threads=10):
@@ -121,11 +129,13 @@ class InsideviewContactFetcher(object):
             while not in_queue.empty():
                 contact_id = in_queue.get()
                 res_dic = self.insideview_fetcher.get_contact_details_from_contactid(contact_id)
-                if res_dic.get('message'): #throttling reached, need to do this company id again
+                if res_dic.get('message') in ['request throttled by insideview','1000 per 5 minute']: #throttling reached, need to do this company id again
                     in_queue.put(contact_id)
                     in_queue.task_done()
                     time.sleep(10)
                     continue
+                elif res_dic.get('message'):
+                    raise ValueError('Error happened. {}'.format(res_dic))
                 out_queue.put(res_dic)
                 self.api_counter.contact_fetch_hits += 1
                 in_queue.task_done()
@@ -202,11 +212,13 @@ class InsideviewContactFetcher(object):
                 logging.info('res_dic:{}'.format(res_dic))
                 self.api_counter.people_search_hits += 1
                 # logging.info('res_dic:{}'.format(res_dic))
-                if res_dic.get('message'): #throttling reached, need to do this company id again
+                if res_dic.get('message') in ['request throttled by insideview','1000 per 5 minute']: #throttling reached, need to do this company id again
                     in_queue.put((dets_tuple,person_id))
                     in_queue.task_done()
                     time.sleep(10)
                     continue
+                elif res_dic.get('message'):
+                    raise ValueError('Error happened. {}'.format(res_dic))
                 # logging.info('search result person_id:{}, res_dic contacts:{}'.format(person_id,res_dic.get('contacts',[])))
                 out_queue.put((res_dic.get('contacts',[]),person_id))
                 in_queue.task_done()
@@ -246,11 +258,13 @@ class InsideviewContactFetcher(object):
                 search_dic = json.loads(search_dic)
                 search_dic['isEmailRequired'] = True
                 res_dic = self.insideview_fetcher.search_insideview_contact(search_dic)
-                if search_results.get('message'): #throttling reached, need to do this company id again
+                if search_results.get('message') in ['request throttled by insideview','1000 per 5 minute']: #throttling reached, need to do this company id again
                     in_queue.put((list_input_id,search_dic))
                     in_queue.task_done()
                     time.sleep(10)
                     continue
+                elif search_results.get('message'):
+                    raise ValueError('Error happened. {}'.format(res_dic))
                 out_list = res_dic.get('contacts',[])
                 out_queue.put((list_input_id,out_list))
                 in_queue.task_done()
@@ -302,6 +316,7 @@ class InsideviewContactFetcher(object):
         :param list_name:
         :return:
         '''
+        logging.info('insert_input_to_db started')
         self.con.get_cursor()
         df = pd.read_csv(inp_loc)
         # query = " insert into crawler.list_input_insideview_contacts (list_id,input_filters) " \
@@ -317,6 +332,7 @@ class InsideviewContactFetcher(object):
         self.data_util.save_contacts_seach_res(list_id,res_list)
         self.con.commit()
         self.con.close_cursor()
+        logging.info('insert_input_to_db finished')
 
     def get_list_id(self,list_name):
         '''

@@ -53,14 +53,19 @@ class InsideviewDataUtil(object):
         if comp_ids_to_find_contacts_file_loc:
             df = pd.read_csv(comp_ids_to_find_contacts_file_loc)
             comp_ids = list(set(df['company_id']))
-            if find_new_companies_only:
-                query = " select distinct company_id from crawler.insideview_contact_search_res where " \
+            query = " select distinct company_id from crawler.insideview_contact_search_res where " \
                         " list_id=%s and company_id in %s"
-                self.con.execute(query,(list_id,tuple(comp_ids),))
-                comp_ids_present = self.con.cursor.fetchall()
-                comp_ids_present = [i[0] for i in comp_ids_present]
-                comp_ids_not_preset = list(set(comp_ids)-set(comp_ids_present))
-                return comp_ids_not_preset
+            self.con.execute(query,(list_id,tuple(comp_ids),))
+            comp_ids_present = self.con.cursor.fetchall()
+            comp_ids_present = [i[0] for i in comp_ids_present]
+            comp_ids_not_present = list(set(comp_ids)-set(comp_ids_present))
+            if comp_ids_not_present:
+                df['companyId'] = df['company_id']
+                df_not_present = df[df['company_id'].isin(comp_ids_not_present)]
+                dic_list = df_not_present.to_dict('records')
+                self.save_company_search_res_single(list_id,None,dic_list)
+            if find_new_companies_only:
+                return comp_ids_not_present
             else:
                 return comp_ids
         else:
@@ -101,7 +106,7 @@ class InsideviewDataUtil(object):
         return comp_ids_not_present
 
     def get_dets_for_insideview_fetch(self,list_id,remove_comps_in_lkdn_table=0,max_comps_to_try=0):
-        '''find the company names and urls which needs to be fetched from builtwith
+        '''find the company names and urls which needs to be fetched from insideview
         '''
         # todo: we can add a flag in list_items/list_items_urls table and use it here to avoid duplication
         # find the companies for whom the search was not done in builtwith
@@ -471,7 +476,9 @@ class InsideviewDataUtil(object):
                     self.con.cursor.execute(query,(list_id,row['company_id'],row['last_name'],row['first_name'],))
                     person_search_id = self.con.cursor.fetchall()
                     if not person_search_id:
+                        # the person is not searched already, so add it to the list of persons to search
                         people_details.append(tuple(row[['company_id','first_name','last_name','full_name','people_id']]))
+                        # check if the person is present in the contact_search table. if not, insert there also
                         query = " select id from crawler.insideview_contact_search_res where list_id=%s and " \
                                 " company_id=%s and first_name=%s and last_name=%s and full_name=%s "
                         self.con.cursor.execute(query,(list_id,row['company_id'],row['first_name'],row['last_name'],row['full_name'],))
@@ -482,6 +489,14 @@ class InsideviewDataUtil(object):
                                     " full_name,people_id,company_id) values (%s,%s,%s,%s,%s,%s) "
                             self.con.cursor.execute(query,(list_id,row['first_name'],row['last_name'],row['full_name'],row['people_id'],row['company_id'],))
                             self.con.commit()
+                            # check if the company id is present in the company search res table
+                            query = " select id from crawler.insideview_company_search_res where company_id=%s"
+                            self.con.cursor.execute(query,(row['company_id'],))
+                            res = self.con.cursor.fetchall()
+                            if not res: #then insert into the company search res table,this company id
+                                row_dic = row.to_dict()
+                                row_dic['companyId'] = row_dic['company_id']
+                                self.save_company_search_res_single(list_id,None,[row_dic])
             return people_details
         else:
             if not comp_ids:

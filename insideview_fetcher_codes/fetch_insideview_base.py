@@ -61,10 +61,12 @@ class InsideviewDataFetcher(object):
             self.api_counter.company_search_hits += 1
             res_dic = json.loads(r.text)
             if not res_dic.get('companies',None):
-                if res_dic.get('message'):
+                if res_dic.get('message') in ['request throttled by insideview','1000 per 5 minute']:
                     logging.info('throttling limit reached. try this company later')
                     self.api_counter.company_search_hits -= 1
                     return ['throttling limit reached']
+                elif res_dic.get('message'):
+                    raise ValueError('Error happened. {}'.format(res_dic))
                 break
             out_list.extend(res_dic.get('companies'))
             total_results = res_dic['totalResults']
@@ -116,15 +118,18 @@ class InsideviewDataFetcher(object):
             r = requests.post(self.throttler_app_address,params=search_dic,json=kwargs)
             self.api_counter.newcontact_search_hits += 1
             res_dic = json.loads(r.text)
-            if res_dic.get('message'): #throttling reached, need to hit again after some time
+            if res_dic.get('message') in ['request throttled by insideview','1000 per 5 minute']: #throttling reached, need to hit again after some time
                 time.sleep(30)
                 self.api_counter.newcontact_search_hits -= 1 #reduce the count
                 res_page_no -= 1
                 continue
+            elif res_dic.get('message'):
+                    raise ValueError('Error happened. {}'.format(res_dic))
             if not res_dic.get('contacts',None):
                 break
             out_list.extend(res_dic.get('contacts'))
             total_results = int(res_dic['totalResults'])
+            logging.info('total results:{},page no:{}'.format(total_results,res_page_no))
         logging.info('total_results:{},res_page_no:{},contacts_fetched:{}'.format(total_results,res_page_no,len(out_list)))
         return out_list
 
