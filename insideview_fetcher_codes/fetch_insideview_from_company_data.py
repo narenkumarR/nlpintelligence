@@ -212,12 +212,12 @@ class InsideviewCompanyFetcher(object):
             comp_ids_to_search = self.data_util.get_companies_for_contact_search(list_id,comp_contries_loc,1,
                                                          comp_ids_to_find_contacts_file_loc)
             if comp_ids_to_search:
-                contacts_list = self.search_contacts_from_company_ids(company_ids=comp_ids_to_search,max_res_per_company=max_res_per_company,
+                self.search_contacts_from_company_ids(list_id,company_ids=comp_ids_to_search,max_res_per_company=max_res_per_company,
                                                                       **filters_dic)
-                logging.info('no of contacts got from the contact search: {}'.format(len(contacts_list)))
-                if contacts_list:
-                    self.data_util.save_contacts_seach_res(list_id,contacts_list)
-                    logging.info('saved contact search results into table')
+                # logging.info('no of contacts got from the contact search: {}'.format(len(contacts_list)))
+                # if contacts_list:
+                #     self.data_util.save_contacts_seach_res(list_id,contacts_list)
+                #     logging.info('saved contact search results into table')
         # if no need to get contacts, return, else continue
         if get_contacts:
             logging.info('searching with name and other details to get contact_id')
@@ -529,7 +529,7 @@ class InsideviewCompanyFetcher(object):
         logging.info('inqueue size:{},outqueue size:{}'.format(in_queue.qsize(),out_queue.qsize()))
         logging.info('completed get_save_company_details_from_insideview_listinput')
 
-    def search_contacts_from_company_ids(self,company_ids,max_res_per_company=5,**filters_dic):
+    def search_contacts_from_company_ids(self,list_id,company_ids,max_res_per_company=5,**filters_dic):
         '''
         :param company_ids:
         :param kwargs:
@@ -537,13 +537,15 @@ class InsideviewCompanyFetcher(object):
         '''
         # max_no_results=len(comp_ids)*(max_res_per_company+5)
         company_ids = [i for i in company_ids if i] # sometimes none coming
-        all_contacts = []
+        # all_contacts = []
         no_comps_to_process_single_iter = 500/(max_res_per_company) #
         for comp_ids in chunker(company_ids,no_comps_to_process_single_iter):
             comp_id_str = ','.join([str(i) for i in comp_ids])
             filters_dic['companyIdsToInclude'] = comp_id_str
-            all_contacts.extend(self.insideview_fetcher.search_contacts(max_no_results=no_comps_to_process_single_iter*50,**filters_dic))
-        return all_contacts
+            contacts_list = self.insideview_fetcher.search_contacts(max_no_results=no_comps_to_process_single_iter*50,**filters_dic)
+            logging.info('no contact search results :{}'.format(len(contacts_list)))
+            if contacts_list:
+                self.data_util.save_contacts_seach_res(list_id,contacts_list)
 
     def upload_company_url_list(self,csv_loc=None,list_id=None):
         '''
