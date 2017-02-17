@@ -224,6 +224,8 @@ class InsideviewCompanyFetcher(object):
             ppl_details = self.data_util.get_people_details_for_email_find(list_id=list_id,comp_ids=comp_ids,
                                             desig_list=desig_list,people_details_file=people_details_file)
             logging.info('No of people for whom contact_id search will be done:{}'.format(len(ppl_details)))
+            if len(ppl_details)>5000 and not people_details_file and not desig_list:
+                raise ValueError('More than 5000 people matched for email fetching. Reduce the number')
             if ppl_details:
                 self.search_for_matching_people_from_ppl_details(list_id,ppl_details,n_threads=n_threads)
             # fetching emails
@@ -261,6 +263,8 @@ class InsideviewCompanyFetcher(object):
             new_contact_ids = self.data_util.get_new_contact_ids_to_fetch(list_id,comp_ids,
                                                    max_res_per_company=max_res_per_company,desig_list=desig_list,
                                                    new_contact_ids_file_loc=new_contact_ids_file_loc)
+            if len(new_contact_ids)>5000:
+                raise ValueError('Too many emails to fetch. Tighten the condition')
             if new_contact_ids:
                 logging.info('getting emails for new contact ids')
                 self.fetch_people_details_from_newcontact_ids(new_contact_ids,retrieve_comp_dets= 0)
