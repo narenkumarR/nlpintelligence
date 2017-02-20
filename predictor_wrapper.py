@@ -12,6 +12,8 @@ model_class_map_dic = {
            'Positive':'actionable',
            'random':'nurture',
            'Bounced' : 'bounced',
+           'Hard_Bounce' : 'bounced',
+           'Soft_Bounce' : 'bounced',
            'Negative_DNC' : 'negative',
            'Negative_Negative' : 'negative',
            'Negative_Nurture' : 'nurture',
@@ -54,7 +56,7 @@ nb_l2_neu_short = l2_models_dic['nb_action_neutral_short']
 nb_l2_neu_short.default_class = ['Nurture']
 
 # regex for detecting bounced mails
-bounce_regex_str = r"Delivery to the following recipient failed|message that you sent could not be delivered"\
+hard_bounce_regex_str = r"Delivery to the following recipient failed|message that you sent could not be delivered"\
                 "|Google tried to deliver your message, but it was rejected by the server"\
                 "|Domain name not found|You have reached a limit for sending mail"\
                 "|Delivery to the following recipient has been delayed"\
@@ -62,7 +64,12 @@ bounce_regex_str = r"Delivery to the following recipient failed|message that you
                 "|Unable to deliver message to|Delivery failed for the following reason"\
                 "|Delivery has failed to these recipients or groups"
 
-bounce_regex = re.compile(bounce_regex_str,re.IGNORECASE)
+soft_bounce_regex_str = r"address(es)?(.){,10}permanent(.){,10}(fatal error|fail)" \
+                        r"|(e)?mail (account|address)(.){,35}does not exist" \
+                        r"|(message|(e)?mail) to (.{,20}@.{,20}) (was undeliverable|not (be )?delivered)"
+
+soft_bounce_regex = re.compile(soft_bounce_regex_str,re.IGNORECASE)
+hard_bounce_regex = re.compile(hard_bounce_regex_str,re.IGNORECASE)
 
 # following regular expression are used for hard matching
 neg_neg_regex_str = r"(\.|,|hi|^)( |\n)*we are good(\.|$)|we are good[a-z ]+current|not at this time|not for us\."
@@ -90,8 +97,10 @@ def get_prediction_textinput(inp_text):
         short_sent = True
     else:
         short_sent = False
-    if bounce_regex.search(inp_text):
-        final_pred = 'Bounced'
+    if hard_bounce_regex.search(inp_text):
+        final_pred = 'Hard_Bounce'
+    elif soft_bounce_regex.search(inp_text):
+        final_pred = "Soft_Bounce"
     elif outofoffice_regex.search(inp_text) :
         final_pred = 'Neutral_Out of Office'
     elif pos_regex.search(inp_text) and short_sent:
@@ -150,8 +159,8 @@ def get_prediction_jsoninput(message_body):
             final_pred = get_prediction_textinput(inp_text)
             logging.info('Worked properly. output:{}, content:{}'.format(final_pred,body_json['content'].encode('utf8')))
         except KeyError:
-            logging.exception('Key error for json, returning "Random" as output. message_body : {}'.format(message_body.encode('utf8')))
-            final_pred = 'random'
+            logging.exception('Key error for json, returning "Bounced" as output. message_body : {}'.format(message_body.encode('utf8')))
+            final_pred = 'Bounced'
         except:
             logging.exception('The following error happened. Returning "random" as output. message_body:{}'.format(message_body.encode('utf8')))
             # body_json['NLPClass'] = 'random'
