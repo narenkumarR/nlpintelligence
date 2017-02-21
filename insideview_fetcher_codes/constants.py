@@ -1,11 +1,11 @@
 
-import re
-from nltk.corpus import stopwords
+# import re
+# from nltk.corpus import stopwords
 #postgres connection details
-database='crawler_service_test'
+database='insideview_app_db'
 user='postgres'
 password='postgres'
-host='192.168.3.8'
+host='127.0.0.1'
 
 # column names in the csv file
 company_name_field = 'name'
