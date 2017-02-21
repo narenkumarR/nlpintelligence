@@ -69,10 +69,14 @@ class InsideviewContactFetcher(object):
             user_name=user,password=password,host=host,port='5432',database=database
         ))
         if get_emails:
-            query = " select c.* from " \
+            query = " (select c.* from " \
                     " crawler.insideview_contact_name_search_res b join " \
                     " crawler.insideview_contact_data c on b.contact_id = c.contact_id " \
-                    "where b.list_id = '{}' ".format(list_id)
+                    "where b.list_id = '{list_id}' )" \
+                    "union " \
+                    "( select b.* from crawler.insideview_contact_search_res a join crawler.insideview_contact_data b " \
+                    " on a.email_md5_hash=b.email_md5_hash where a.active = 't' and " \
+                    " a.list_id = '{list_id}' )".format(list_id=list_id)
             df = pd.read_sql_query(query,engine)
             df.to_csv('{}/{}_contacts_emails.csv'.format(out_loc,list_name),index=False,quoting=1,encoding='utf-8')
         if search_contacts:
