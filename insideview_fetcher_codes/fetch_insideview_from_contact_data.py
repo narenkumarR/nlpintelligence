@@ -75,7 +75,7 @@ class InsideviewContactFetcher(object):
                     "where b.list_id = '{list_id}' )" \
                     "union " \
                     "( select b.* from crawler.insideview_contact_search_res a join crawler.insideview_contact_data b " \
-                    " on a.email_md5_hash=b.email_md5_hash where a.active = 't' and " \
+                    " on a.email_md5_hash=b.email_md5_hash where b.active = 't' and " \
                     " a.list_id = '{list_id}' )".format(list_id=list_id)
             df = pd.read_sql_query(query,engine)
             df.to_csv('{}/{}_contacts_emails.csv'.format(out_loc,list_name),index=False,quoting=1,encoding='utf-8')
