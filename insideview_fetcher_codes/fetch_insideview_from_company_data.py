@@ -209,7 +209,7 @@ class InsideviewCompanyFetcher(object):
         if search_contacts:
             # search for people from these comp_ids
             logging.info('starting contact search')
-            comp_ids_to_search = self.data_util.get_companies_for_contact_search(list_id,comp_contries_loc,1,
+            comp_ids_to_search = self.data_util.get_companies_for_contact_search(list_id,comp_contries_loc,0,
                                                          comp_ids_to_find_contacts_file_loc)
             if comp_ids_to_search:
                 self.search_contacts_from_company_ids(list_id,company_ids=comp_ids_to_search,max_res_per_company=max_res_per_company,

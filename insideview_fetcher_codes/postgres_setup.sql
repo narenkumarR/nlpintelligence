@@ -225,7 +225,6 @@ drop table if exists crawler.insideview_contact_name_search_res;
 create table crawler.insideview_contact_name_search_res
    (id serial primary key,
     list_id UUID,
-    list_items_id UUID,
     first_name text,
     middle_name text,
     last_name text,
