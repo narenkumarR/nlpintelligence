@@ -46,7 +46,7 @@ snowball_stemmer = SnowballStemmer('english')
 wordnet_lemmatizer = WordNetLemmatizer()
 reg_exp = re.compile('[^a-zA-Z ]',re.IGNORECASE)
 
-def tokenizer(text,stem_type='lemmatize',phrase_generation=False):
+def tokenizer(text,stem_type='lemmatize',phrase_generation=False,synonyms=False):
     '''This function takes a text as input and return a list of words after stemming/lemmatization,
               stop word removal and phrases if phrase_generation is True
     stem_type : lemmatize/stem
@@ -74,9 +74,13 @@ def tokenizer(text,stem_type='lemmatize',phrase_generation=False):
             phrs = []
         # stopword removal
         wrds = wrds+phrs
-        return word_tokenize(reg_exp.sub(' ',' '.join(wrds)))
+        tokens = word_tokenize(reg_exp.sub(' ',' '.join(wrds)))
     else:
-        return word_tokenize(reg_exp.sub(' ',text))
+        tokens = word_tokenize(reg_exp.sub(' ',text))
+    if synonyms:
+        # todo: need to add this
+        raise NotImplementedError
+    return tokens
 
 class ProcessText(object):
     '''
@@ -112,9 +116,10 @@ class ProcessText(object):
         words = [word[:-1] if word[-1]=='\n' else word for word in words ]
         return words
 
+
     def gen_document_term_matrix(self,text_documents,vectorizer_type='Count',synonyms_dic={},stem_type='lemmatize',
-                                 phrase_generation=False,
-                stop_words=[],lower=True,n_gram_range=(1,2),max_df=0.9,min_df=0.01,vocabulary=None,**kwargs):
+                                 phrase_generation=False,stop_words=[],lower=True,n_gram_range=(1,2),
+                                 max_df=0.9,min_df=0.01,vocabulary=None,**kwargs):
         '''
         :param text: input text
         :param vectorizer_type: 'Count' or 'Tfidf'
@@ -147,6 +152,16 @@ class ProcessText(object):
             text_series = text_series.apply(lambda text : 
                                             multiple_replace(synonyms_dic,text,word_limit=True,
                                                              flags=re.IGNORECASE if self.lower else 0))
+        self.create_vectorizer_object(vectorizer_type=vectorizer_type,stem_type=stem_type,phrase_generation=phrase_generation,
+                                      stop_words=stop_words,lower=lower,n_gram_range=n_gram_range,max_df=max_df,min_df=min_df,
+                                      vocabulary=vocabulary,**kwargs)
+        dtm = self.vectorizer.fit_transform(text_series)
+        self.vocabulary = self.get_vectorizer_vocabulary(self.vectorizer)
+        return dtm,self.vocabulary
+
+    def create_vectorizer_object(self,vectorizer_type ='Count',stem_type='lemmatize',
+                                 phrase_generation=False,stop_words=[],lower=True,n_gram_range=(1,2),
+                                 max_df=0.9,min_df=0.01,vocabulary=None,**kwargs):
         if vectorizer_type == 'Count':
             self.vectorizer = CountVectorizer(decode_error='ignore',
                     tokenizer=lambda text: tokenizer(text,stem_type=stem_type,phrase_generation=phrase_generation),
@@ -157,10 +172,7 @@ class ProcessText(object):
                     tokenizer=lambda text: tokenizer(text,stem_type=stem_type,phrase_generation=phrase_generation),
                     lowercase=lower,ngram_range=n_gram_range,max_df=max_df,min_df=min_df,vocabulary=vocabulary,
                     stop_words=stop_words,**kwargs)
-        dtm = self.vectorizer.fit_transform(text_series)
-        self.vocabulary = self.get_vectorizer_vocabulary(self.vectorizer)
-        return dtm,self.vocabulary
-    
+
     def get_vectorizer_vocabulary(self,vectorizer):
         vocab_list = [0]*len(vectorizer.vocabulary_)
         for wrd in vectorizer.vocabulary_:
@@ -168,8 +180,8 @@ class ProcessText(object):
         return vocab_list
 
     def gen_dtm_from_files(self,text_documents,vectorizer_type='Count',synonym_loc=None,stem_type='lemmatize',
-                                 phrase_generation=False,
-                stop_words_loc=None,lower=True,n_gram_range=(1,2),max_df=0.9,min_df=0.01,vocabulary_loc=None,**kwargs):
+                                 phrase_generation=False,stop_words_loc=None,lower=True,n_gram_range=(1,2),
+                                 max_df=0.9,min_df=0.01,vocabulary_loc=None,**kwargs):
         '''use this function to get document term matrix , when the stopwords, synonyms etc are available in files
         :param text_documents:
         :param vectorizer_type:Count or Tfidf
@@ -202,7 +214,7 @@ class ProcessText(object):
             max_df=max_df,min_df=min_df,vocabulary=self.vocabulary,**kwargs
         )
     
-    def transform_text_list(self,text_documents):
+    def get_matrix_test(self,text_documents):
         '''use this function to generate a document term matrix for a text list using existing vectorizer. ie, the 
          vectorizer should be generated already using a text input'''
         text_series = Series(text_documents)
@@ -215,4 +227,26 @@ class ProcessText(object):
                                                              flags=re.IGNORECASE if self.lower else 0))
         dtm = self.vectorizer.transform(text_series)
         return dtm,self.vocabulary
-        
+
+    def generate_vectorizer_iter_list(self,text_documents_iter,vectorizer_type='Count',synonym_loc=None,
+                                stem_type='lemmatize',phrase_generation=False,stop_words_loc=None,lower=True,
+                                n_gram_range=(1,2),max_df=0.9,min_df=0.01,**kwargs):
+        if synonym_loc:
+            synonyms_dic = self.load_synonyms(synonym_loc)
+        else:
+            synonyms_dic = None
+        if stop_words_loc:
+            stop_words = self.load_words_from_file(stop_words_loc)
+        else:
+            stop_words = []
+        all_vocab = set()
+        for text_documents in text_documents_iter:
+            _,vocabulary = self.gen_document_term_matrix(text_documents=text_documents,vectorizer_type=vectorizer_type,
+                                  synonyms_dic=synonyms_dic,stem_type=stem_type,phrase_generation=phrase_generation,
+                                  stop_words=stop_words,lower=lower,n_gram_range=n_gram_range,max_df=max_df,
+                                  min_df=min_df,vocabulary=None,**kwargs)
+            all_vocab.update(vocabulary)
+        self.vocabulary = list(all_vocab)
+        self.create_vectorizer_object(vectorizer_type=vectorizer_type,stem_type=stem_type,phrase_generation=phrase_generation,
+                                      stop_words=stop_words,lower=lower,n_gram_range=n_gram_range,max_df=max_df,min_df=min_df,
+                                      vocabulary=self.vocabulary,**kwargs)
