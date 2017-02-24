@@ -136,7 +136,7 @@ class PreProcessor(object):
             return pd.DataFrame(),[]
         else:
             text_documents = df_text.apply(lambda x: '. '.join(list(x)),1)
-            return self.text_processor.transform_text_list(text_documents)
+            return self.text_processor.get_matrix_test(text_documents)
     
     def get_categorical_labels_train(self,df_categorical):
         ''' use this in training data. use get_categorical_labels for test data '''
