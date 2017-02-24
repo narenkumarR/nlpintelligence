@@ -4,6 +4,7 @@ import psycopg2
 import logging
 from constants import database,user,password,host
 
+
 class PostgresConnect(object):
     '''
     '''

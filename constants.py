@@ -21,8 +21,9 @@ url_validation_reg = re.compile(
 linkedin_dets = [('joswinkj@gmail.com','joswinkj'),('sujay.seetharaman@gmail.com','qatar2022**'),
                 ('raditya.mit@gmail.com','pipecandy@1989'),('nikilav.v@gmail.com','naithrav') ]
 
-# aws server credentials (this is done to take existing results from prospect table)
-database='pipecandy_db1'
-user='pipecandy_user'
-password='pipecandy'
-host='192.168.3.6'
+database='crawler_service_test'
+user='postgres'
+password='postgres'
+host='192.168.3.8'
+
+
