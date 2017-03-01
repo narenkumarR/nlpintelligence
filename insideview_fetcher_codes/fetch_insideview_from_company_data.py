@@ -564,6 +564,7 @@ class InsideviewCompanyFetcher(object):
             raise ValueError('Need list name')
         # url_df = pd.read_csv(csv_loc)
         url_df = pd.read_csv(csv_loc,sep=None)
+        url_df.columns = [i.decode('ascii','ignore') for i in url_df.columns]
         url_df = url_df.fillna('')
         self.upload_company_url_list_df_inp(url_df,list_id)
 
@@ -621,6 +622,7 @@ class InsideviewCompanyFetcher(object):
                 # raise ValueError('the list name given do not have any records')
                 query = " insert into crawler.list_table_insideview_companies (list_name) values (%s) "
                 self.con.execute(query,(list_name,))
+                self.con.commit()
                 self.con.execute("select id from crawler.list_table_insideview_companies where list_name = %s",(list_name,))
                 res = self.con.cursor.fetchall()
             else:
