@@ -60,7 +60,16 @@ class InsideviewDataUtil(object):
             comp_ids_present = [i[0] for i in comp_ids_present]
             comp_ids_not_present = list(set(comp_ids)-set(comp_ids_present))
             if comp_ids_not_present:
-                raise ValueError('Some company ids are not present in the company search results. eg:{}'.format(comp_ids_not_present[0]))
+                query = " select distinct company_id from crawler.insideview_company_search_res where " \
+                        " list_id = %s and company_id in %s"
+                self.con.execute(query,(list_id,tuple(comp_ids_not_present),))
+                comp_ids_present = self.con.cursor.fetchall()
+                comp_ids_present = [i[0] for i in comp_ids_present]
+                comp_ids_not_present_in_comp_search = list(set(comp_ids_not_present)-set(comp_ids_present))
+                if comp_ids_not_present_in_comp_search:
+                    raise ValueError('Some company ids are not present in the company search results. eg:{}'.format(
+                        comp_ids_not_present_in_comp_search[0]
+                    ))
             if find_new_companies_only:
                 return comp_ids_not_present
             else:
@@ -480,7 +489,7 @@ class InsideviewDataUtil(object):
                         self.con.cursor.execute(query,(list_id,row['people_id'],))
                         res = self.con.cursor.fetchall()
                         if not res:
-                            raise ValueError('people_id is not part of the contact search res for this list_name.'
+                            raise ValueError('A people_id is not part of the contact search res for this list_name.'
                                              'please check the input. problematic people_id:{}'.format(row['people_id']))
                         # the person is not searched already, so add it to the list of persons to search
                         people_details.append(tuple(row[['company_id','first_name','last_name','full_name','people_id']]))
