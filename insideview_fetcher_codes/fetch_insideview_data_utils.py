@@ -60,10 +60,7 @@ class InsideviewDataUtil(object):
             comp_ids_present = [i[0] for i in comp_ids_present]
             comp_ids_not_present = list(set(comp_ids)-set(comp_ids_present))
             if comp_ids_not_present:
-                df['companyId'] = df['company_id']
-                df_not_present = df[df['company_id'].isin(comp_ids_not_present)]
-                dic_list = df_not_present.to_dict('records')
-                self.save_company_search_res_single(list_id,None,dic_list)
+                raise ValueError('Some company ids are not present in the company search results. eg:{}'.format(comp_ids_not_present[0]))
             if find_new_companies_only:
                 return comp_ids_not_present
             else:
@@ -465,38 +462,30 @@ class InsideviewDataUtil(object):
         if people_details_file:
             # todo : this is not working properly. so need to make this better
             df = pd.read_csv(people_details_file)
+            df = df.fillna('')
             if 'company_id' not in df:
                 return []
             people_details = []
             for index,row in df.iterrows():
-                if row['company_id'] and row['last_name']:
-                    # check if the person is not already searched
+                if row['people_id']:
+                    # check if the person is not already searched- earlier used name and company_id, change it to people id
                     query = " select id from crawler.insideview_contact_name_search_res where list_id=%s and " \
-                            " company_id = %s and last_name=%s and first_name=%s"
-                    self.con.cursor.execute(query,(list_id,row['company_id'],row['last_name'],row['first_name'],))
+                            " input_name_id=%s"
+                    self.con.cursor.execute(query,(list_id,row['people_id'],))
                     person_search_id = self.con.cursor.fetchall()
                     if not person_search_id:
-                        # the person is not searched already, so add it to the list of persons to search
-                        people_details.append(tuple(row[['company_id','first_name','last_name','full_name','people_id']]))
-                        # check if the person is present in the contact_search table. if not, insert there also
+                        # check if the person is present in the contact_search table. if not, raise error
                         query = " select id from crawler.insideview_contact_search_res where list_id=%s and " \
-                                " company_id=%s and first_name=%s and last_name=%s and full_name=%s "
-                        self.con.cursor.execute(query,(list_id,row['company_id'],row['first_name'],row['last_name'],row['full_name'],))
+                                " people_id=%s "
+                        self.con.cursor.execute(query,(list_id,row['people_id'],))
                         res = self.con.cursor.fetchall()
                         if not res:
-                            # todo : add all fields. try to optimize
-                            query = " insert into crawler.insideview_contact_search_res (list_id,first_name,last_name," \
-                                    " full_name,people_id,company_id) values (%s,%s,%s,%s,%s,%s) "
-                            self.con.cursor.execute(query,(list_id,row['first_name'],row['last_name'],row['full_name'],row['people_id'],row['company_id'],))
-                            self.con.commit()
-                            # check if the company id is present in the company search res table
-                            query = " select id from crawler.insideview_company_search_res where company_id=%s"
-                            self.con.cursor.execute(query,(row['company_id'],))
-                            res = self.con.cursor.fetchall()
-                            if not res: #then insert into the company search res table,this company id
-                                row_dic = row.to_dict()
-                                row_dic['companyId'] = row_dic['company_id']
-                                self.save_company_search_res_single(list_id,None,[row_dic])
+                            raise ValueError('people_id is not part of the contact search res for this list_name.'
+                                             'please check the input. problematic people_id:{}'.format(row['people_id']))
+                        # the person is not searched already, so add it to the list of persons to search
+                        people_details.append(tuple(row[['company_id','first_name','last_name','full_name','people_id']]))
+                else:
+                    raise ValueError('Need people_id for all inputs. Please check the input file')
             return people_details
         else:
             if not comp_ids:

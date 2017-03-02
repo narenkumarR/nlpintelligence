@@ -68,6 +68,7 @@ class InsideviewCompanyFetcher(object):
         '''
         logging.basicConfig(filename='logs/insideview_fetching_log_file_{}.log'.format(self.list_name),
                             level=logging.INFO,format='%(asctime)s %(message)s')
+        logging.info('starting process for list_name:{}, list_id:{}'.format(self.list_name,self.list_id))
         if out_loc[-1] == '/':
             out_loc = out_loc[:-1]
         self.con.get_cursor()
