@@ -51,18 +51,18 @@ class PostgresConnect(object):
         :param commit : if commit, commit at the end
         :return:
         '''
-        try:
-            if self.cursor.closed:
-                self.get_cursor()
-            if args:
-                self.cursor.execute(query,args)
-            else:
-                self.cursor.execute(query)
-            if commit:
-                self.commit()
-        except:
-            logging.exception('error happened while trying to execute query:{}, args:{}'.format(query,args))
-            self.con.rollback()
+        # try:
+        if self.cursor.closed:
+            self.get_cursor()
+        if args:
+            self.cursor.execute(query,args)
+        else:
+            self.cursor.execute(query)
+        if commit:
+            self.commit()
+        # except:
+        #     logging.exception('error happened while trying to execute query:{}, args:{}'.format(query,args))
+        #     self.con.rollback()
             # self.close_cursor()
             # self.get_cursor()
 

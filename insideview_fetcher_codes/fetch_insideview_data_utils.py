@@ -52,6 +52,7 @@ class InsideviewDataUtil(object):
         ''' get the list of companies for which the insideview contact search will be done '''
         if comp_ids_to_find_contacts_file_loc:
             df = pd.read_csv(comp_ids_to_find_contacts_file_loc)
+            df = df[~pd.isnull(df['company_id'])]
             comp_ids = list(set(df['company_id']))
             query = " select distinct company_id from crawler.insideview_contact_search_res where " \
                         " list_id=%s and company_id in %s"

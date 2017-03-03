@@ -315,7 +315,7 @@ class InsideviewCompanyFetcher(object):
 
     def search_for_matching_people_from_ppl_details(self,list_id,ppl_details,n_threads=10):
         '''
-        :param ppl_details:
+        :param ppl_details:list of tuples [(companyId,firstName,lastName,fullName,peopleId),...]
         :param n_threads:
         :return:
         '''
