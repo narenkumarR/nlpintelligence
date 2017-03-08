@@ -4,7 +4,7 @@ import re
 firefox_binary_loc = 'firefox_binaries/firefox-46/firefox'
 
 # columns in csvs
-website_column = 'website'
+website_column = 'domain'
 company_linkedin_col = 'company_linkedin_url'
 id_col = 'id'
 search_text_column = 'text'
