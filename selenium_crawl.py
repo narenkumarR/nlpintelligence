@@ -26,11 +26,11 @@ def get_status(driver):
 
 class SeleniumParser(object):
     def __init__(self,browser = 'Firefox',browser_loc='/home/madan/Downloads/phantomjs-2.1.1-linux-x86_64/bin/phantomjs',
-                 visible = False,proxy = False,proxy_ip=None,proxy_port=None,page_load_timeout=80,use_tor=False):
+                 visible = False,proxy = False,proxy_ip=None,proxy_port=None,page_load_timeout=120,use_tor=False):
         self.start_browser(browser,browser_loc,visible,proxy,proxy_ip,proxy_port,page_load_timeout,use_tor)
 
     def start_browser(self,browser = 'Firefox',browser_loc='/home/madan/Downloads/phantomjs-2.1.1-linux-x86_64/bin/phantomjs',
-                 visible = False,proxy = False,proxy_ip=None,proxy_port=None,page_load_timeout=80,use_tor=False):
+                 visible = False,proxy = False,proxy_ip=None,proxy_port=None,page_load_timeout=120,use_tor=False):
         '''Note: This module was developed to work with multiple browsers, but as of now works properly only for firefox
         :param browser: browser name {'Firefox','PhantomJS'}
         :param browser_loc: location of browser. for firefox this is not needed generally
@@ -66,19 +66,21 @@ class SeleniumParser(object):
                         firefox_profile.set_preference("network.proxy.socks", proxy_ip)
                         firefox_profile.set_preference("network.proxy.socks_port", int(proxy_port))
                         firefox_profile.update_preferences()
-                self.browser = webdriver.Firefox(firefox_binary=FirefoxBinary(firefox_binary_loc),firefox_profile=firefox_profile)
+                self.browser = webdriver.Firefox(firefox_profile=firefox_profile)
+                # self.browser = webdriver.Firefox(firefox_binary=FirefoxBinary(firefox_binary_loc),firefox_profile=firefox_profile)
             else:
                 firefox_profile.set_preference( "network.proxy.type", 1 )
                 firefox_profile.set_preference( "network.proxy.socks_version", 5 )
                 firefox_profile.set_preference( "network.proxy.socks", '127.0.0.1' )
                 firefox_profile.set_preference( "network.proxy.socks_port", 9050 )
                 firefox_profile.set_preference( "network.proxy.socks_remote_dns", True )
-                self.browser = webdriver.Firefox(firefox_binary=FirefoxBinary(firefox_binary_loc),firefox_profile=firefox_profile)
+                self.browser = webdriver.Firefox(firefox_profile=firefox_profile)
+                # self.browser = webdriver.Firefox(firefox_binary=FirefoxBinary(firefox_binary_loc),firefox_profile=firefox_profile)
         self.browser.set_page_load_timeout(page_load_timeout)
         self.pid = self.browser.binary.process.pid
         logging.info('selenium crawl: browser started. pid : {}'.format(self.pid))
 
-    @timeout(120)
+    # @timeout(120)
     def get_url(self,url):
         '''
         :param url:
@@ -107,7 +109,7 @@ class SeleniumParser(object):
         else:
             html = self.get_url(url)
             soup = BeautifulSoup(html)
-        return soup
+            return soup
 
     def get_current_page(self):
         ''' get current page in the browser(without loading, useful in javascript loading)
