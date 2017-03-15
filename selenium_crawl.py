@@ -80,7 +80,7 @@ class SeleniumParser(object):
         self.pid = self.browser.binary.process.pid
         logging.info('selenium crawl: browser started. pid : {}'.format(self.pid))
 
-    # @timeout(120)
+    @timeout(150)
     def get_url(self,url):
         '''
         :param url:
