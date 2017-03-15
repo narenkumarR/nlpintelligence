@@ -3,6 +3,7 @@ __author__ = 'joswin'
 import datetime
 import logging
 import json
+import multiprocessing
 import pandas as pd
 import re
 from optparse import OptionParser
@@ -65,6 +66,7 @@ class WebsiteCrawler(object):
         :return:
         '''
         self.browser.exit()
+        self.con.close_connection()
 
     # @timeout(1800)
     def get_res_webpage_base_url(self,base_url):
@@ -77,9 +79,11 @@ class WebsiteCrawler(object):
         try:
             soup = self.browser.get_soup(base_url)
         except : #if connection error, try with secure true
-            logging.info('error happened with base url. Try again')
+            logging.exception('error happened with base url. Try again with secure as True')
             base_url = self.url_cleaner.clean_url(base_url,True)
             try:
+                self.browser.exit()
+                self.browser.start_browser(visible=self.visible)
                 soup = self.browser.get_soup(base_url)
             except:
                 logging.exception('Base url crawling gave error. Returning ')
@@ -101,8 +105,10 @@ class WebsiteCrawler(object):
         all_urls_texts, all_emails = self.soup_util.get_all_links_soupinput(soup,base_url)
         # find suitable urls and crawl them
         urls_texts_to_crawl = self.find_urls_to_crawl(all_urls_texts,base_url)
+        logging.info('No of next level urls to crawl for url {}:{}'.format(base_url,len(urls_texts_to_crawl)))
         self.crawl_urls(urls_texts_to_crawl,base_url,all_emails,all_urls_texts,url_texts,url_sources)
         product_urls_texts_to_crawl = self.find_product_urls_to_crawl(all_urls_texts,base_url)
+        logging.info('No fo product urls to crawl for url {}:{}'.format(base_url,len(product_urls_texts_to_crawl)))
         if product_urls_texts_to_crawl:
             feat_dic['product_urls'] = product_urls_texts_to_crawl
             self.crawl_urls(product_urls_texts_to_crawl,base_url,all_emails,all_urls_texts,url_texts,url_sources)
@@ -129,7 +135,7 @@ class WebsiteCrawler(object):
     def find_product_urls_to_crawl(self,all_urls_texts,base_url):
         tldextract_obj = tldextract.extract(base_url)
         base_url_domain = tldextract_obj.domain+'.'+tldextract_obj.suffix
-        all_urls_texts = [i for i in all_urls_texts if base_url_domain in i[0]]
+        all_urls_texts = [i for i in all_urls_texts if base_url_domain in i[0] and not self.social_url_searcher.search(i[0])]
         df = pd.DataFrame(all_urls_texts,columns=['url','url_text'])
         df['url'] = df['url'].fillna('').apply(lambda x:x.strip())
         df['url_text'] = df['url_text'].fillna('').apply(lambda x:x.strip())
@@ -140,7 +146,8 @@ class WebsiteCrawler(object):
         urls2 = list(df.sort_values('url_len',ascending=False)['url'])[:5]
         urls3 = [url for url,text in all_urls_texts if self.product_url_format.search(url)]
         urls = list(set(urls1+urls2+urls3))
-        return [(url,'') for url in urls]
+        shuffle(urls)
+        return [(url,'') for url in urls[:10]]
 
     def find_product_categories(self,all_urls_texts,base_url):
         tldextract_obj = tldextract.extract(base_url)
@@ -187,7 +194,8 @@ class WebsiteCrawler(object):
         tldextract_obj = tldextract.extract(base_url)
         base_url_domain = tldextract_obj.domain+'.'+tldextract_obj.suffix
         matching_urls = [(url.strip(),text.strip()) for url,text in all_urls_texts if (self.next_level_url_priority_searcher.search(url) or
-                         self.next_level_url_priority_searcher.search(text)) and base_url_domain in url]
+                         self.next_level_url_priority_searcher.search(text)) and base_url_domain in url and
+                         not self.social_url_searcher.search(url)]
         matching_urls = list(set(matching_urls))
         matching_urls1 = [(url.strip(),text.strip()) for url,text in all_urls_texts if (self.next_level_url_searcher.search(url) or
                          self.next_level_url_searcher.search(text)) and base_url_domain in url]
@@ -267,7 +275,7 @@ class WebsiteCrawler(object):
                 break #can change this logic to be present more than x% of pages also
         return product_recom_present
 
-    # @timeout(1800)
+    # @timeout(120)
     def get_res_webpage_base(self,base_url):
         '''
         :param base_url:
@@ -337,16 +345,14 @@ class WebCrawlerScheduler(object):
                 try:
                     if not website:
                         continue
-                    logging.info('Trying for url: {}'.format(website))
-                    if not website:
-                        pass
+                    logging.info('Trying for url: {},thread:{}'.format(website,threading.currentThread()))
                     website_clean = wpe.url_cleaner.clean_url(website,False)
                     if url_validation_reg.search(website_clean):
                         ind += 1
                         success = wpe.get_res_webpage_base(base_url=website_clean)
                         if success:
                             finished_queue.put((website,True))
-                        if not success :
+                        else :
                             finished_queue.put((website,False))
                             logging.info('error happened while trying for website:{}. Restarting browser'.format(website))
                             wpe.browser.exit()
@@ -361,10 +367,17 @@ class WebCrawlerScheduler(object):
                         wpe.browser.exit()
                     except:
                         pass
-                    wpe.browser.start_browser(visible=wpe.visible)
+                    browser_started = False
+                    # this will try to start the browser till it starts
+                    while not browser_started:
+                        try:
+                            wpe.browser.start_browser(visible=wpe.visible)
+                            browser_started = True
+                        except:
+                            logging.exception('error while starting browser. Try again after some time')
+                            time.sleep(30)
                 in_queue.task_done()
-            wpe.browser.exit()
-            wpe.con.close_connection()
+            wpe.close()
         logging.info('workers starting')
         for i in range(n_threads):
             worker_tmp = threading.Thread(target=worker)
@@ -376,7 +389,7 @@ class WebCrawlerScheduler(object):
         time.sleep(60)
         self.crawler_running = False
 
-    def run_website_crawl_table_input(self,table_name,n_threads=3,visible=False,min_pages=3):
+    def run_website_crawl_table_input_threaded(self,table_name,n_threads=3,visible=False,min_pages=3):
         '''
         :param table_name:
         :param n_threads:
@@ -415,7 +428,61 @@ class WebCrawlerScheduler(object):
         con.close_connection()
         logging.info('completed run_website_crawl_table_input')
 
-    def run_website_crawl_csv_input(self,website_file,table_name,n_threads=3,visible=False,min_pages=3):
+    def run_website_crawl(self,websites,table_name,visible,min_pages):
+        con = PostgresConnect()
+        con.connect()
+        wpe = WebsiteCrawler(visible=visible,min_pages_per_link=min_pages)
+        ind = 0
+        current = multiprocessing.current_process()
+        for website in websites:
+            try:
+                if not website:
+                    continue
+                logging.info('Trying for url: {},process_name:{}'.format(website,current.name))
+                website_clean = wpe.url_cleaner.clean_url(website,False)
+                if url_validation_reg.search(website_clean):
+                    ind += 1
+                    success = wpe.get_res_webpage_base(base_url=website_clean)
+                    if success:
+                        con.cursor.execute("update {} set extraction_tried= 't',extraction_success = 't' "
+                                   " where domain=%s".format(table_name),(website,))
+                    else:
+                        logging.info('error happened while trying for website:{}. Restarting browser'.format(website))
+                        con.cursor.execute("update {} set extraction_tried='t',extraction_success = 'f' "
+                                   " where domain=%s".format(table_name),(website,))
+                        wpe.browser.exit()
+                        wpe.browser.start_browser(visible=wpe.visible)
+                    con.commit()
+                    if ind % 50 == 0:
+                        ind = 0
+                        wpe.browser.exit()
+                        wpe.browser.start_browser(visible=wpe.visible)
+            except:
+                logging.exception('Some error happened. continuing the run')
+                try:
+                    wpe.browser.exit()
+                except:
+                    pass
+                wpe.browser.start_browser(visible=wpe.visible)
+        con.close_connection()
+        wpe.close()
+
+    def run_website_crawl_table_input(self,table_name,visible,min_pages):
+        '''
+        '''
+        logging.info('run_website_crawl_table_input started for table:{}'.format(table_name))
+        con = PostgresConnect()
+        con.connect()
+        con.cursor.execute("select distinct domain from {} where extraction_tried='f' ".format(table_name))
+        con.close_connection()
+        websites = con.cursor.fetchall()
+        websites = [i[0] for i in websites]
+        shuffle(websites)
+        logging.info('no of websites for which crawling will be done:{}'.format(len(websites)))
+        self.run_website_crawl(websites,table_name,visible,min_pages)
+        logging.info('completed run_website_crawl_table_input')
+
+    def run_website_crawl_csv_input(self,website_file,table_name,visible=False,min_pages=3):
         df = pd.read_csv(website_file)
         domains = df[website_column]
         con = PostgresConnect()
@@ -429,7 +496,7 @@ class WebCrawlerScheduler(object):
         con.cursor.execute(insert_query, domains)
         con.commit()
         con.close_connection()
-        self.run_website_crawl_table_input(table_name,n_threads,visible,min_pages)
+        self.run_website_crawl_table_input(table_name,visible,min_pages)
 
 if __name__ == "__main__":
     optparser = OptionParser()
@@ -463,7 +530,9 @@ if __name__ == "__main__":
     logging.info('started crawling')
     crawler_scheduler = WebCrawlerScheduler()
     if website_file:
-        crawler_scheduler.run_website_crawl_csv_input(website_file,table_name,n_threads=n_threads,visible=visible,min_pages=min_pages)
+        # crawler_scheduler.run_website_crawl_csv_input(website_file,table_name,n_threads=n_threads,visible=visible,min_pages=min_pages)
+        crawler_scheduler.run_website_crawl_csv_input(website_file,table_name,visible=visible,min_pages=min_pages)
     elif table_name:
-        crawler_scheduler.run_website_crawl_table_input(table_name,n_threads,visible,min_pages)
+        # crawler_scheduler.run_website_crawl_table_input(table_name,n_threads,visible,min_pages)
+        crawler_scheduler.run_website_crawl_table_input(table_name,visible,min_pages)
     logging.info('completed crawling')
