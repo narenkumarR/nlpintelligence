@@ -253,6 +253,8 @@ create table crawler.insideview_api_hits (
     people_search_hits integer default 0,
     contact_fetch_hits integer default 0,
     news_api_hits integer default 0,
+    company_name_filter_search_hits integer default 0,
+    company_details_filter_search_hits integer default 0,
      created_on timestamp default current_timestamp,
      updated_on timestamp default current_timestamp
 );
@@ -273,3 +275,86 @@ create table crawler.insideview_news_data (
     updated_on timestamp default current_timestamp
 );
 
+--------------------------------------------------------------------------------
+--------------------------------------------------------------------------------
+--------------------------------------------------------------------------------
+--------------------------------------------------------------------------------
+-- company search related tables
+drop table if exists crawler.list_table_insideview_search;
+create table crawler.list_table_insideview_search (
+    id UUID PRIMARY KEY DEFAULT public.uuid_generate_v1mc(),
+    list_name text,
+    created_on timestamp default current_timestamp
+);
+
+drop table if exists crawler.list_input_insideview_search;
+create table crawler.list_input_insideview_search (
+    id UUID PRIMARY KEY DEFAULT public.uuid_generate_v1mc(),
+    list_id UUID,
+    search_type text,
+    search_parameteres json,
+    active boolean,
+    created_on timestamp default current_timestamp
+);
+
+drop table if exists crawler.insideview_company_name_filter_search;
+create table crawler.insideview_company_name_filter_search (
+    id serial primary key,
+    list_id UUID,
+    company_name text,
+    company_type text,
+    new_company_id text,
+    city text,
+    state text,
+    country text,
+    created_on timestamp default current_timestamp
+);
+
+drop table if exists crawler.insideview_company_details_filter_search;
+create table crawler.insideview_company_details_filter_search (
+    id serial primary key,
+    list_id UUID,
+    country text,
+    employees text,
+    fiscal_year_end text,
+    industry text,
+    industry_code text,
+    sub_industry text,
+    sub_industry_code text,
+    revenue text,
+    revenue_currency text,
+    sic text,
+    naics text,
+    company_type text,
+    new_company_id text,
+    city text,
+    company_status text,
+    naics_description text,
+    sic_description text,
+    state text,
+    subsidiary text,
+    company_id_md5 text,
+    british_sics text,
+    zip text
+    created_on timestamp default current_timestamp
+);
+
+
+CREATE OR REPLACE FUNCTION company_name_cleaner(text)
+RETURNS text
+AS
+$$
+DECLARE
+   company_name ALIAS FOR $1;
+   company_name_clean text;
+BEGIN
+   --company_name_clean := regexp_replace(company_name,'\y(AG)\y','');
+   --company_name_clean := regexp_replace(lower(company_name_clean),'\y(pty|llc|l\.l\.c|pvt(\.)?|private|corp(\.)?|corporation|ltd(\.)?|limited|co(\.)?|inc(\.)?|s.r.l|srl)\y','');
+   company_name_clean := regexp_replace(lower(company_name),'\.|,',' ','g');
+   company_name_clean := trim(regexp_replace(company_name_clean,' +',' ','g'));
+RETURN company_name_clean;
+END;
+$$
+LANGUAGE plpgsql
+   STABLE
+RETURNS NULL ON NULL INPUT;

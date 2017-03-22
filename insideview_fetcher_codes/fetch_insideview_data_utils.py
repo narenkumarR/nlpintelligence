@@ -4,6 +4,7 @@ __author__ = 'joswin'
 import csv
 import logging
 import hashlib
+import json
 import pandas as pd
 from postgres_connect import PostgresConnect
 from random import shuffle
@@ -596,4 +597,49 @@ class InsideviewDataUtil(object):
             new_contact_ids = [i[0] for i in new_contact_ids]
             return new_contact_ids
 
+    def save_company_name_filter_search_res(self,res_list,list_id):
+        '''result of https://api.insideview.com/api/v1/target/company/lookup
+        :param res_list:
+        :return:
+        '''
+        if res_list:
+            # insert the search results
+            res_to_insert = [
+                (list_id,res.get('name',None),res.get('companyType',None),
+                    res.get('id',None),res.get('city',None),res.get('state',None),res.get('country',None),
+                )
+                for res in res_list
+            ]
+            records_list_template = ','.join(['%s'] * len(res_to_insert))
+            insert_query = 'insert into crawler.insideview_company_name_filter_search ' \
+                           ' (list_id,company_name,company_type,new_company_id,city ,state,country)' \
+                           ' values {}'.format(records_list_template)
+            self.con.execute(insert_query, res_to_insert)
+            self.con.commit()
 
+    def save_company_details_filter_search_res(self,res_list,list_id):
+        '''result of https://api.insideview.com/api/v1/target/companies
+        :param res_list:
+        :return:
+        '''
+        if res_list:
+            res_to_insert = [
+                (list_id,res.get('country',None),res.get('employees',None),res.get('fiscalYearEnd',None),
+                 res.get('industry',None),res.get('industryCode',None),res.get('subIndustry',None),
+                 res.get('subIndustryCode',None),res.get('revenue',None),res.get('revenueCurrency',None),
+                 res.get('sic',None),res.get('naics',None),res.get('companyType',None),res.get('id',None),
+                 res.get('city',None),res.get('companyStatus',None),res.get('naicsDescription',None),
+                 res.get('sicDescription',None),res.get('state',None),res.get('subsidiary',None),
+                 res.get('companyIdMd5Hash',None),json.dumps(res.get('britishSics',None)),res.get('zip',None),
+                )
+                for res in res_list
+            ]
+            records_list_template = ','.join(['%s'] * len(res_to_insert))
+            insert_query = 'insert into crawler.insideview_company_details_filter_search ' \
+                           ' (list_id,country,employees,fiscal_year_end,industry,industry_code,sub_industry,' \
+                           'sub_industry_code,revenue,revenue_currency,sic,naics,company_type,new_company_id,city,' \
+                           'company_status,naics_description,sic_description,state,subsidiary,company_id_md5,' \
+                           'british_sics,zip)' \
+                           ' values {}'.format(records_list_template)
+            self.con.execute(insert_query, res_to_insert)
+            self.con.commit()

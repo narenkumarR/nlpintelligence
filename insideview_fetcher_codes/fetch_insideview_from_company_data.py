@@ -7,7 +7,7 @@ import time
 from sqlalchemy import create_engine
 from optparse import OptionParser
 from postgres_connect import PostgresConnect
-import datetime
+# import datetime
 
 import threading
 from Queue import Queue
@@ -280,20 +280,27 @@ class InsideviewCompanyFetcher(object):
         logging.info('no of contact_ids for which insideview fetching to be done:{}'.format(len(contact_ids)))
         in_queue = Queue(maxsize=0)
         out_queue = Queue(maxsize=0)
+        worker_queue = Queue(maxsize=0) #queue to check if threads are running, if not empty, means no workers are running
         def worker():
+            worker_queue.put(True)
             while not in_queue.empty():
-                contact_id = in_queue.get()
-                res_dic = self.insideview_fetcher.get_contact_details_from_contactid(contact_id)
-                if res_dic.get('message') in ['request throttled by insideview','1000 per 5 minute']: #throttling reached, need to do this company id again
-                    in_queue.put(contact_id)
+                try:
+                    contact_id = in_queue.get()
+                    res_dic = self.insideview_fetcher.get_contact_details_from_contactid(contact_id)
+                    if res_dic.get('message') in ['request throttled by insideview','1000 per 5 minute']: #throttling reached, need to do this company id again
+                        in_queue.put(contact_id)
+                        in_queue.task_done()
+                        time.sleep(10)
+                        continue
+                    elif res_dic.get('message'):
+                        raise ValueError('Error happened. {}'.format(res_dic))
+                    out_queue.put(res_dic)
+                    self.api_counter.contact_fetch_hits += 1
                     in_queue.task_done()
-                    time.sleep(10)
-                    continue
-                elif res_dic.get('message'):
-                    raise ValueError('Error happened. {}'.format(res_dic))
-                out_queue.put(res_dic)
-                self.api_counter.contact_fetch_hits += 1
-                in_queue.task_done()
+                except:
+                    logging.exception('Error happened in worker in fetch_people_details_from_contact_ids')
+                    _ = worker_queue.get()
+                    break
         for contact_id in contact_ids:
             in_queue.put(contact_id)
         for i in range(n_threads):
@@ -301,16 +308,17 @@ class InsideviewCompanyFetcher(object):
             worker_tmp.setDaemon(True)
             worker_tmp.start()
         time.sleep(20)
-        while not out_queue.empty() or not in_queue.empty():
+        while (not out_queue.empty() or not in_queue.empty()) and not worker_queue.empty():
             logging.info('inqueue size:{},outqueue size:{}'.format(in_queue.qsize(),out_queue.qsize()))
             res_dic = out_queue.get()
             self.data_util.save_contact_info(res_dic)
             out_queue.task_done()
-
             if out_queue.qsize() < 5:
                 time.sleep(10)
         time.sleep(20)
         logging.info('inqueue size:{},outqueue size:{}'.format(in_queue.qsize(),out_queue.qsize()))
+        if worker_queue.empty():
+            raise ValueError('All workers stopped in fetch_people_details_from_contact_ids. Check the logs ')
         logging.info('finished fetch_people_details_from_contact_ids')
 
     def search_for_matching_people_from_ppl_details(self,list_id,ppl_details,n_threads=10):
@@ -323,35 +331,42 @@ class InsideviewCompanyFetcher(object):
         in_queue_tuple_order_keys = ['companyId','firstName','lastName','fullName']
         in_queue = Queue(maxsize=0)
         out_queue = Queue(maxsize=0)
+        worker_queue = Queue(maxsize=0) #queue to check if threads are running, if not empty, means no workers are running
         def worker():
+            worker_queue.put(True)
             while not in_queue.empty():
-                dets_tuple,person_id = in_queue.get()
-                # logging.info('search for person_id:{},dets_tuple:{}'.format(person_id,dets_tuple))
-                search_dic = {}
-                for key,value in zip(in_queue_tuple_order_keys,dets_tuple):
-                    if value:
-                        search_dic[key] = value
-                if not search_dic:
-                    out_queue.put(([],person_id))
+                try:
+                    dets_tuple,person_id = in_queue.get()
+                    # logging.info('search for person_id:{},dets_tuple:{}'.format(person_id,dets_tuple))
+                    search_dic = {}
+                    for key,value in zip(in_queue_tuple_order_keys,dets_tuple):
+                        if value:
+                            search_dic[key] = value
+                    if not search_dic:
+                        out_queue.put(([],person_id))
+                        in_queue.task_done()
+                        continue
+                    # logging.info('search_dic:{}'.format(search_dic))
+                    res_dic = self.insideview_fetcher.search_insideview_contact(search_dic)
+                    logging.info('contact name search:')
+                    logging.info('search_dic:{}'.format(search_dic))
+                    logging.info('res_dic:{}'.format(res_dic))
+                    self.api_counter.people_search_hits += 1
+                    # logging.info('res_dic:{}'.format(res_dic))
+                    if res_dic.get('message') in ['request throttled by insideview','1000 per 5 minute']: #throttling reached, need to do this company id again
+                        in_queue.put((dets_tuple,person_id))
+                        in_queue.task_done()
+                        time.sleep(10)
+                        continue
+                    elif res_dic.get('message'):
+                        raise ValueError('Error happened. {}'.format(res_dic))
+                    # logging.info('search result person_id:{}, res_dic contacts:{}'.format(person_id,res_dic.get('contacts',[])))
+                    out_queue.put((res_dic.get('contacts',[]),person_id))
                     in_queue.task_done()
-                    continue
-                # logging.info('search_dic:{}'.format(search_dic))
-                res_dic = self.insideview_fetcher.search_insideview_contact(search_dic)
-                logging.info('contact name search:')
-                logging.info('search_dic:{}'.format(search_dic))
-                logging.info('res_dic:{}'.format(res_dic))
-                self.api_counter.people_search_hits += 1
-                # logging.info('res_dic:{}'.format(res_dic))
-                if res_dic.get('message') in ['request throttled by insideview','1000 per 5 minute']: #throttling reached, need to do this company id again
-                    in_queue.put((dets_tuple,person_id))
-                    in_queue.task_done()
-                    time.sleep(10)
-                    continue
-                elif res_dic.get('message'):
-                    raise ValueError('Error happened. {}'.format(res_dic))
-                # logging.info('search result person_id:{}, res_dic contacts:{}'.format(person_id,res_dic.get('contacts',[])))
-                out_queue.put((res_dic.get('contacts',[]),person_id))
-                in_queue.task_done()
+                except:
+                    logging.exception('Error happened in worker in search_for_matching_people_from_ppl_details')
+                    _ = worker_queue.get()
+                    break
         for dets_tuple in ppl_details:
             person_dets,person_id = dets_tuple[:-1],dets_tuple[-1] #last item is the id
             in_queue.put((person_dets,person_id))
@@ -360,7 +375,7 @@ class InsideviewCompanyFetcher(object):
             worker_tmp.setDaemon(True)
             worker_tmp.start()
         time.sleep(20)
-        while not out_queue.empty() or not in_queue.empty():
+        while (not out_queue.empty() or not in_queue.empty()) and not worker_queue.empty():
             logging.info('inqueue size:{},outqueue size:{}'.format(in_queue.qsize(),out_queue.qsize()))
             res_list,person_id = out_queue.get()
             # logging.info('save to db person_id:{},res_list:{}'.format(person_id,res_list))
@@ -370,6 +385,8 @@ class InsideviewCompanyFetcher(object):
                 time.sleep(10)
         time.sleep(20)
         logging.info('inqueue size:{},outqueue size:{}'.format(in_queue.qsize(),out_queue.qsize()))
+        if worker_queue.empty():
+            raise ValueError('All workers stopped in search_for_matching_people_from_ppl_details. Check the logs ')
         logging.info('finished search_for_matching_people_from_ppl_details')
 
     def fetch_people_details_from_newcontact_ids(self,new_contact_ids,retrieve_comp_dets=0,n_threads=10):
@@ -382,20 +399,27 @@ class InsideviewCompanyFetcher(object):
         logging.info('no of new_contact_ids for which insideview fetching done:{}'.format(len(new_contact_ids)))
         in_queue = Queue(maxsize=0)
         out_queue = Queue(maxsize=0)
+        worker_queue = Queue(maxsize=0) #queue to check if threads are running, if not empty, means no workers are running
         def worker():
+            worker_queue.put(True)
             while not in_queue.empty():
-                new_contact_id = in_queue.get()
-                res_dic = self.insideview_fetcher.get_contact_details_from_newcontact_id(new_contact_id,retrieve_comp_dets)
-                if res_dic.get('message') in ['request throttled by insideview','1000 per 5 minute']: #throttling reached, need to do this company id again
-                    in_queue.put(new_contact_id)
+                try:
+                    new_contact_id = in_queue.get()
+                    res_dic = self.insideview_fetcher.get_contact_details_from_newcontact_id(new_contact_id,retrieve_comp_dets)
+                    if res_dic.get('message') in ['request throttled by insideview','1000 per 5 minute']: #throttling reached, need to do this company id again
+                        in_queue.put(new_contact_id)
+                        in_queue.task_done()
+                        time.sleep(10)
+                        continue
+                    elif res_dic.get('message'):
+                        raise ValueError('Error happened. {}'.format(res_dic))
+                    out_queue.put(res_dic)
+                    self.api_counter.newcontact_email_hits += 1
                     in_queue.task_done()
-                    time.sleep(10)
-                    continue
-                elif res_dic.get('message'):
-                    raise ValueError('Error happened. {}'.format(res_dic))
-                out_queue.put(res_dic)
-                self.api_counter.newcontact_email_hits += 1
-                in_queue.task_done()
+                except:
+                    logging.exception('Error happened in worker in fetch_people_details_from_newcontact_ids')
+                    _ = worker_queue.get()
+                    break
         for new_contact_id in new_contact_ids:
             in_queue.put(new_contact_id)
         for i in range(n_threads):
@@ -403,7 +427,7 @@ class InsideviewCompanyFetcher(object):
             worker_tmp.setDaemon(True)
             worker_tmp.start()
         time.sleep(20)
-        while not out_queue.empty() or not in_queue.empty():
+        while (not out_queue.empty() or not in_queue.empty()) and not worker_queue.empty():
             logging.info('inqueue size:{},outqueue size:{}'.format(in_queue.qsize(),out_queue.qsize()))
             res_dic = out_queue.get()
             self.data_util.save_contact_info(res_dic)
@@ -412,6 +436,8 @@ class InsideviewCompanyFetcher(object):
                 time.sleep(10)
         time.sleep(20)
         logging.info('inqueue size:{},outqueue size:{}'.format(in_queue.qsize(),out_queue.qsize()))
+        if worker_queue.empty():
+            raise ValueError('All workers stopped in fetch_people_details_from_newcontact_ids. Check the logs ')
         logging.info('finished fetch_people_details_from_company_ids_crawler_process')
 
     def fetch_people_details_from_company_ids_new_contactids(self,list_id,comp_ids,max_res_per_company=3,
@@ -441,37 +467,44 @@ class InsideviewCompanyFetcher(object):
         logging.info('started company_search_insideview_multi')
         in_queue = Queue(maxsize=0)
         out_queue = Queue(maxsize=0)
+        worker_queue = Queue(maxsize=0) #queue to check if threads are running, if not empty, means no workers are running
         def worker():
+            worker_queue.put(True)
             while not in_queue.empty():
-                company_name,website,country,state,city,list_items_id = in_queue.get()
-                # logging.info('trying for company: {},{}'.format(comp_website,comp_name))
-                # if comp_website and comp_name:
-                #     comp_search_results = self.search_company_single(comp_name,comp_website,max_no_results=50)
-                if website and 'linkedin.com/compan' not in website.lower() and \
-                                'facebook.com/' not in website.lower():
-                    comp_search_results = self.insideview_fetcher.search_company_single(None,website,country,state,city,
-                                                                                        max_no_results=50)
-                else:
-                    comp_search_results = []
-                if not comp_search_results and company_name:
-                    if 'linkedin.com/compan' in website.lower() or \
-                                'facebook.com/' in website.lower():
-                        comp_search_results = self.insideview_fetcher.search_company_single(company_name,None,country,
-                                                                                        state,city,max_no_results=10)
+                try:
+                    company_name,website,country,state,city,list_items_id = in_queue.get()
+                    # logging.info('trying for company: {},{}'.format(comp_website,comp_name))
+                    # if comp_website and comp_name:
+                    #     comp_search_results = self.search_company_single(comp_name,comp_website,max_no_results=50)
+                    if website and 'linkedin.com/compan' not in website.lower() and \
+                                    'facebook.com/' not in website.lower():
+                        comp_search_results = self.insideview_fetcher.search_company_single(None,website,country,state,city,
+                                                                                            max_no_results=50)
                     else:
-                        comp_search_results = self.insideview_fetcher.search_company_single(company_name,website,
-                                                                                country,state,city,max_no_results=10)
-                if comp_search_results and comp_search_results[0] == 'throttling limit reached': #checking if throttling happened
-                    logging.info('throttling limit reached: comp_search_results:{}'.format(comp_search_results))
-                    in_queue.put((company_name,website,country,state,city,list_items_id))
+                        comp_search_results = []
+                    if not comp_search_results and company_name:
+                        if 'linkedin.com/compan' in website.lower() or \
+                                    'facebook.com/' in website.lower():
+                            comp_search_results = self.insideview_fetcher.search_company_single(company_name,None,country,
+                                                                                            state,city,max_no_results=10)
+                        else:
+                            comp_search_results = self.insideview_fetcher.search_company_single(company_name,website,
+                                                                                    country,state,city,max_no_results=10)
+                    if comp_search_results and comp_search_results[0] == 'throttling limit reached': #checking if throttling happened
+                        logging.info('throttling limit reached: comp_search_results:{}'.format(comp_search_results))
+                        in_queue.put((company_name,website,country,state,city,list_items_id))
+                        in_queue.task_done()
+                        time.sleep(10)
+                        continue
+                    elif not comp_search_results:
+                        comp_search_results = [{}] #no search result. pass an empty dic so that nulls will be populated to tables
+                    out_queue.put((list_items_id,comp_search_results))
                     in_queue.task_done()
-                    time.sleep(10)
-                    continue
-                elif not comp_search_results:
-                    comp_search_results = [{}] #no search result. pass an empty dic so that nulls will be populated to tables
-                out_queue.put((list_items_id,comp_search_results))
-                in_queue.task_done()
-                # logging.info('completed for company: {},{}'.format(comp_website,comp_name))
+                    # logging.info('completed for company: {},{}'.format(comp_website,comp_name))
+                except:
+                    logging.exception('Error happened in worker in company_search_insideview_multi')
+                    _ = worker_queue.get()
+                    break
         logging.info('starting the threads')
         for inp_tuple in comp_input_dets:
             in_queue.put(inp_tuple)
@@ -481,7 +514,7 @@ class InsideviewCompanyFetcher(object):
             worker_tmp.start()
         logging.info('sleeping for 60 seconds')
         time.sleep(60)
-        while not out_queue.empty() or not in_queue.empty():
+        while (not out_queue.empty() or not in_queue.empty()) and not worker_queue.empty():
             logging.info('inqueue size:{},outqueue size:{}'.format(in_queue.qsize(),out_queue.qsize()))
             list_items_id,comp_search_results = out_queue.get()
             # logging.info('saving to database : {},{}'.format(list_items_id,comp_search_results))
@@ -494,6 +527,8 @@ class InsideviewCompanyFetcher(object):
         # sleep for 20 seconds and save again
         time.sleep(20)
         logging.info('inqueue size:{},outqueue size:{}'.format(in_queue.qsize(),out_queue.qsize()))
+        if worker_queue.empty():
+            raise ValueError('All workers stopped in company_search_insideview_multi. Check the logs ')
         logging.info('completed company_search_insideview_multi')
 
     def get_save_company_details_from_insideview_compid_input(self,comp_ids_not_present,n_threads=10):
@@ -501,19 +536,26 @@ class InsideviewCompanyFetcher(object):
         logging.info('no of comp_ids to fetch from insideview:{}'.format(len(comp_ids_not_present)))
         in_queue = Queue(maxsize=0)
         out_queue = Queue(maxsize=0)
+        worker_queue = Queue(maxsize=0) #queue to check if threads are running, if not empty, means no workers are running
         def worker():
+            worker_queue.put(True)
             while not in_queue.empty():
-                comp_id = in_queue.get()
-                comp_dets_dic = self.insideview_fetcher.get_company_details_from_id(comp_id)
-                if comp_dets_dic.get('message') in ['request throttled by insideview','1000 per 5 minute']: #throttling reached, need to do this company id again
-                    in_queue.put(comp_id)
+                try:
+                    comp_id = in_queue.get()
+                    comp_dets_dic = self.insideview_fetcher.get_company_details_from_id(comp_id)
+                    if comp_dets_dic.get('message') in ['request throttled by insideview','1000 per 5 minute']: #throttling reached, need to do this company id again
+                        in_queue.put(comp_id)
+                        in_queue.task_done()
+                        time.sleep(10)
+                        continue
+                    elif comp_dets_dic.get('message'):
+                        raise ValueError('Error happened. {}'.format(comp_dets_dic))
+                    out_queue.put(comp_dets_dic)
                     in_queue.task_done()
-                    time.sleep(10)
-                    continue
-                elif comp_dets_dic.get('message'):
-                    raise ValueError('Error happened. {}'.format(comp_dets_dic))
-                out_queue.put(comp_dets_dic)
-                in_queue.task_done()
+                except:
+                    logging.exception('Error happened in worker in get_save_company_details_from_insideview_compid_input')
+                    _ = worker_queue.get()
+                    break
         for comp_id in comp_ids_not_present:
             in_queue.put(comp_id)
         for i in range(n_threads):
@@ -522,7 +564,7 @@ class InsideviewCompanyFetcher(object):
             worker_tmp.start()
         logging.info('sleeping for 20 seconds')
         time.sleep(20)
-        while not out_queue.empty() or not in_queue.empty():
+        while (not out_queue.empty() or not in_queue.empty()) and not worker_queue.empty():
             logging.info('inqueue size:{},outqueue size:{}'.format(in_queue.qsize(),out_queue.qsize()))
             comp_dets_dic = out_queue.get()
             self.data_util.save_company_dets_dic_input(comp_dets_dic)
@@ -532,6 +574,8 @@ class InsideviewCompanyFetcher(object):
                 time.sleep(10)
         time.sleep(20)
         logging.info('inqueue size:{},outqueue size:{}'.format(in_queue.qsize(),out_queue.qsize()))
+        if worker_queue.empty():
+            raise ValueError('All workers stopped in get_save_company_details_from_insideview_compid_input. Check the logs ')
         logging.info('completed get_save_company_details_from_insideview_listinput')
 
     def search_contacts_from_company_ids(self,list_id,company_ids,max_res_per_company=5,**filters_dic):
