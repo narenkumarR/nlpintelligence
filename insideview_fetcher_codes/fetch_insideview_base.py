@@ -16,6 +16,8 @@ company_details_url = 'https://api.insideview.com/api/v1/company/{companyId}'
 company_tech_profile_url = 'https://api.insideview.com/api/v1/company/{companyId}/techProfile'
 people_search_url = 'https://api.insideview.com/api/v1/contacts'
 contact_fetch_url = 'https://api.insideview.com/api/v1/contact/{contactId}'
+company_name_search_insideview_url = 'https://api.insideview.com/api/v1/target/company/lookup'
+company_details_search_insideview_url = 'https://api.insideview.com/api/v1/target/companies'
 
 company_name_field,website_field = 'company_name','website'
 
@@ -26,6 +28,46 @@ class InsideviewDataFetcher(object):
     def __init__(self,api_counter,throttler_app_address = 'http://192.168.3.56:5000/'):
         self.api_counter = api_counter
         self.throttler_app_address = throttler_app_address
+
+    def search_company_names_in_insideview(self,search_dic):
+        ''' search insideview for company names (no other details, no website) in insideview
+        page no should be given in the param_dic
+        :param param_dic:
+        :return:
+        '''
+        param_dic = {'url':company_name_search_insideview_url}
+        r = requests.post(self.throttler_app_address,params=param_dic,json=search_dic)
+        res_dic = json.loads(r.text)
+        if not res_dic.get('companies',None):
+            if res_dic.get('message') in ['request throttled by insideview','1000 per 5 minute']:
+                logging.info('throttling limit reached. try this search_company_names_in_insideview later')
+                return ['throttling limit reached']
+            elif res_dic.get('message'):
+                raise ValueError('Error happened. {}'.format(res_dic))
+        if res_dic.get('companies'):
+            return res_dic['companies']
+        else:
+            return []
+
+    def search_company_details_in_insideview(self,search_dic):
+        ''' earch insideview for company details (no name/website) in insideview
+        page no should be given in the param_dic
+        :param search_dic:
+        :return:
+        '''
+        param_dic = {'url':company_details_search_insideview_url}
+        r = requests.post(self.throttler_app_address,params=param_dic,json=search_dic)
+        res_dic = json.loads(r.text)
+        if not res_dic.get('companies',None):
+            if res_dic.get('message') in ['request throttled by insideview','1000 per 5 minute']:
+                logging.info('throttling limit reached. try this search_company_details_in_insideview later')
+                return ['throttling limit reached']
+            elif res_dic.get('message'):
+                raise ValueError('Error happened. {}'.format(res_dic))
+        if res_dic.get('companies'):
+            return res_dic['companies']
+        else:
+            return []
 
     def search_company_single(self,name,website,country=None,state=None,city=None,max_no_results=99,results_per_page=50):
         '''
