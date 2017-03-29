@@ -19,6 +19,7 @@ from url_cleaner import UrlCleaner
 from postgres_connect import PostgresConnect
 from timeout import timeout
 from Queue import Queue
+from psycopg2 import InterfaceError
 
 logging.basicConfig(filename='logs/website_extraction_{}.log'.format(datetime.datetime.now()),
                     level=logging.INFO,format='%(asctime)s %(message)s')
@@ -57,7 +58,7 @@ class WebsiteCrawler(object):
                                              r'|policy|policies',re.I)
         self.sep_shipping_url_regex = re.compile(r'shipping|handling|ordering|delivery|exchange|return|track(.)?order|order(.)?track',re.I)
         self.product_recom_regex = re.compile(r'Frequently Bought Together|Bought This (Item|product) Also Bought',re.I)
-        self.product_url_format = re.compile(r'/product(s)?/',re.I)
+        self.product_url_format = re.compile(r'/product(s)?/|/item(s)?/',re.I)
         self.collections_url_format = re.compile(r'/collection(s)?/|/categories/',re.I)
 
 
@@ -197,6 +198,7 @@ class WebsiteCrawler(object):
                          self.next_level_url_priority_searcher.search(text)) and base_url_domain in url and
                          not self.social_url_searcher.search(url)]
         matching_urls = list(set(matching_urls))
+        matching_urls = matching_urls[:10]
         matching_urls1 = [(url.strip(),text.strip()) for url,text in all_urls_texts if (self.next_level_url_searcher.search(url) or
                          self.next_level_url_searcher.search(text)) and base_url_domain in url]
         matching_urls1 = list(set(matching_urls1))
@@ -457,6 +459,9 @@ class WebCrawlerScheduler(object):
                         ind = 0
                         wpe.browser.exit()
                         wpe.browser.start_browser(visible=wpe.visible)
+            except InterfaceError:
+                logging.exception('No db connection. trying to reconnect')
+                con.get_cursor()
             except:
                 logging.exception('Some error happened. continuing the run')
                 try:
@@ -464,6 +469,7 @@ class WebCrawlerScheduler(object):
                 except:
                     pass
                 wpe.browser.start_browser(visible=wpe.visible)
+        logging.info('completed run_website_crawl')
         con.close_connection()
         wpe.close()
 
