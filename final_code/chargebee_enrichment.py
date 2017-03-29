@@ -107,6 +107,7 @@ class ChargebeeWebSearcher(object):
         except : #if connection error, try with secure true
             base_url = self.url_cleaner.clean_url(base_url,True)
             soup = self.browser.get_soup(base_url)
+        base_url_source = str(soup)
         matches,weight,page_all_text = self.search_webpage_single(self.search_reg,self.matched_dic,soup=soup)
         # urls is of form [(url1,text1),(url2,text2),..], emails is a list of emails
         urls, emails = self.soup_util.get_all_links_soupinput(soup,base_url)
@@ -142,7 +143,7 @@ class ChargebeeWebSearcher(object):
         urls = list(set([url for url,text in urls if self.social_url_searcher.search(url)]))
         emails = list(set(emails))
         matches = list(set(matches))
-        return urls,emails,matches,login_signup_present,weight,demo_present,pricing_present,page_all_text
+        return urls,emails,matches,login_signup_present,weight,demo_present,pricing_present,page_all_text,base_url_source
 
     def get_res_webpage_base(self,base_url):
         '''
@@ -150,17 +151,17 @@ class ChargebeeWebSearcher(object):
         :return:
         '''
         try:
-            urls,emails,matches,login_signup_present,weight,demo_present,pricing_present,page_all_text = self.get_res_webpage_base_url(
+            urls,emails,matches,login_signup_present,weight,demo_present,pricing_present,page_all_text,base_url_source = self.get_res_webpage_base_url(
                 base_url=base_url
             )
             logging.info('Extracted info: urls: {} , emails: {} ,'
                          'weight: {}'.format(urls,emails,weight))
-            return urls,emails,matches,login_signup_present,weight,demo_present,pricing_present,page_all_text
+            return urls,emails,matches,login_signup_present,weight,demo_present,pricing_present,page_all_text,base_url_source
         except:
             logging.exception('Error happened while trying url: {}'.format(base_url))
             self.browser.exit()
             self.browser.start_browser(visible=self.visible)
-            return [],[],[],False,-8888,False,False,' '
+            return [],[],[],False,-8888,False,False,'',''
 
     def search_webpage_csv_input(self,websites_loc,out_loc = 'website_extraction_output.xls'):
         '''
@@ -209,7 +210,7 @@ class ChargebeeWebSearcher(object):
                         website = lkdn_dets['Website']
             website = self.url_cleaner.clean_url(website,False)
             if url_validation_reg.search(website):
-                urls,emails,matches,login_signup_present,weight,demo_present,pricing_present,page_all_text = self.get_res_webpage_base(
+                urls,emails,matches,login_signup_present,weight,demo_present,pricing_present,page_all_text,base_url_source = self.get_res_webpage_base(
                     base_url=website
                 )
                 if weight == -8888: #-8888 means some error happened
@@ -219,7 +220,7 @@ class ChargebeeWebSearcher(object):
                                  'weight: {}'.format(urls,emails,weight))
             else:
                 logging.info('website failed url validation check. url: {}'.format(website))
-                urls,emails,matches,login_signup_present,weight,demo_present,pricing_present,page_all_text = [],[],[],False,-9999,False,False,' '
+                urls,emails,matches,login_signup_present,weight,demo_present,pricing_present,page_all_text,base_url_source = [],[],[],False,-9999,False,False,' ',''
             out_dic['website'].append(website)
             out_dic['score'].append(weight)
             out_dic['emails'].append(emails)
@@ -230,6 +231,7 @@ class ChargebeeWebSearcher(object):
             out_dic['pricing_present'].append(pricing_present)
             out_dic['id'].append(row_id)
             out_dic['company_linkedin_url'].append(comp_lkdn_url)
+            
             # if ind == 20:
             #     ind = 0
             #     self.browser.exit()
