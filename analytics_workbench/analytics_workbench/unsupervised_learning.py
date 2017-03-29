@@ -6,9 +6,13 @@ from sklearn.cluster import KMeans
 
 def print_top_words(model, feature_names, n_top_words):
     for topic_idx, topic in enumerate(model.components_):
-        print("Topic #%d:" % topic_idx)
+        print("Topic #%d:\n" % topic_idx)
         print(", ".join(['{0}*{1:.2f}'.format(feature_names[i],topic[i])
                         for i in topic.argsort()[:-n_top_words - 1:-1]]))
+        print('')
+        print(", ".join(['{0}*{1:.2f}'.format(feature_names[i],topic[i])
+                        for i in (-topic).argsort()[:-n_top_words - 1:-1]]))
+        print('\n')
     print()
 
 def print_top_words_in_km_cluster(km,num_clusters,terms,n_top_words=10):

@@ -118,7 +118,7 @@ class ProcessText(object):
 
 
     def gen_document_term_matrix(self,text_documents,vectorizer_type='Count',synonyms_dic={},stem_type='lemmatize',
-                                 phrase_generation=False,stop_words=[],lower=True,n_gram_range=(1,2),
+                                 phrase_generation=False,stop_words=[],append_stop_words=False,lower=True,n_gram_range=(1,2),
                                  max_df=0.9,min_df=0.01,vocabulary=None,**kwargs):
         '''
         :param text: input text
@@ -143,7 +143,8 @@ class ProcessText(object):
         # self.min_df = min_df
         # self.vocabulary = vocabulary
         # self.kwargs = kwargs
-        stop_words = stop_words+stop_words_default
+        if append_stop_words:
+            stop_words = stop_words+stop_words_default
         text_series = Series(text_documents)
         if self.lower:
             text_series = text_series.fillna('').str.lower()
@@ -180,7 +181,7 @@ class ProcessText(object):
         return vocab_list
 
     def gen_dtm_from_files(self,text_documents,vectorizer_type='Count',synonym_loc=None,stem_type='lemmatize',
-                                 phrase_generation=False,stop_words_loc=None,lower=True,n_gram_range=(1,2),
+                                 phrase_generation=False,stop_words_loc=None,append_stop_words=False,lower=True,n_gram_range=(1,2),
                                  max_df=0.9,min_df=0.01,vocabulary_loc=None,**kwargs):
         '''use this function to get document term matrix , when the stopwords, synonyms etc are available in files
         :param text_documents:
@@ -210,7 +211,7 @@ class ProcessText(object):
             self.vocabulary = None
         return self.gen_document_term_matrix(
             text_documents=text_documents,vectorizer_type=vectorizer_type,synonyms_dic=synonyms_dic,stem_type=stem_type,
-            phrase_generation=phrase_generation,stop_words=stop_words,lower=lower,n_gram_range=n_gram_range,
+            phrase_generation=phrase_generation,stop_words=stop_words,append_stop_words=append_stop_words,lower=lower,n_gram_range=n_gram_range,
             max_df=max_df,min_df=min_df,vocabulary=self.vocabulary,**kwargs
         )
     
