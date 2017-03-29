@@ -33,7 +33,7 @@ def run_queue(in_queue_name_arg,out_queue_name_arg):
                 out_queue.send_message(MessageBody=message_body_new)
                 message.delete()
             else:
-                time.sleep(2)
+                time.sleep(3)
 
 if __name__ == "__main__":
     optparser = OptionParser()

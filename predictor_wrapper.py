@@ -89,12 +89,12 @@ pos_regex = re.compile(pos_regex_str,re.IGNORECASE)
 outofoffice_regex = re.compile(outofoffice_regex_str,re.IGNORECASE)
 
 def get_prediction_textinput(inp_text):
-    logging.info('processing inp_text: {}'.format(inp_text))
+    logging.info(u'processing inp_text: {}'.format(inp_text))
     if not inp_text.strip():
         final_pred = 'Neutral_Nurture'
         return final_pred
     inp_text = re.split(r'From:[\s\w\W]+Subject:',inp_text)[0]
-    logging.info('inp_text after removing previous mail content: {}'.format(inp_text))
+    logging.info(u'inp_text after removing previous mail content: {}'.format(inp_text))
     if len(sent_tokenize(inp_text))<=3:
         short_sent = True
     else:
@@ -159,16 +159,16 @@ def get_prediction_jsoninput(message_body):
             # finding bounce messages
             inp_text = body_json['content']
             final_pred = get_prediction_textinput(inp_text)
-            logging.info('Worked properly. output:{}, content:{}'.format(final_pred,body_json['content'].encode('utf8')))
+            logging.info(u'Worked properly. output:{}, content:{}'.format(final_pred,body_json['content']))
         except KeyError:
-            logging.exception('Key error for json, returning "Bounced" as output. message_body : {}'.format(message_body.encode('utf8')))
+            logging.exception(u'Key error for json, returning "Bounced" as output. message_body : {}'.format(message_body))
             final_pred = 'Bounced'
         except:
-            logging.exception('The following error happened. Returning "random" as output. message_body:{}'.format(message_body.encode('utf8')))
+            logging.exception(u'The following error happened. Returning "random" as output. message_body:{}'.format(message_body))
             # body_json['NLPClass'] = 'random'
             final_pred = 'random'
     except:
-        logging.info('Some error happened while processing except. Possibly encoding problem of message_body')
+        logging.info(u'Some error happened while processing except. Possibly encoding problem of message_body')
         final_pred = 'random'
     # lot of small messages getting classified as schedule meeting etc, fix them
     prediction_final = model_class_map_dic.get(final_pred, 'nurture')
