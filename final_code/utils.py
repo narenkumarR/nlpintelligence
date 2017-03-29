@@ -30,8 +30,8 @@ class SoupUtils(object):
         :param merge_urls:
         :return:
         '''
-        if only_visible:
-            [s.extract() for s in soup(['style', 'script', '[document]', 'head', 'title'])]
+        # if only_visible:
+        #     [s.extract() for s in soup(['style', 'script', '[document]', 'head', 'title'])]
         url_list, mail_list = [],[]
         url_tmp = []
         for a in soup.find_all('a', href=True):
