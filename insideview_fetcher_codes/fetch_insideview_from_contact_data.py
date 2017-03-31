@@ -134,7 +134,7 @@ class InsideviewContactFetcher(object):
             worker_queue.put(True)
             while not in_queue.empty():
                 try:
-                    contact_id = in_queue.get()
+                    contact_id = in_queue.get(timeout=120)
                     res_dic = self.insideview_fetcher.get_contact_details_from_contactid(contact_id)
                     if res_dic.get('message') in ['request throttled by insideview','1000 per 5 minute']: #throttling reached, need to do this company id again
                         in_queue.put(contact_id)
@@ -148,7 +148,7 @@ class InsideviewContactFetcher(object):
                     in_queue.task_done()
                 except:
                     logging.exception('Error happened in worker in fetch_people_details_from_contact_ids')
-                    _ = worker_queue.get()
+                    _ = worker_queue.get(timeout=120)
                     break
         for contact_id in contact_ids:
             in_queue.put(contact_id)
@@ -159,7 +159,7 @@ class InsideviewContactFetcher(object):
         time.sleep(20)
         while (not out_queue.empty() or not in_queue.empty()) and not worker_queue.empty():
             logging.info('inqueue size:{},outqueue size:{}'.format(in_queue.qsize(),out_queue.qsize()))
-            res_dic = out_queue.get()
+            res_dic = out_queue.get(timeout=120)
             self.data_util.save_contact_info(res_dic)
             out_queue.task_done()
 
@@ -211,7 +211,7 @@ class InsideviewContactFetcher(object):
             worker_queue.put(True)
             while not in_queue.empty():
                 try:
-                    dets_tuple,person_id = in_queue.get()
+                    dets_tuple,person_id = in_queue.get(timeout=120)
                     # logging.info('search for person_id:{},dets_tuple:{}'.format(person_id,dets_tuple))
                     search_dic = {}
                     for key,value in zip(in_queue_tuple_order_keys,dets_tuple):
@@ -240,7 +240,7 @@ class InsideviewContactFetcher(object):
                     in_queue.task_done()
                 except:
                     logging.exception('Error happened in worker in search_for_matching_people_from_ppl_details')
-                    _ = worker_queue.get()
+                    _ = worker_queue.get(timeout=120)
                     break
         for dets_tuple in ppl_details:
             person_dets,person_id = dets_tuple[:-1],dets_tuple[-1] #last item is the id
@@ -252,7 +252,7 @@ class InsideviewContactFetcher(object):
         time.sleep(20)
         while (not out_queue.empty() or not in_queue.empty()) and not worker_queue.empty():
             logging.info('inqueue size:{},outqueue size:{}'.format(in_queue.qsize(),out_queue.qsize()))
-            res_list,person_id = out_queue.get()
+            res_list,person_id = out_queue.get(timeout=120)
             # logging.info('save to db person_id:{},res_list:{}'.format(person_id,res_list))
             self.data_util.save_contact_search_res_single(list_id,res_list,person_id)
             out_queue.task_done()
@@ -279,7 +279,7 @@ class InsideviewContactFetcher(object):
             worker_queue.put(True)
             while not in_queue.empty():
                 try:
-                    list_input_id,search_dic = in_queue.get()
+                    list_input_id,search_dic = in_queue.get(timeout=120)
                     search_dic = json.loads(search_dic)
                     search_dic['isEmailRequired'] = True
                     res_dic = self.insideview_fetcher.search_insideview_contact(search_dic)
@@ -295,7 +295,7 @@ class InsideviewContactFetcher(object):
                     in_queue.task_done()
                 except:
                     logging.exception('Error happened in worker in search_contact_for_people_threaded')
-                    _ = worker_queue.get()
+                    _ = worker_queue.get(timeout=120)
                     break
         for list_input_id,search_dic in list_inputs:
             in_queue.put((list_input_id,search_dic))
@@ -306,7 +306,7 @@ class InsideviewContactFetcher(object):
         time.sleep(20)
         while (not out_queue.empty() or not in_queue.empty()) and not worker_queue.empty():
             logging.info('inqueue size:{},outqueue size:{}'.format(in_queue.qsize(),out_queue.qsize()))
-            list_input_id,search_results = out_queue.get()
+            list_input_id,search_results = out_queue.get(timeout=120)
             self.save_contact_search_res_single(list_id,list_input_id,search_results)
             out_queue.task_done()
             if out_queue.qsize() < 5:
