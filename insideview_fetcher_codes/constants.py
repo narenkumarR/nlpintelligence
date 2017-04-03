@@ -5,7 +5,7 @@
 database='insideview_app_db'
 user='postgres'
 password='postgres'
-host='127.0.0.1'
+host='192.168.3.57'
 
 # column names in the csv file
 company_name_field = 'name'
