@@ -5,6 +5,10 @@ import logging
 import json
 import requests
 import time
+import pandas as pd
+from StringIO import StringIO
+
+from constants import accessToken
 
 def chunker(seq, size):
     return (seq[pos:pos + size] for pos in xrange(0, len(seq), size))
@@ -13,9 +17,15 @@ company_search_url = 'https://api.insideview.com/api/v1/companies'
 contact_search_url = 'https://api.insideview.com/api/v1/target/contacts'
 contact_details_url = 'https://api.insideview.com/api/v1/target/contact/{newcontactId}'
 company_details_url = 'https://api.insideview.com/api/v1/company/{companyId}'
+company_details_job_url = 'https://api.insideview.com/api/v1/company/job'
+company_details_job_status_url = 'https://api.insideview.com/api/v1/company/job/{jobId}'
+company_details_job_results_url = 'https://api.insideview.com/api/v1/company/job/{jobId}/results'
 company_tech_profile_url = 'https://api.insideview.com/api/v1/company/{companyId}/techProfile'
 people_search_url = 'https://api.insideview.com/api/v1/contacts'
 contact_fetch_url = 'https://api.insideview.com/api/v1/contact/{contactId}'
+contact_fetch_job_url = 'https://api.insideview.com/api/v1/contact/job'
+contact_fetch_job_status_url = 'https://api.insideview.com/api/v1/contact/job//{jobId}'
+contact_fetch_job_results_url = 'https://api.insideview.com/api/v1/contact/job//{jobId}/results'
 company_name_search_insideview_url = 'https://api.insideview.com/api/v1/target/company/lookup'
 company_details_search_insideview_url = 'https://api.insideview.com/api/v1/target/companies'
 
@@ -125,6 +135,83 @@ class InsideviewDataFetcher(object):
         res_dic = json.loads(r.text)
         return res_dic
 
+    def get_contact_details_from_contactid(self,contact_id):
+        '''
+        :param contact_id:
+        :return:
+        '''
+        contact_url = contact_fetch_url.format(contactId=contact_id)
+        search_dic = {'url':contact_url}
+        r = requests.get(self.throttler_app_address,params=search_dic)
+        res_dic = json.loads(r.text)
+        return res_dic
+
+    def post_job_and_get_jobid(self,url,headers,body):
+        '''
+        :param url:
+        :param headers:
+        :param body:
+        :return:
+        '''
+        while True:
+            r = requests.post(url,headers=headers,data=body)
+            r_dic = json.loads(r.text)
+            if r_dic.get('status') == 'accepted':
+                return r_dic
+            time.sleep(60)
+
+    def wait_till_job_completes(self,url,headers):
+        while True:
+            time.sleep(60)
+            r = requests.get(url,headers=headers)
+            r_dic = json.loads(r.text)
+            if r_dic.get('status') == 'finished':
+                return r_dic
+
+    def get_company_details_from_ids_job(self,company_ids_list):
+        '''
+        :param company_ids_list:
+        :return:
+        '''
+        #todo: only one job run at a time. maximum two possible at a time
+        headers = {'accessToken':accessToken,'Accept':'application/json','Content-Type':'text/plain'}
+        for comp_ids in chunker(company_ids_list,9999):
+            body = ','.join([str(i) for i in comp_ids])
+            r_dic = self.post_job_and_get_jobid(url=company_details_job_url,headers=headers,body=body)
+            job_id = r_dic.get('jobId')
+            if not job_id:
+                raise ValueError('Some error happened, could not get job id from insideview')
+            logging.info('waiting for company details job_id:{},no of companies to get details:{}'.format(job_id,len(comp_ids)))
+            _ = self.wait_till_job_completes(url=company_details_job_status_url.format(jobId=job_id),headers=headers)
+            # getting results
+            r = requests.get(company_details_job_results_url.format(jobId=job_id),headers=headers)
+            io_read = StringIO(r.text)
+            df = pd.read_csv(io_read)
+            logging.info('got results for job_id:{},no of records:{}'.format(job_id,df.shape[0]))
+            yield df
+
+    def get_contact_details_from_contactids_job(self,contact_ids_list):
+        '''
+        :param company_ids_list:
+        :return:
+        '''
+        #todo: only one job run at a time. maximum two possible at a time
+        headers = {'accessToken':accessToken,'Accept':'application/json','Content-Type':'text/plain'}
+        for contact_ids in chunker(contact_ids_list,9999):
+            body = ','.join([str(i) for i in contact_ids])
+            r_dic = self.post_job_and_get_jobid(url=contact_fetch_job_url,headers=headers,body=body)
+            job_id = r_dic.get('jobId')
+            if not job_id:
+                raise ValueError('Some error happened, could not get job id from insideview')
+            logging.info('waiting for contact details job_id:{},no of contacts to get details:{}'.format(job_id,len(contact_ids)))
+            _ = self.wait_till_job_completes(url=contact_fetch_job_status_url.format(jobId=job_id),headers=headers)
+            # getting results
+            r = requests.get(contact_fetch_job_results_url.format(jobId=job_id),headers=headers)
+            io_read = StringIO(r.text)
+            df = pd.read_csv(io_read)
+            logging.info('got results for job_id:{},no of records:{}'.format(job_id,df.shape[0]))
+            yield df
+
     def search_contacts_from_company_ids(self,company_ids,max_res_per_company=5,**filters_dic):
         '''
         :param company_ids:
@@ -187,16 +274,6 @@ class InsideviewDataFetcher(object):
         # res_dic = json.loads(r.text)
         # return res_dic
 
-    def get_contact_details_from_contactid(self,contact_id):
-        '''
-        :param contact_id:
-        :return:
-        '''
-        contact_url = contact_fetch_url.format(contactId=contact_id)
-        search_dic = {'url':contact_url}
-        r = requests.get(self.throttler_app_address,params=search_dic)
-        res_dic = json.loads(r.text)
-        return res_dic
 
     def get_contact_details_from_newcontact_id(self,new_contact_id,retrieve_comp_dets=1):
         '''
