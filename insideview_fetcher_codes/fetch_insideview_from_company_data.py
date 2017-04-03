@@ -75,20 +75,20 @@ class InsideviewCompanyFetcher(object):
         if inp_loc:
             self.upload_company_url_list(inp_loc,self.list_id)
         # get list_id
-        try:
-            self.fetch_data_crawler_process(list_id=self.list_id,filters_loc=filters_loc,max_comps_to_try=max_comps_to_try,
-                                            get_contacts=get_contacts,get_comp_dets_sep=get_comp_dets_sep,
-                                            max_res_per_company=max_res_per_company,
-                                            remove_comps_in_lkdn_table=remove_comps_in_lkdn_table,
-                                            find_new_comps_only=find_new_comps_only,desig_loc=desig_loc,
-                                            comp_contries_loc=comp_contries_loc,search_contacts=search_contacts,
-                                            comp_ids_to_find_contacts_file_loc=comp_ids_to_find_contacts_file_loc,
-                                            search_companies=search_companies,
-                                            new_contact_ids_file_loc=new_contact_ids_file_loc,
-                                            contact_ids_file_loc=contact_ids_file_loc,
-                                            people_details_file=people_details_file)
-        except:
-            logging.exception('Error happened in the process')
+        # try:
+        self.fetch_data_crawler_process(list_id=self.list_id,filters_loc=filters_loc,max_comps_to_try=max_comps_to_try,
+                                        get_contacts=get_contacts,get_comp_dets_sep=get_comp_dets_sep,
+                                        max_res_per_company=max_res_per_company,
+                                        remove_comps_in_lkdn_table=remove_comps_in_lkdn_table,
+                                        find_new_comps_only=find_new_comps_only,desig_loc=desig_loc,
+                                        comp_contries_loc=comp_contries_loc,search_contacts=search_contacts,
+                                        comp_ids_to_find_contacts_file_loc=comp_ids_to_find_contacts_file_loc,
+                                        search_companies=search_companies,
+                                        new_contact_ids_file_loc=new_contact_ids_file_loc,
+                                        contact_ids_file_loc=contact_ids_file_loc,
+                                        people_details_file=people_details_file)
+        # except:
+        #     logging.exception('Error happened in the process')
         self.api_counter.update_list_api_counts()
         # get all data in csv
         engine = create_engine('postgresql://{user_name}:{password}@{host}:{port}/{database}'.format(
@@ -308,7 +308,7 @@ class InsideviewCompanyFetcher(object):
         time.sleep(20)
         while (not out_queue.empty() or not in_queue.empty()) :
             logging.info('inqueue size:{},outqueue size:{}'.format(in_queue.qsize(),out_queue.qsize()))
-            res_dic = out_queue.get(timeout=120)
+            res_dic = out_queue.get(timeout=240)
             self.data_util.save_contact_info(res_dic)
             out_queue.task_done()
             if out_queue.qsize() < 5:
@@ -327,9 +327,40 @@ class InsideviewCompanyFetcher(object):
         logging.info('started fetch_people_details_from_contact_ids_job')
         logging.info('no of contact_ids to fetch from insideview:{}'.format(len(contact_ids)))
         for df in self.insideview_fetcher.get_contact_details_from_contactids_job(contact_ids_list=contact_ids):
+            df = df.fillna('')
             df_dic_list = df.to_dict(orient='records')
             #todo: each record saved separately. saving together will save time
             for res_dic in df_dic_list:
+                titles = res_dic.get('titles')
+                if titles:
+                    res_dic['titles'] = titles.split(',')
+                else:
+                    res_dic['titles'] = []
+                jobFunctions = res_dic.get('jobFunctions')
+                if jobFunctions:
+                    res_dic['jobFunctions'] = jobFunctions.split('|')
+                else:
+                    res_dic['jobFunctions'] = []
+                jobLevels = res_dic.get('jobLevels')
+                if jobLevels:
+                    res_dic['jobLevels'] = jobLevels.split('|')
+                else:
+                    res_dic['jobLevels'] = []
+                sources = res_dic.get('sources')
+                if sources:
+                    res_dic['sources'] = sources.split('|')
+                else:
+                    res_dic['sources'] = []
+                education = res_dic.get('education','')
+                if education:
+                    education_list = education.split('|')
+                    education_list_final = []
+                    for i in education_list:
+                        degree,major,university = i.split(':')
+                        education_list_final.append({'degree':degree,'major':major,'university':university})
+                    res_dic['education'] = education_list_final
+                else:
+                    res_dic['education'] = []
                 self.data_util.save_contact_info(res_dic)
         logging.info('completed fetch_people_details_from_contact_ids_job')
 
@@ -386,7 +417,7 @@ class InsideviewCompanyFetcher(object):
         time.sleep(20)
         while (not out_queue.empty() or not in_queue.empty()):
             logging.info('inqueue size:{},outqueue size:{}'.format(in_queue.qsize(),out_queue.qsize()))
-            res_list,person_id = out_queue.get(timeout=120)
+            res_list,person_id = out_queue.get(timeout=240)
             # logging.info('save to db person_id:{},res_list:{}'.format(person_id,res_list))
             self.data_util.save_contact_search_res_single(list_id,res_list,person_id)
             out_queue.task_done()
@@ -434,7 +465,7 @@ class InsideviewCompanyFetcher(object):
         time.sleep(20)
         while (not out_queue.empty() or not in_queue.empty()):
             logging.info('inqueue size:{},outqueue size:{}'.format(in_queue.qsize(),out_queue.qsize()))
-            res_dic = out_queue.get(timeout=120)
+            res_dic = out_queue.get(timeout=240)
             self.data_util.save_contact_info(res_dic)
             out_queue.task_done()
             if out_queue.qsize() < 5:
@@ -517,7 +548,7 @@ class InsideviewCompanyFetcher(object):
         time.sleep(60)
         while (not out_queue.empty() or not in_queue.empty()) :
             logging.info('inqueue size:{},outqueue size:{}'.format(in_queue.qsize(),out_queue.qsize()))
-            list_items_id,comp_search_results = out_queue.get(timeout=120)
+            list_items_id,comp_search_results = out_queue.get(timeout=240)
             # logging.info('saving to database : {},{}'.format(list_items_id,comp_search_results))
             # if comp_search_results: #not needed as when running again, this causes this company to run again
             self.data_util.save_company_search_res_single(list_id,list_items_id,comp_search_results)
@@ -563,7 +594,7 @@ class InsideviewCompanyFetcher(object):
         time.sleep(20)
         while (not out_queue.empty() or not in_queue.empty()) :
             logging.info('inqueue size:{},outqueue size:{}'.format(in_queue.qsize(),out_queue.qsize()))
-            comp_dets_dic = out_queue.get(timeout=120)
+            comp_dets_dic = out_queue.get(timeout=240)
             self.data_util.save_company_dets_dic_input(comp_dets_dic)
             out_queue.task_done()
             self.api_counter.company_details_hits += 1
@@ -578,9 +609,42 @@ class InsideviewCompanyFetcher(object):
         logging.info('started get_save_company_details_from_insideview_compid_input_job')
         logging.info('no of comp_ids to fetch from insideview:{}'.format(len(comp_ids_not_present)))
         for df in self.insideview_fetcher.get_company_details_from_ids_job(comp_ids_not_present):
+            df = df.fillna('')
             df_dic_list = df.to_dict(orient='records')
             #todo: each record saved separately. saving together will save time
             for res_dic in df_dic_list:
+                websites = res_dic.get('websites')
+                if websites:
+                    websites = websites.split('|')
+                    res_dic['websites'] = websites
+                else:
+                    res_dic['websites'] = []
+                sources = res_dic.get('sources')
+                if sources:
+                    sources = sources.split('|')
+                    res_dic['sources'] = sources
+                else:
+                    res_dic['sources'] = []
+                british_sics = res_dic.get('britishSics','')
+                if british_sics:
+                    british_sics_list = british_sics.split('|')
+                    british_sics_list_final = []
+                    for i in british_sics_list:
+                        britishSic,description = i.split(':')
+                        british_sics_list_final.append({'britishSic':britishSic,'description':description})
+                    res_dic['britishSics'] = british_sics_list_final
+                else:
+                    res_dic['britishSics'] = []
+                tickers = res_dic.get('tickers','')
+                if tickers:
+                    tickers_list = tickers.split('|')
+                    tickers_list_final = []
+                    for i in tickers_list:
+                        tickerName,exchange = i.split(':')
+                        tickers_list_final.append({'tickerName':tickerName,'exchange':exchange})
+                    res_dic['tickers'] = tickers_list_final
+                else:
+                    res_dic['tickers'] = []
                 self.data_util.save_company_dets_dic_input(res_dic)
         logging.info('completed get_save_company_details_from_insideview_listinput')
 

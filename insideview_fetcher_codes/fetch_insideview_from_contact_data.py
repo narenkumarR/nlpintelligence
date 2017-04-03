@@ -157,7 +157,7 @@ class InsideviewContactFetcher(object):
         time.sleep(20)
         while (not out_queue.empty() or not in_queue.empty()) :
             logging.info('inqueue size:{},outqueue size:{}'.format(in_queue.qsize(),out_queue.qsize()))
-            res_dic = out_queue.get(timeout=120)
+            res_dic = out_queue.get(timeout=240)
             self.data_util.save_contact_info(res_dic)
             out_queue.task_done()
 
@@ -177,9 +177,40 @@ class InsideviewContactFetcher(object):
         logging.info('started fetch_people_details_from_contact_ids_job')
         logging.info('no of contact_ids to fetch from insideview:{}'.format(len(contact_ids)))
         for df in self.insideview_fetcher.get_contact_details_from_contactids_job(contact_ids_list=contact_ids):
+            df = df.fillna('')
             df_dic_list = df.to_dict(orient='records')
             #todo: each record saved separately. saving together will save time
             for res_dic in df_dic_list:
+                titles = res_dic.get('titles')
+                if titles:
+                    res_dic['titles'] = titles.split(',')
+                else:
+                    res_dic['titles'] = []
+                jobFunctions = res_dic.get('jobFunctions')
+                if jobFunctions:
+                    res_dic['jobFunctions'] = jobFunctions.split('|')
+                else:
+                    res_dic['jobFunctions'] = []
+                jobLevels = res_dic.get('jobLevels')
+                if jobLevels:
+                    res_dic['jobLevels'] = jobLevels.split('|')
+                else:
+                    res_dic['jobLevels'] = []
+                sources = res_dic.get('sources')
+                if sources:
+                    res_dic['sources'] = sources.split('|')
+                else:
+                    res_dic['sources'] = []
+                education = res_dic.get('education','')
+                if education:
+                    education_list = education.split('|')
+                    education_list_final = []
+                    for i in education_list:
+                        degree,major,university = i.split(':')
+                        education_list_final.append({'degree':degree,'major':major,'university':university})
+                    res_dic['education'] = education_list_final
+                else:
+                    res_dic['education'] = []
                 self.data_util.save_contact_info(res_dic)
         logging.info('completed fetch_people_details_from_contact_ids_job')
 
@@ -262,7 +293,7 @@ class InsideviewContactFetcher(object):
         time.sleep(20)
         while (not out_queue.empty() or not in_queue.empty()) :
             logging.info('inqueue size:{},outqueue size:{}'.format(in_queue.qsize(),out_queue.qsize()))
-            res_list,person_id = out_queue.get(timeout=120)
+            res_list,person_id = out_queue.get(timeout=240)
             # logging.info('save to db person_id:{},res_list:{}'.format(person_id,res_list))
             self.data_util.save_contact_search_res_single(list_id,res_list,person_id)
             out_queue.task_done()
@@ -312,7 +343,7 @@ class InsideviewContactFetcher(object):
         time.sleep(20)
         while (not out_queue.empty() or not in_queue.empty()) :
             logging.info('inqueue size:{},outqueue size:{}'.format(in_queue.qsize(),out_queue.qsize()))
-            list_input_id,search_results = out_queue.get(timeout=120)
+            list_input_id,search_results = out_queue.get(timeout=240)
             self.save_contact_search_res_single(list_id,list_input_id,search_results)
             out_queue.task_done()
             if out_queue.qsize() < 5:
