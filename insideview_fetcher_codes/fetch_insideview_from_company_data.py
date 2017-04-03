@@ -298,7 +298,7 @@ class InsideviewCompanyFetcher(object):
                     in_queue.task_done()
                 except:
                     logging.exception('Error happened in worker in fetch_people_details_from_contact_ids')
-                    time.sleep(60)
+                    time.sleep(20)
         for contact_id in contact_ids:
             in_queue.put(contact_id)
         for i in range(n_threads):
@@ -406,7 +406,7 @@ class InsideviewCompanyFetcher(object):
                     in_queue.task_done()
                 except:
                     logging.exception('Error happened in worker in search_for_matching_people_from_ppl_details')
-                    time.sleep(60)
+                    time.sleep(20)
         for dets_tuple in ppl_details:
             person_dets,person_id = dets_tuple[:-1],dets_tuple[-1] #last item is the id
             in_queue.put((person_dets,person_id))
@@ -454,7 +454,7 @@ class InsideviewCompanyFetcher(object):
                     in_queue.task_done()
                 except:
                     logging.exception('Error happened in worker in fetch_people_details_from_newcontact_ids')
-                    time.sleep(60)
+                    time.sleep(20)
                     break
         for new_contact_id in new_contact_ids:
             in_queue.put(new_contact_id)
@@ -535,7 +535,7 @@ class InsideviewCompanyFetcher(object):
                     # logging.info('completed for company: {},{}'.format(comp_website,comp_name))
                 except:
                     logging.exception('Error happened in worker in company_search_insideview_multi')
-                    time.sleep(60)
+                    time.sleep(20)
                     break
         logging.info('starting the threads')
         for inp_tuple in comp_input_dets:
@@ -582,7 +582,7 @@ class InsideviewCompanyFetcher(object):
                     in_queue.task_done()
                 except:
                     logging.exception('Error happened in worker in get_save_company_details_from_insideview_compid_input')
-                    time.sleep(60)
+                    time.sleep(20)
                     break
         for comp_id in comp_ids_not_present:
             in_queue.put(comp_id)
@@ -610,10 +610,11 @@ class InsideviewCompanyFetcher(object):
         logging.info('no of comp_ids to fetch from insideview:{}'.format(len(comp_ids_not_present)))
         for df in self.insideview_fetcher.get_company_details_from_ids_job(comp_ids_not_present):
             df = df.fillna('')
+            df['companyId'] = df['id']
             df_dic_list = df.to_dict(orient='records')
             #todo: each record saved separately. saving together will save time
             for res_dic in df_dic_list:
-                websites = res_dic.get('websites')
+                websites = res_dic.get('website')
                 if websites:
                     websites = websites.split('|')
                     res_dic['websites'] = websites

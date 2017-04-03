@@ -146,7 +146,7 @@ class InsideviewContactFetcher(object):
                     in_queue.task_done()
                 except:
                     logging.exception('Error happened in worker in fetch_people_details_from_contact_ids')
-                    time.sleep(60)
+                    time.sleep(20)
                     break
         for contact_id in contact_ids:
             in_queue.put(contact_id)
@@ -281,7 +281,7 @@ class InsideviewContactFetcher(object):
                     in_queue.task_done()
                 except:
                     logging.exception('Error happened in worker in search_for_matching_people_from_ppl_details')
-                    time.sleep(60)
+                    time.sleep(20)
                     break
         for dets_tuple in ppl_details:
             person_dets,person_id = dets_tuple[:-1],dets_tuple[-1] #last item is the id
@@ -332,7 +332,7 @@ class InsideviewContactFetcher(object):
                     in_queue.task_done()
                 except:
                     logging.exception('Error happened in worker in search_contact_for_people_threaded')
-                    time.sleep(60)
+                    time.sleep(20)
                     break
         for list_input_id,search_dic in list_inputs:
             in_queue.put((list_input_id,search_dic))
