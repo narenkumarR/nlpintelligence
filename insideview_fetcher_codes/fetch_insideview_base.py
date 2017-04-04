@@ -241,10 +241,24 @@ class InsideviewDataFetcher(object):
         kwargs['resultsPerPage'] = results_per_page
         total_results,res_page_no = 9999999,0
         logging.info('companyIdsToInclude:{}'.format(kwargs['companyIdsToInclude']))
+        errors = 0
         while min(max_no_results,total_results) > res_page_no*results_per_page:
             res_page_no += 1
             kwargs['page'] = res_page_no
-            r = requests.post(self.throttler_app_address,params=search_dic,json=kwargs)
+            try:
+                r = requests.post(self.throttler_app_address,params=search_dic,json=kwargs)
+                errors = 0
+            except:
+                if errors > 1:
+                    logging.exception('error happened in search_contacts again. quitting')
+                    raise ValueError('error happened in search_contacts')
+                else:
+                    logging.exception('error happened in search_contacts. will try again once after 30 seconds')
+                    errors += 1
+                    time.sleep(30)
+                    self.api_counter.newcontact_search_hits -= 1 #reduce the count
+                    res_page_no -= 1
+                    continue
             self.api_counter.newcontact_search_hits += 1
             res_dic = json.loads(r.text)
             if res_dic.get('message') in ['request throttled by insideview','1000 per 5 minute']: #throttling reached, need to hit again after some time
