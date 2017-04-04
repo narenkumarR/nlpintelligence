@@ -117,7 +117,7 @@ class InsideviewDataFetcher(object):
                     logging.info('throttling limit reached. try this company later')
                     self.api_counter.company_search_hits -= 1
                     return ['throttling limit reached']
-                elif res_dic.get('message'):
+                elif res_dic.get('message'): #raise error if any other message comes.
                     raise ValueError('Error happened. {}'.format(res_dic))
                 break
             out_list.extend(res_dic.get('companies'))
@@ -153,20 +153,40 @@ class InsideviewDataFetcher(object):
         :param body:
         :return:
         '''
+        n_errors = 0
         while True:
-            r = requests.post(url,headers=headers,data=body)
-            r_dic = json.loads(r.text)
-            if r_dic.get('status') == 'accepted':
-                return r_dic
-            time.sleep(60)
+            try:
+                r = requests.post(url,headers=headers,data=body)
+                r_dic = json.loads(r.text)
+                if r_dic.get('status') == 'accepted':
+                    return r_dic
+                time.sleep(60)
+                n_errors = 0
+            except:
+                if n_errors > 3:
+                    raise ValueError('Could not create job')
+                n_errors += 1
+                logging.exception('Error happened while creating job. try again')
+                time.sleep(60)
+                continue
 
     def wait_till_job_completes(self,url,headers):
+        n_errors = 0
         while True:
-            time.sleep(60)
-            r = requests.get(url,headers=headers)
-            r_dic = json.loads(r.text)
-            if r_dic.get('status') == 'finished':
-                return r_dic
+            try:
+                time.sleep(60)
+                r = requests.get(url,headers=headers)
+                r_dic = json.loads(r.text)
+                if r_dic.get('status') == 'finished':
+                    return r_dic
+                n_errors = 0
+            except:
+                if n_errors > 5:
+                    raise ValueError('Could not check status from insideview')
+                n_errors += 1
+                logging.exception('Error happened while checking status of job. try again')
+                time.sleep(60)
+                continue
 
     def get_company_details_from_ids_job(self,company_ids_list):
         '''

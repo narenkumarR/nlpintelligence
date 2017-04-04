@@ -54,7 +54,17 @@ class RateLimitter(Resource):
         # if not req_dic:
         #     return {'value':'no data provided'}
         # out_dict = get_num_wait(request.args)
-        r = requests.get(url,params=req_dic,headers=headers)
+        n_errors = 0
+        while True:
+            try:
+                r = requests.get(url,params=req_dic,headers=headers)
+            except:
+                if n_errors > 3:
+                    time.sleep(20)
+                    return {'message':'some error happened in InsideView request'}
+                else:
+                    n_errors += 1
+                    time.sleep(20)
         if r.status_code == 429:
             logger.info('Request Throttled by InsideView')
             # print('request throttled by insideview')
@@ -84,7 +94,17 @@ class RateLimitter(Resource):
         logger.info('Inpt dict:{}'.format(req_dic))
         urls = req_dic.pop('url')
         url = urls[0]
-        r = requests.post(url,params=req_dic,headers=headers,data=json_data)
+        n_errors = 0
+        while True:
+            try:
+                r = requests.post(url,params=req_dic,headers=headers,data=json_data)
+            except:
+                if n_errors > 3:
+                    time.sleep(20)
+                    return {'message':'some error happened in InsideView request'}
+                else:
+                    n_errors += 1
+                    time.sleep(20)
         if r.status_code == 429:
             # print('request throttled by insideview')
             logger.info('Request Throttled by InsideView')
