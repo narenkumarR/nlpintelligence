@@ -165,7 +165,7 @@ class InsideviewContactFetcher(object):
         time.sleep(20)
         while (not out_queue.empty() or not in_queue.empty()) :
             logging.info('inqueue size:{},outqueue size:{}'.format(in_queue.qsize(),out_queue.qsize()))
-            res_dic = out_queue.get(timeout=3600)
+            res_dic = out_queue.get(timeout=600)
             self.data_util.save_contact_info(res_dic)
             out_queue.task_done()
 
@@ -309,7 +309,7 @@ class InsideviewContactFetcher(object):
         time.sleep(20)
         while (not out_queue.empty() or not in_queue.empty()) :
             logging.info('inqueue size:{},outqueue size:{}'.format(in_queue.qsize(),out_queue.qsize()))
-            res_list,person_id = out_queue.get(timeout=3600)
+            res_list,person_id = out_queue.get(timeout=600)
             # logging.info('save to db person_id:{},res_list:{}'.format(person_id,res_list))
             self.data_util.save_contact_search_res_single(list_id,res_list,person_id)
             out_queue.task_done()
@@ -367,7 +367,7 @@ class InsideviewContactFetcher(object):
         time.sleep(20)
         while (not out_queue.empty() or not in_queue.empty()) :
             logging.info('inqueue size:{},outqueue size:{}'.format(in_queue.qsize(),out_queue.qsize()))
-            list_input_id,search_results = out_queue.get(timeout=3600)
+            list_input_id,search_results = out_queue.get(timeout=600)
             self.save_contact_search_res_single(list_id,list_input_id,search_results)
             out_queue.task_done()
             if out_queue.qsize() < 5:

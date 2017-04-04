@@ -318,7 +318,7 @@ class InsideviewCompanyFetcher(object):
         time.sleep(20)
         while (not out_queue.empty() or not in_queue.empty()) :
             logging.info('inqueue size:{},outqueue size:{}'.format(in_queue.qsize(),out_queue.qsize()))
-            res_dic = out_queue.get(timeout=3600)
+            res_dic = out_queue.get(timeout=600)
             self.data_util.save_contact_info(res_dic)
             out_queue.task_done()
             if out_queue.qsize() < 5:
@@ -437,7 +437,7 @@ class InsideviewCompanyFetcher(object):
         time.sleep(20)
         while (not out_queue.empty() or not in_queue.empty()):
             logging.info('inqueue size:{},outqueue size:{}'.format(in_queue.qsize(),out_queue.qsize()))
-            res_list,person_id = out_queue.get(timeout=3600)
+            res_list,person_id = out_queue.get(timeout=600)
             # logging.info('save to db person_id:{},res_list:{}'.format(person_id,res_list))
             self.data_util.save_contact_search_res_single(list_id,res_list,person_id)
             out_queue.task_done()
@@ -494,7 +494,7 @@ class InsideviewCompanyFetcher(object):
         time.sleep(20)
         while (not out_queue.empty() or not in_queue.empty()):
             logging.info('inqueue size:{},outqueue size:{}'.format(in_queue.qsize(),out_queue.qsize()))
-            res_dic = out_queue.get(timeout=3600)
+            res_dic = out_queue.get(timeout=600)
             self.data_util.save_contact_info(res_dic)
             out_queue.task_done()
             if out_queue.qsize() < 5:
@@ -582,7 +582,7 @@ class InsideviewCompanyFetcher(object):
         time.sleep(60)
         while (not out_queue.empty() or not in_queue.empty()) :
             logging.info('inqueue size:{},outqueue size:{}'.format(in_queue.qsize(),out_queue.qsize()))
-            list_items_id,comp_search_results = out_queue.get(timeout=3600)
+            list_items_id,comp_search_results = out_queue.get(timeout=600)
             # logging.info('saving to database : {},{}'.format(list_items_id,comp_search_results))
             # if comp_search_results: #not needed as when running again, this causes this company to run again
             self.data_util.save_company_search_res_single(list_id,list_items_id,comp_search_results)
@@ -625,6 +625,7 @@ class InsideviewCompanyFetcher(object):
                 except:
                     logging.exception('Error happened in worker in get_save_company_details_from_insideview_compid_input '
                                       'while trying for company id :{}'.format(comp_id))
+                    in_queue.task_done()
                     time.sleep(20)
         for comp_id in comp_ids_not_present:
             in_queue.put(comp_id)
@@ -636,7 +637,7 @@ class InsideviewCompanyFetcher(object):
         time.sleep(20)
         while (not out_queue.empty() or not in_queue.empty()) :
             logging.info('inqueue size:{},outqueue size:{}'.format(in_queue.qsize(),out_queue.qsize()))
-            comp_dets_dic = out_queue.get(timeout=3600)
+            comp_dets_dic = out_queue.get(timeout=600)
             self.data_util.save_company_dets_dic_input(comp_dets_dic)
             out_queue.task_done()
             self.api_counter.company_details_hits += 1
