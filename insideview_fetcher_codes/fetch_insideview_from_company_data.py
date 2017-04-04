@@ -296,14 +296,19 @@ class InsideviewCompanyFetcher(object):
                         time.sleep(10)
                         continue
                     elif res_dic.get('message'):
-                        raise ValueError('Error happened. {}'.format(res_dic))
+                        logging.exception('fetch_people_details_from_contact_ids: message received indicates some error.'
+                                          ' response: {}'.format(res_dic))
+                        in_queue.task_done()
+                        time.sleep(20)
+                        continue
                     out_queue.put(res_dic)
+                    in_queue.task_done()
                     self.api_counter.contact_fetch_hits += 1
                 except:
                     logging.exception('Error happened in worker in fetch_people_details_from_contact_ids while'
                                       ' trying for contact_id {}'.format(contact_id))
+                    in_queue.task_done()
                     time.sleep(20)
-                in_queue.task_done()
         for contact_id in contact_ids:
             in_queue.put(contact_id)
         for i in range(n_threads):
@@ -409,13 +414,18 @@ class InsideviewCompanyFetcher(object):
                         time.sleep(10)
                         continue
                     elif res_dic.get('message'):
-                        raise ValueError('Error happened. {}'.format(res_dic))
+                        logging.exception('search_for_matching_people_from_ppl_details: message received indicates some error.'
+                                          ' response:{}'.format(res_dic))
+                        in_queue.task_done()
+                        time.sleep(10)
+                        continue
                     # logging.info('search result person_id:{}, res_dic contacts:{}'.format(person_id,res_dic.get('contacts',[])))
                     out_queue.put((res_dic.get('contacts',[]),person_id))
                     in_queue.task_done()
                 except:
                     logging.exception('Error happened in worker in search_for_matching_people_from_ppl_details while '
                                       'trying for {}'.format((dets_tuple,person_id)))
+                    in_queue.task_done()
                     time.sleep(20)
         for dets_tuple in ppl_details:
             person_dets,person_id = dets_tuple[:-1],dets_tuple[-1] #last item is the id
@@ -462,7 +472,11 @@ class InsideviewCompanyFetcher(object):
                         time.sleep(10)
                         continue
                     elif res_dic.get('message'):
-                        raise ValueError('Error happened. {}'.format(res_dic))
+                        logging.exception('fetch_people_details_from_newcontact_ids: message recieved indicates some error. '
+                                          'response : {}'.format(res_dic))
+                        in_queue.task_done()
+                        time.sleep(10)
+                        continue
                     out_queue.put(res_dic)
                     self.api_counter.newcontact_email_hits += 1
                     in_queue.task_done()
@@ -470,7 +484,7 @@ class InsideviewCompanyFetcher(object):
                     logging.exception('Error happened in worker in fetch_people_details_from_newcontact_ids while '
                                       'trying for new_contact_id {}'.format(new_contact_id))
                     time.sleep(20)
-                    break
+                    in_queue.task_done()
         for new_contact_id in new_contact_ids:
             in_queue.put(new_contact_id)
         for i in range(n_threads):
@@ -556,7 +570,7 @@ class InsideviewCompanyFetcher(object):
                     logging.exception('Error happened in worker in company_search_insideview_multi while trying '
                                       'for {}'.format((company_name,website,country,state,city,list_items_id)))
                     time.sleep(20)
-                    break
+                    in_queue.task_done()
         logging.info('starting the threads')
         for inp_tuple in comp_input_dets:
             in_queue.put(inp_tuple)
@@ -601,14 +615,17 @@ class InsideviewCompanyFetcher(object):
                         time.sleep(10)
                         continue
                     elif comp_dets_dic.get('message'):
-                        raise ValueError('Error happened. {}'.format(comp_dets_dic))
+                        logging.exception('get_save_company_details_from_insideview_compid_input: message recieved indicates some error. '
+                                          'response : {}'.format(comp_dets_dic))
+                        in_queue.task_done()
+                        time.sleep(10)
+                        continue
                     out_queue.put(comp_dets_dic)
                     in_queue.task_done()
                 except:
                     logging.exception('Error happened in worker in get_save_company_details_from_insideview_compid_input '
                                       'while trying for company id :{}'.format(comp_id))
                     time.sleep(20)
-                    break
         for comp_id in comp_ids_not_present:
             in_queue.put(comp_id)
         for i in range(n_threads):

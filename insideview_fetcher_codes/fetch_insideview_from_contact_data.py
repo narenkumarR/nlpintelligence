@@ -144,7 +144,11 @@ class InsideviewContactFetcher(object):
                         time.sleep(10)
                         continue
                     elif res_dic.get('message'):
-                        raise ValueError('Error happened. {}'.format(res_dic))
+                        logging.exception('fetch_people_details_from_contact_ids: message recieved indicates some error. '
+                                          'response : {}'.format(res_dic))
+                        in_queue.task_done()
+                        time.sleep(10)
+                        continue
                     out_queue.put(res_dic)
                     self.api_counter.contact_fetch_hits += 1
                     in_queue.task_done()
@@ -152,7 +156,6 @@ class InsideviewContactFetcher(object):
                     logging.exception('Error happened in worker in fetch_people_details_from_contact_ids while '
                                       'trying for contact_id: {}'.format(contact_id))
                     time.sleep(20)
-                    break
         for contact_id in contact_ids:
             in_queue.put(contact_id)
         for i in range(n_threads):
@@ -284,7 +287,11 @@ class InsideviewContactFetcher(object):
                         time.sleep(10)
                         continue
                     elif res_dic.get('message'):
-                        raise ValueError('Error happened. {}'.format(res_dic))
+                        logging.exception('search_for_matching_people_from_ppl_details: message recieved indicates some error. '
+                                          'response : {}'.format(res_dic))
+                        in_queue.task_done()
+                        time.sleep(10)
+                        continue
                     # logging.info('search result person_id:{}, res_dic contacts:{}'.format(person_id,res_dic.get('contacts',[])))
                     out_queue.put((res_dic.get('contacts',[]),person_id))
                     in_queue.task_done()
@@ -292,7 +299,6 @@ class InsideviewContactFetcher(object):
                     logging.exception('Error happened in worker in search_for_matching_people_from_ppl_details while '
                                       'trying for {}'.format((dets_tuple,person_id)))
                     time.sleep(20)
-                    break
         for dets_tuple in ppl_details:
             person_dets,person_id = dets_tuple[:-1],dets_tuple[-1] #last item is the id
             in_queue.put((person_dets,person_id))
@@ -340,7 +346,11 @@ class InsideviewContactFetcher(object):
                         time.sleep(10)
                         continue
                     elif search_results.get('message'):
-                        raise ValueError('Error happened. {}'.format(res_dic))
+                        logging.exception('search_contact_for_people_threaded: message recieved indicates some error. '
+                                          'response : {}'.format(search_results))
+                        in_queue.task_done()
+                        time.sleep(10)
+                        continue
                     out_list = res_dic.get('contacts',[])
                     out_queue.put((list_input_id,out_list))
                     in_queue.task_done()
@@ -348,7 +358,6 @@ class InsideviewContactFetcher(object):
                     logging.exception('Error happened in worker in search_contact_for_people_threaded while trying '
                                       'for {}'.format((list_input_id,search_dic)))
                     time.sleep(20)
-                    break
         for list_input_id,search_dic in list_inputs:
             in_queue.put((list_input_id,search_dic))
         for i in range(n_threads):
